@@ -37,7 +37,7 @@ def prepare_dataset(
     # apply pipeline to dataset
     for p_config in config.pipeline:
         # build processor
-        p_type = hyped.get_processor_type_from_config(p_config)
+        p_type = hyped.pipeline.get_processor_type_from_config(p_config)
         p = p_type(p_config)
         # map features
         features = p.map_features(features)
@@ -59,7 +59,7 @@ def prepare_dataset(
     # apply filters to dataset
     for f_config in config.filters:
         # build processor
-        f_type = hyped.get_filter_type_from_config(f_config)
+        f_type = hyped.pipeline.get_filter_type_from_config(f_config)
         f = f_type(f_config)
         # apply processor
         ds = ds.filter(

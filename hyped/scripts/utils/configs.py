@@ -28,8 +28,8 @@ class DataConfig(pydantic.BaseModel):
     }
 
     # preprocessing pipeline
-    pipeline:list[hyped.AnyProcessorConfig]
-    filters:list[hyped.AnyFilterConfig]
+    pipeline:list[hyped.pipeline.AnyProcessorConfig]
+    filters:list[hyped.pipeline.AnyFilterConfig]
 
     # columns to keep
     columns:dict[str, str]
