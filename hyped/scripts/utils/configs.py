@@ -2,15 +2,34 @@ import hyped
 import pydantic
 import datasets
 import transformers
+from typing_extensions import Annotated
 
 class DataConfig(pydantic.BaseModel):
     """Data Configuration Model"""
     # dataset config
     dataset:str
     splits:list[str] = [datasets.Split.TRAIN, datasets.Split.TEST]
-    # data processing config
-    processor:hyped.AnyProcessorConfig = pydantic.Field(..., discriminator='type')
-    filter:hyped.AnyFilterConfig = pydantic.Field(...) #, discriminator='type')
+
+    # preprocessing pipeline
+    pipeline:list[hyped.AnyProcessorConfig]
+    filters:list[hyped.AnyFilterConfig]
+
+    # columns to keep
+    columns:dict[str, str]
+
+    #pipeline:list[
+    #    Annotated[
+    #        hyped.AnyProcessorConfig,
+    #        pydantic.Field(..., discriminator='processor_type')
+    #    ]
+    #]
+    # data filters
+    #filters:list[
+    #    Annotated[
+    #        hyped.AnyFilterConfig,
+    #        pydantic.Field(..., discriminator='filter_type')
+    #    ]
+    #]
 
     @pydantic.validator('dataset')
     def validate_dataset(cls, v):
@@ -45,7 +64,11 @@ class ModelConfig(pydantic.BaseModel):
 
     @property
     def tokenizer(self) -> transformers.PreTrainedTokenizer:
-        return transformers.AutoTokenizer.from_pretrained(self.pretrained_ckpt, use_fast=True, add_prefix_space=True)
+        return transformers.AutoTokenizer.from_pretrained(
+            self.pretrained_ckpt,
+            use_fast=True,
+            add_prefix_space=True
+        )
 
 
 class RunConfig(pydantic.BaseModel):

@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
 
-from transformers import PreTrainedTokenizer
-
 from inspect import signature
 from dataclasses import dataclass
 
@@ -11,18 +9,12 @@ from typing import Any, Literal
 
 @dataclass
 class DataFilterConfig(object):
-    type:Literal['abstract-data-filter'] = 'abstract-data-filter'
+    filter_type:Literal['abstract-data-filter'] = 'abstract-data-filter'
 
 class DataFilter(ABC):
     """Abstract Data Filter"""
 
-    def __init__(
-        self,
-        tokenizer:PreTrainedTokenizer,
-        config:DataFilterConfig
-    ) -> None:
-        # save tokenizer and config
-        self.tokenizer = tokenizer
+    def __init__(self, config:DataFilterConfig) -> None:
         self.config = config
 
     @property

@@ -1,8 +1,5 @@
 from abc import ABC, abstractmethod
 
-from transformers import PreTrainedTokenizer
-from datasets.tasks.base import TaskTemplate
-
 from inspect import signature
 from dataclasses import dataclass
 
@@ -11,18 +8,12 @@ from typing import Any, Literal
 
 @dataclass
 class DataProcessorConfig(object):
-    type:Literal['abstract-data-processor'] = 'abstract-data-processor'
+    processor_type:Literal['abstract-data-processor'] = 'abstract-data-processor'
 
 class DataProcessor(ABC):
     """Abstract Data Processor"""
 
-    def __init__(
-        self,
-        tokenizer:PreTrainedTokenizer,
-        config:DataProcessorConfig
-    ) -> None:
-        # save tokenizer and config
-        self.tokenizer = tokenizer
+    def __init__(self, config:DataProcessorConfig) -> None:
         self.config = config
 
     @property
@@ -32,11 +23,6 @@ class DataProcessor(ABC):
     @property
     def requires_index(self) -> bool:
         return 'index' in signature(self.process).parameters
-
-    @property
-    @abstractmethod
-    def template(self) -> TaskTemplate:
-        ...
 
     @abstractmethod
     def process(self, example:Any) -> dict[str, np.ndarray]:

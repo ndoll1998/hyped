@@ -1,12 +1,13 @@
 from .filter import DataFilter, DataFilterConfig
 from dataclasses import dataclass
 from typing import Any, Literal
-from transformers import PreTrainedTokenizer
+from transformers import AutoTokenizer
 
 @dataclass
 class MinSeqLenFilterConfig(DataFilterConfig):
-    type:Literal['min-seq-len-filter'] = 'min-seq-len-filter'
+    filter_type:Literal['min-seq-len-filter'] = 'min-seq-len-filter'
     # minimum number of tokens
+    pretrained_ckpt:str ="bert-base-uncased"
     min_length:int =16
 
 class MinSeqLenFilter(DataFilter):
@@ -18,15 +19,10 @@ class MinSeqLenFilter(DataFilter):
     unknown tokens and other spacial tokens specific to the tokenizer
     """
 
-    def __init__(
-        self,
-        tokenizer:PreTrainedTokenizer,
-        config:MinSeqLenFilterConfig
-    ) -> None:
-        super(MinSeqLenFilter, self).__init__(
-            tokenizer=tokenizer,
-            config=config
-        )
+    def __init__(self, config:MinSeqLenFilterConfig) -> None:
+        super(MinSeqLenFilter, self).__init__(config)
+        # load tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(config.pretrained_ckpt)
 
     def filter(self, example:Any) -> bool:
         # count the number of special tokens and check against threshold
