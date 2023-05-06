@@ -7,10 +7,12 @@ from datetime import datetime
 from typing_extensions import Annotated
 from typing import Optional
 
+
 import warnings
 # ignore warning of _n_gpu field of TrainingArguments
 # dataclass when converted to pydantic model
-warnings.filterwarnings("ignore",
+warnings.filterwarnings(
+    "ignore",
     category=RuntimeWarning,
     message="fields may not start with an underscore, ignoring \"_n_gpu\""
 )
@@ -19,7 +21,11 @@ class DataConfig(pydantic.BaseModel):
     """Data Configuration Model"""
     # dataset config
     dataset:str
-    splits:list[str] = [datasets.Split.TRAIN, datasets.Split.TEST]
+    splits:dict[str, str] = {
+        datasets.Split.TRAIN: datasets.Split.TRAIN,
+        datasets.Split.VALIDATION: datasets.Split.VALIDATION,
+        datasets.Split.TEST: datasets.Split.TEST
+    }
 
     # preprocessing pipeline
     pipeline:list[hyped.AnyProcessorConfig]
@@ -43,7 +49,7 @@ class DataConfig(pydantic.BaseModel):
     #]
 
     @pydantic.validator('dataset')
-    def validate_dataset(cls, v):
+    def _check_dataset(cls, v):
         if v is None:
             raise ValueError("No Dataset provided by configuration!")
         try:
@@ -60,9 +66,25 @@ class DataConfig(pydantic.BaseModel):
 
 class ModelConfig(pydantic.BaseModel):
     """Model Configuration Model"""
-    pretrained_ckpt:str
+    encoder_pretrained_ckpt:str
+    heads:list[dict|hyped.modeling.PredictionHeadConfig]
+    kwargs:dict
 
-    @pydantic.validator('pretrained_ckpt')
+    def set_label_space_from_features(self, features:datasets.Features) -> None:
+        for h in self.heads:
+            h.set_label_space_from_features(features)
+
+    @pydantic.validator('heads', each_item=True)
+    def _parse_head_configs(cls, value):
+        # check for head type
+        if 'head_type' not in value:
+            raise ValueError("`head_type` not provided")
+        # create head config instance
+        return transformers.AutoConfig.for_model(
+            value.pop('head_type'), **value
+        )
+
+    @pydantic.validator('encoder_pretrained_ckpt')
     def _check_pretrained_ckpt(cls, value):
         try:
             # check if model is valid by loading config
@@ -73,19 +95,15 @@ class ModelConfig(pydantic.BaseModel):
 
         return value
 
-    @property
-    def tokenizer(self) -> transformers.PreTrainedTokenizer:
-        return transformers.AutoTokenizer.from_pretrained(
-            self.pretrained_ckpt,
-            use_fast=True,
-            add_prefix_space=True
-        )
+    class Config:
+        # required as PredictionHeadConfig instances are not type safe
+        arbitrary_types_allowed=True
 
 @pydantic.dataclasses.dataclass
 @dataclasses.dataclass
 class TrainerConfig(transformers.TrainingArguments):
     """ Trainer Configuration """
-    # passed from experiment config and needed for output directory
+    # passed fromi run config and needed for output directory
     name:str =None
     # create default for output directory
     run_name:str ="{name}-{timestamp}"
@@ -120,6 +138,9 @@ class TrainerConfig(transformers.TrainingArguments):
     sharded_ddp:str|list[transformers.trainer_utils.ShardedDDPOption]  =""
     fsdp:str|list[transformers.trainer_utils.FSDPOption]               =""
     fsdp_config:Optional[str|dict]                                     =None
+    # don't do that because we use args and kwargs in the
+    # model's forward function which confuses the trainer
+    remove_unused_columns:bool =False
 
     # use pytorch implementation of AdamW optimizer
     # to avoid deprecation warning
@@ -144,3 +165,19 @@ class TrainerConfig(transformers.TrainingArguments):
                 timestamp=datetime.now().isoformat()
             ),
         }
+
+class RunConfig(pydantic.BaseModel):
+    """Run Configuration Model"""
+    # run name
+    name:str
+    # model and trainer configuration
+    model:ModelConfig
+    trainer:TrainerConfig
+
+    @pydantic.validator('trainer', pre=True)
+    def _pass_name_to_trainer_config(cls, v, values):
+        assert 'name' in values
+        if isinstance(v, pydantic.BaseModel):
+            return v.copy(update={'name': values.get('name')})
+        elif isinstance(v, dict):
+            return v | {'name': values.get('name')}

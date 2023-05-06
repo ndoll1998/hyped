@@ -1,19 +1,15 @@
 from typing import Union
 from . import (
     processors,
-    filters
+    filters,
+    modeling
 )
 
 __all__ = [
     'processors',
-    'filters'
+    'filters',
+    'modeling'
 ]
-
-from typing import Literal
-from dataclasses import dataclass
-@dataclass
-class TestConfig:
-    processor_type:Literal['test'] = 'test'
 
 # type hints
 AnyProcessorConfig = Union[
@@ -25,7 +21,6 @@ AnyFilterConfig = Union[
 
 # processor mapping
 PROCESSOR_MAPPING = {
-    processors.DataProcessorConfig: processors.DataProcessor,
     processors.TokenizerProcessorConfig: processors.TokenizerProcessor
 }
 

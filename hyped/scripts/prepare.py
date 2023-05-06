@@ -88,7 +88,7 @@ def prepare_dataset(
             break
     else:
         # convert to tensor dataset as all sequences have fixed length
-        return {'features': features} | \
+        return {'__features': features} | \
             {s: NamedTensorDataset.from_dataset(d) for s, d in ds.items()}
 
     # return as is
@@ -115,7 +115,6 @@ def main():
     # load dataset splits
     logger.info("Downloading/Loading dataset splits")
     ds = datasets.load_dataset(config.dataset, split=config.splits)
-    ds = datasets.DatasetDict(zip(config.splits, ds))
     # prepare dataset
     logger.info("Prepareing dataset splits")
     ds = prepare_dataset(ds, config, max_size=args.max_size)
