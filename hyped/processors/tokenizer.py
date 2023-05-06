@@ -1,6 +1,7 @@
 import numpy as np
 from .processor import DataProcessor, DataProcessorConfig
 from transformers import AutoTokenizer
+from datasets import Features, Sequence, Value
 from dataclasses import dataclass, asdict
 from typing import Literal, Union, Optional, Any
 
@@ -44,6 +45,30 @@ class TokenizerProcessor(DataProcessor):
             config.pretrained_ckpt,
             use_fast=True
         )
+
+    def map_features(self, features:Features) -> Features:
+        # check for constant length
+        is_constant = (self.config.max_length is not None) and \
+            (self.config.padding == 'max_length') and \
+            (self.config.truncation in (True, 'longest_first', 'only_first', 'only_second'))
+        length = self.config.max_length if is_constant else -1
+        # add features
+        features['input_ids'] = Sequence(Value(dtype='int64'), length=length)
+        if self.config.return_token_type_ids:
+            features['token_type_ids'] = Sequence(Value(dtype='int64'), length=length)
+        if self.config.return_attention_mask:
+            features['attention_mask'] = Sequence(Value(dtype='int32'), length=length)
+        if self.config.return_overflowing_tokens:
+            features['overflowing_tokens'] = Sequence(Value(dtype='string'))
+            features['num_truncated_tokens'] = Value(dtype='int32')
+        if self.config.return_special_tokens_mask:
+            features['special_tokens_mask'] = Sequence(Value(dtype='int32'), length=length)
+        if self.config.return_special_tokens_mask:
+            features['special_tokens_mask'] = Sequence(Value(dtype='int32'), length=length)
+        if self.config.return_length:
+            features['length'] = Value(dtype='int32')
+        # return updated features
+        return features
 
     @property
     def tokenization_kwargs(self) -> dict:

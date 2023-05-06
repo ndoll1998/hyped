@@ -19,12 +19,11 @@ from hyped.scripts.utils.configs import DataConfig
 
 logger = logging.getLogger(__name__)
 
-
 def prepare_dataset(
     ds:datasets.DatasetDict,
     config:DataConfig,
     max_size:int | None =None,
-) -> dict[str, datasets.arrow_dataset.Dataset]:
+) -> dict[str, torch.utils.data.Dataset | datasets.Features]:
 
     # reduce datasets if they are too large
     for s, d in ds.items():
@@ -33,11 +32,15 @@ def prepare_dataset(
             idx = np.random.choice(len(d), max_size, replace=False)
             ds[s] = d.select(idx)
 
+    # get initial features
+    features = config.info.features
     # apply pipeline to dataset
     for p_config in config.pipeline:
         # build processor
         p_type = hyped.get_processor_type_from_config(p_config)
         p = p_type(p_config)
+        # map features
+        features = p.map_features(features)
         # apply processor
         ds = ds.map(
             function=p,
@@ -47,6 +50,11 @@ def prepare_dataset(
             load_from_cache_file=False,
             desc=p_type.__name__
         )
+
+        # make sure the dataset columns match the updated
+        # features at least in terms of naming
+        for s, d in ds.items():
+            assert set(d.column_names) == set(features), "Mismatch between %s dataset columns (%s) and features (%s)" % (s, str(d.column_names), str(list(features.keys())))
 
     # apply filters to dataset
     for f_config in config.filters:
@@ -66,12 +74,26 @@ def prepare_dataset(
     for t, s in config.columns.items():
         if t != s:
             ds = ds.rename_column(s, t)
-
     # set data format to torch
     ds.set_format(type='torch', columns=list(config.columns.keys()))
-    # convert dataset to named tensor dataset
-    logger.info("Converting data format")
-    return {s: NamedTensorDataset.from_dataset(d) for s, d in ds.items()}
+
+    # get data schema after pipeline, column renaming and formatting
+    features = datasets.Features({t: features[s] for t, s in config.columns.items()})
+    logger.debug("Dataset Features: %s" % str(features))
+
+    # check if all features are stackable
+    for n, f in features.items():
+        if isinstance(f, datasets.Sequence) and (f.length == -1):
+            logger.info("Feature %s has undefined length, cannot converting to Tensor Dataset!" % n)
+            break
+    else:
+        # convert to tensor dataset as all sequences have fixed length
+        return {'features': features} | \
+            {s: NamedTensorDataset.from_dataset(d) for s, d in ds.items()}
+
+    # return as is
+    return {'__features': features} | ds
+
 
 def main():
     from argparse import ArgumentParser

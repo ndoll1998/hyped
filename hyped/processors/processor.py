@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datasets import Features
 
 from inspect import signature
 from dataclasses import dataclass
@@ -23,6 +24,10 @@ class DataProcessor(ABC):
     @property
     def requires_index(self) -> bool:
         return 'index' in signature(self.process).parameters
+
+    @abstractmethod
+    def map_features(self, features:Features) -> Features:
+        ...
 
     @abstractmethod
     def process(self, example:Any) -> dict[str, np.ndarray]:
