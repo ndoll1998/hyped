@@ -32,7 +32,7 @@ class ArbitraryEncoderPlusHeadsConfig(PretrainedConfig):
         self.heads = []
         for head_c in heads:
             head_t = head_c.pop('model_type')
-            head = AutoConfig.for_model(head_t, encoder_config=self.encoder, **head_c)
+            head = AutoConfig.for_model(head_t, **head_c)
             self.heads.append(head)
 
     @classmethod
@@ -72,7 +72,10 @@ class ArbitraryEncoderPlusHeads(PreTrainedModel):
         self.encoder_attribute_name = encoder.__class__.base_model_prefix
         setattr(self, self.encoder_attribute_name, encoder)
         # create prediction heads
-        self.heads = nn.ModuleList([AutoModel.from_config(c) for c in config.heads])
+        self.heads = nn.ModuleList([
+            AutoModel.from_config(c, encoder_config=config.encoder)
+            for c in config.heads
+        ])
 
         # check encoder config
         if self.encoder.config.to_dict() != self.config.encoder.to_dict():
@@ -90,7 +93,12 @@ class ArbitraryEncoderPlusHeads(PreTrainedModel):
         return getattr(self, self.encoder_attribute_name)
 
     @classmethod
-    def from_pretrained_encoder(cls, pretrained_model_name_or_path:str, heads=[], **kwargs) -> ArbitraryEncoderPlusHeads:
+    def from_pretrained_encoder(
+        cls,
+        pretrained_model_name_or_path:str,
+        heads:list[PretrainedConfig]=[],
+        **kwargs
+    ) -> ArbitraryEncoderPlusHeads:
 
         # separate kwargs specific for encoder from general model kwargs
         encoder_kwargs = {arg[8:]:kwargs.pop(args) for arg in kwargs if arg.startswith("encoder_")}
@@ -103,7 +111,7 @@ class ArbitraryEncoderPlusHeads(PreTrainedModel):
             heads=heads,
             **kwargs
         )
-
+        # load pretrained encoder
         return ArbitraryEncoderPlusHeads.from_pretrained(
             pretrained_model_name_or_path,
             config=config,
