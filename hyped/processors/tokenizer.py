@@ -43,7 +43,8 @@ class TokenizerProcessor(DataProcessor):
         # load tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
             config.pretrained_ckpt,
-            use_fast=True
+            use_fast=True,
+            add_prefix_space=True
         )
 
     def map_features(self, features:Features) -> Features:
