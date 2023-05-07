@@ -2,6 +2,7 @@ from __future__ import annotations
 from tqdm.auto import tqdm
 from torch import Tensor
 from torch.utils.data import Dataset, TensorDataset, default_collate
+from dataclasses import dataclass
 
 class NamedTensorDataset(TensorDataset):
     """ Dataset similar to `TensorDataset` but returns takes named tensors
@@ -26,3 +27,8 @@ class NamedTensorDataset(TensorDataset):
         assert all((isinstance(t, Tensor) for t in data.values()))
         # convert to named tensor dataset
         return NamedTensorDataset(**data)
+
+@dataclass
+class DataDump(object):
+    features:datasets.Features
+    datasets:dict[str,Dataset]

@@ -8,7 +8,7 @@ import logging
 # utils
 from typing import Any
 from functools import partial
-from hyped.scripts.utils.data import NamedTensorDataset
+from hyped.scripts.utils.data import DataDump
 from hyped.scripts.utils.configs import RunConfig
 
 # TODO: log more stuff
@@ -76,16 +76,15 @@ def train(
     # load data dumps
     for dpath in data_dumps:
         # load data
-        ds = torch.load(dpath)
-        f = ds.pop('__features')
+        dump = torch.load(dpath)
         # set features at first iteration
-        features = features or f
+        features = features or dump.features
         # check feature compatibility
-        if f != features:
+        if dump.features != features:
             raise ValueError("Features of dataset %s don't align with those of %s." % (
                 dpath, data_dumps[0]))
         # add to total data
-        for s, d in ds.items():
+        for s, d in dump.datasets.items():
             if s in data:
                 data[s].append(d)
             else:

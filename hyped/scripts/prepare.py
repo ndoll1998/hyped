@@ -14,7 +14,7 @@ import transformers
 import numpy as np
 import logging
 # utils
-from hyped.scripts.utils.data import NamedTensorDataset
+from hyped.scripts.utils.data import NamedTensorDataset, DataDump
 from hyped.scripts.utils.configs import DataConfig
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ def prepare_dataset(
     ds:datasets.DatasetDict,
     config:DataConfig,
     max_size:int | None =None,
-) -> dict[str, torch.utils.data.Dataset | datasets.Features]:
+) -> DataDump:
 
     # reduce datasets if they are too large
     for s, d in ds.items():
@@ -88,11 +88,13 @@ def prepare_dataset(
             break
     else:
         # convert to tensor dataset as all sequences have fixed length
-        return {'__features': features} | \
-            {s: NamedTensorDataset.from_dataset(d) for s, d in ds.items()}
+        return DataDump(
+            features=features,
+            datasets={s: NamedTensorDataset.from_dataset(d) for s, d in ds.items()}
+        )
 
     # return as is
-    return {'__features': features} | ds
+    return DataDump(features=features, datasets=ds)
 
 
 def main():
