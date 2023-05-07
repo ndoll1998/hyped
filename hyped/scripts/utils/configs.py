@@ -5,7 +5,7 @@ import pydantic
 import dataclasses
 from datetime import datetime
 from typing_extensions import Annotated
-from typing import Optional
+from typing import Optional, Any
 
 
 import warnings
@@ -67,12 +67,11 @@ class DataConfig(pydantic.BaseModel):
 class ModelConfig(pydantic.BaseModel):
     """Model Configuration Model"""
     encoder_pretrained_ckpt:str
-    heads:list[dict|hyped.modeling.PredictionHeadConfig]
+    heads:dict[str,dict|hyped.modeling.PredictionHeadConfig]
     kwargs:dict
 
-    def set_label_space_from_features(self, features:datasets.Features) -> None:
-        for h in self.heads:
-            h.set_label_space_from_features(features)
+    def check_and_prepare(self, features:datasets.Features) -> None:
+        [h.check_and_prepare(features) for h in self.heads.values()]
 
     @pydantic.validator('heads', each_item=True)
     def _parse_head_configs(cls, value):
@@ -173,6 +172,7 @@ class RunConfig(pydantic.BaseModel):
     # model and trainer configuration
     model:ModelConfig
     trainer:TrainerConfig
+    metrics:dict[str,dict[str,Any]]
 
     @pydantic.validator('trainer', pre=True)
     def _pass_name_to_trainer_config(cls, v, values):

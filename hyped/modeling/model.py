@@ -27,46 +27,52 @@ class MultiHeadModelOutput(ModelOutput):
     hidden_states:None|tuple[torch.FloatTensor] =None
     attentions:None|torch.FloatTensor =None
     # prediciton head outputs
-    head_outputs:None|tuple[PredictionHeadOutput] =None
+    head_losses:None|dict[str,torch.FloatTensor] =None
+    head_logits:None|dict[str,torch.FloatTensor] =None
 
 class ArbitraryEncoderWithHeadsConfig(PretrainedConfig):
     model_type = "encoder-with-heads"
     is_composition = True
 
-    def __init__(self, encoder:dict, heads:list[dict] =[], **kwargs) -> None:
+    def __init__(self, encoder:dict, heads:dict[str,dict] ={}, **kwargs) -> None:
+        # add keys to ignore for model
+        keys_to_ignore = list(kwargs.get("keys_to_ignore_at_inference", []))
+        keys_to_ignore += ["last_hidden_state", "hidden_states", "attentions", "head_losses"]
+        kwargs["keys_to_ignore_at_inference"] = keys_to_ignore
+        # initialize configuration
         super(ArbitraryEncoderWithHeadsConfig, self).__init__(**kwargs)
         # create encoder config
         encoder_type = encoder.pop('model_type')
         self.encoder = AutoConfig.for_model(encoder_type, **encoder)
         # create all head configurations
-        self.heads = []
-        for head_c in heads:
+        self.heads = {}
+        for name, head_c in heads.items():
             head_t = head_c.pop('model_type')
             head = AutoConfig.for_model(head_t, **head_c)
             # check type, thus shouldn't be possible given the way
             # the heads are registered to the auto classes
             assert isinstance(head, PredictionHeadConfig), "Prediction head configurations (%s) must inherit from `PredictionHeadConfig` class." % head.__class__.__name__
             # add to list
-            self.heads.append(head)
+            self.heads[name] = head
 
     @classmethod
     def from_configs(
         cls,
         encoder:PretrainedConfig,
-        heads:list[PretrainedConfig],
+        heads:dict[str,PredictionHeadConfig],
         **kwargs
     ) -> ArbitraryEncoderWithHeadsConfig:
         # convert configs to dicts
         return cls(
             encoder=encoder.to_dict(),
-            heads=[c.to_dict() for c in heads],
+            heads={n:c.to_dict() for n, c in heads.items()},
             **kwargs
         )
 
     def to_dict(self) -> dict:
         output = copy.deepcopy(self.__dict__)
         output["encoder"] = self.encoder.to_dict()
-        output["heads"] = [c.to_dict() for c in self.heads]
+        output["heads"] = {n:c.to_dict() for n,c in self.heads.items()}
         output["model_type"] = self.__class__.model_type
         return output
 
@@ -91,23 +97,23 @@ class ArbitraryEncoderWithHeads(PreTrainedModel):
             self.encoder.config = self.config.encoder
 
         # create prediction heads
-        self.heads = nn.ModuleList([
-            AutoModel.from_config(c, encoder_config=config.encoder)
-            for c in config.heads
-        ])
+        self.heads = nn.ModuleDict({
+            name: AutoModel.from_config(c, encoder_config=config.encoder)
+            for name, c in config.heads.items()
+        })
         # check head configs
-        for i, head_config in enumerate(self.config.heads):
-            if not isinstance(self.heads[i], PredictionHead):
-                raise ValueError("Prediction head (%s) must inherit from `PredictionHead` class." % self.heads[i].__class__.__name__)
-            if self.heads[i].config.to_dict() != head_config.to_dict():
-                logger.warning("Config of the %i-th head (%s) is overritten by shared head config (%s)" % (i+1, self.heads[i].__class__, head_config))
-                self.heads[i].config = head_config
+        for name, head_config in self.config.heads.items():
+            if not isinstance(self.heads[name], PredictionHead):
+                raise ValueError("Prediction head (%s) must inherit from `PredictionHead` class." % self.heads[name].__class__.__name__)
+            if self.heads[name].config.to_dict() != head_config.to_dict():
+                logger.warning("Config of the %s head (%s) is overritten by shared head config (%s)" % (name, self.heads[name].__class__, head_config))
+                self.heads[name].config = head_config
 
     @classmethod
     def from_pretrained_encoder(
         cls,
         pretrained_encoder_name_or_path:str,
-        heads:list[PretrainedConfig]=[],
+        heads:dict[str,PredictionHeadConfig]={},
         **kwargs
     ) -> ArbitraryEncoderWithHeads:
 
@@ -150,15 +156,23 @@ class ArbitraryEncoderWithHeads(PreTrainedModel):
         h = self.encoder(**enc_kwargs)
 
         # apply each head and accumulate loss of all heads
-        outs = [head(h, labels=kwargs.get(head.config.label_column, None)) for head in self.heads]
-        loss = sum(o.loss * head.config.loss_coeff for o, head in zip(outs, self.heads) if o.loss is not None)
+        outs = {name: head(h, labels=kwargs.get(head.config.label_column, None)) for name, head in self.heads.items()}
+        loss = sum(outs[name].loss * head.config.loss_coeff for name, head in self.heads.items() if outs[name].loss is not None)
 
-        return MultiHeadModelOutput(
+        # build model output
+        output = MultiHeadModelOutput(
             loss=loss,
-            # encoder states
+            # final hidden state
             last_hidden_state=h.last_hidden_state,
-            hidden_states=h.hidden_states if output_hidden_states else None,
-            attentions=h.attentions if output_attentions else None,
             # head outputs
-            head_outputs=outs
+            head_losses={name:out.loss for name, out in outs.items()},
+            head_logits={name:out.logits for name, out in outs.items()}
         )
+        # add encoder states
+        if output_attentions:
+            output.attentions = h.attentions
+        if output_hidden_states:
+            output.hidden_states = h.hidden_states
+        # return output
+        return output
+

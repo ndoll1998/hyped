@@ -21,13 +21,9 @@ class TextClsHeadConfig(PredictionHeadConfig):
     def __init__(
         self,
         dropout:float =0.2,
-        num_labels:int =-1,
         **kwargs
     ) -> None:
-        super(TextClsHeadConfig, self).__init__(
-            num_labels=num_labels,
-            **kwargs
-        )
+        super(TextClsHeadConfig, self).__init__(**kwargs)
         # save dropout probability
         self.dropout = dropout
 

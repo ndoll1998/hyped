@@ -22,7 +22,7 @@ class PredictionHeadConfig(transformers.PretrainedConfig, ABC):
         self.label_column = label_column
         self.loss_coeff = loss_coeff
 
-    def set_label_space_from_features(self, features:datasets.Features) -> list[str]:
+    def check_and_prepare(self, features:datasets.Features) -> list[str]:
         # get label space and set attributes accordingly
         labels = self.get_label_space(features)
         self.num_labels = len(labels)

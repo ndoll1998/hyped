@@ -2,13 +2,59 @@ import os
 import torch
 import hyped
 import datasets
+import evaluate
 import transformers
 import logging
 # utils
+from typing import Any
+from functools import partial
 from hyped.scripts.utils.data import NamedTensorDataset
 from hyped.scripts.utils.configs import RunConfig
 
+# TODO: log more stuff
 logger = logging.getLogger(__name__)
+
+class Metrics(object):
+
+    def __init__(
+        self,
+        label_names:list[str],
+        head_configs:dict[str,hyped.modeling.PredictionHeadConfig],
+        metrics_per_head:dict[str,dict[str,Any]]
+    ) -> None:
+        # save label names and head configs
+        self.label_names = label_names
+        self.head_configs = head_configs
+        # also create fixed order over heads
+        self.head_names = list(head_configs.keys())
+        # build metrics per head
+        self.metrics_per_head = {
+            head: [
+                partial(evaluate.load(name).compute, **kwargs)
+                for name, kwargs in metrics.items()
+            ]
+            for head, metrics in metrics_per_head.items()
+        }
+
+    def __call__(self, eval_pred:transformers.EvalPrediction):
+        # unpack and build label lookups
+        # note that labels are ordered by `trainer.config.label_names`
+        preds, labels = eval_pred
+        labels = dict(zip(self.label_names, labels))
+        # compute metrics
+        return {
+            "%s_%s" % (name, key): val
+            for name, head in self.head_configs.items()
+            for metric in self.metrics_per_head[name]
+            for key, val in metric(
+                predictions=preds[name],
+                references=labels[head.label_column]
+            ).items()
+        }
+
+    def preprocess_fn(self, logits, labels):
+        """Preprocessing function taking arg-max of logits"""
+        return {name: logits[name].argmax(dim=-1) for name in self.head_names}
 
 def train(
     config:RunConfig,
@@ -50,12 +96,22 @@ def train(
     val_data = torch.utils.data.ConcatDataset(data[datasets.Split.VALIDATION])
 
     # set label space
-    config.model.set_label_space_from_features(features)
+    config.model.check_and_prepare(features)
     # build the model
     model = hyped.modeling.ArbitraryEncoderWithHeads.from_pretrained_encoder(
         config.model.encoder_pretrained_ckpt,
         heads=config.model.heads,
         **config.model.kwargs
+    )
+
+    # specify label columns
+    config.trainer.label_names = [h.label_column for h in config.model.heads.values()]
+
+    # create metrics instance
+    metrics = Metrics(
+        label_names=config.trainer.label_names,
+        head_configs=config.model.heads,
+        metrics_per_head=config.metrics
     )
 
     # create trainer instance
@@ -72,9 +128,9 @@ def train(
                 early_stopping_threshold=config.trainer.early_stopping_threshold
             )
         ],
-        # TODO: metrics
-        preprocess_logits_for_metrics=lambda logits, _: [],
-        compute_metrics=None
+        # compute metrics
+        preprocess_logits_for_metrics=metrics.preprocess_fn,
+        compute_metrics=metrics
     )
 
     # train model
