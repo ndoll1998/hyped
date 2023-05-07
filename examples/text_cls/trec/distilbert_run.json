@@ -1,0 +1,56 @@
+{
+    "name": "trec-fine-and-coarse-distilbert",
+
+    "model": {
+        "encoder_pretrained_ckpt": "distilbert-base-uncased",
+
+        "heads": {
+            "fine_cls": {
+                "head_type": "text-cls-head",
+                "dropout": 0.2,
+                "label_column": "coarse_labels",
+                "loss_coeff": 0.4
+            },
+            "coarse_cls": {
+                "head_type": "text-cls-head",
+                "dropout": 0.2,
+                "label_column": "fine_labels",
+                "loss_coeff": 0.6
+            }
+        }
+    },
+
+    "trainer": {
+        "learning_rate": 2e-5,
+        "weight_decay": 0.01,
+        "max_grad_norm": 1.0,
+        "num_train_epochs": 10,
+
+        "per_device_train_batch_size": 32,
+        "per_device_eval_batch_size": 64,
+
+        "evaluation_strategy": "epoch",
+        "save_strategy": "epoch",
+        "save_total_limit": 1,
+
+        "metric_for_best_model": "eval_coarse_cls_f1",
+        "greater_is_better": true,
+        "early_stopping_patience": 5,
+        "load_best_model_at_end": true
+    },
+
+    "metrics": {
+        "fine_cls": {
+            "accuracy": {},
+            "recall": {"average": "micro"},
+            "precision": {"average": "micro"},
+            "f1": {"average": "micro"}
+        },
+        "coarse_cls": {
+            "accuracy": {},
+            "recall": {"average": "micro"},
+            "precision": {"average": "micro"},
+            "f1": {"average": "micro"}
+        }
+    }
+}
