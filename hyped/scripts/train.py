@@ -59,6 +59,7 @@ class Metrics(object):
 def train(
     config:RunConfig,
     data_dumps:list[str],
+    output_dir:None|str =None,
     disable_tqdm:bool =False
 ) -> transformers.Trainer:
 
@@ -103,8 +104,9 @@ def train(
         **config.model.kwargs
     )
 
-    # specify label columns
+    # specify label columns and overwrite output directory if given
     config.trainer.label_names = [h.label_column for h in config.model.heads.values()]
+    config.trainer.output_dir = output_dir or config.trainer.output_dir
 
     # create metrics instance
     metrics = Metrics(
@@ -141,7 +143,7 @@ def main():
     parser = ArgumentParser(description="Train Transformer model on prepared datasets")
     parser.add_argument("-c", "--config", type=str, required=True, help="Path to run configuration file in .json format")
     parser.add_argument("-d", "--data", type=str, nargs='+', required=True, help="Paths to prepared data dumps")
-    parser.add_argument("-o", "--out-dir", type=str, required=True, help="Output directory to dump checkpoints and metrics in")
+    parser.add_argument("-o", "--out-dir", type=str, default=None, help="Output directory, by default uses directoy specified in config")
     # parse arguments
     args = parser.parse_args()
 
@@ -153,7 +155,7 @@ def main():
     config = RunConfig.parse_file(args.config)
 
     # run training
-    train(config, args.data, disable_tqdm=False)
+    train(config, args.data, args.out_dir, disable_tqdm=False)
 
 if __name__ == '__main__':
     main()
