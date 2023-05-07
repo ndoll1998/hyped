@@ -68,7 +68,7 @@ class ModelConfig(pydantic.BaseModel):
     """Model Configuration Model"""
     encoder_pretrained_ckpt:str
     heads:dict[str,dict|hyped.modeling.PredictionHeadConfig]
-    kwargs:dict
+    kwargs:dict ={}
 
     def check_and_prepare(self, features:datasets.Features) -> None:
         [h.check_and_prepare(features) for h in self.heads.values()]
@@ -111,16 +111,10 @@ class TrainerConfig(transformers.TrainingArguments):
     # early stopping setup
     early_stopping_patience:Optional[int] =1
     early_stopping_threshold:Optional[float] =0.0
-    # incremental training setup, i.e. continue training of
-    # model in each AL iteration instead of resetting
-    incremental:bool =True
     # checkpointing
     load_best_model_at_end:bool =True
     metric_for_best_model:str ='eval_loss'
     greater_is_better:bool =False
-    # minimum steps between evaluations
-    # overwrites epoch-based evaluation behavior
-    min_epoch_length:Optional[int] =15
     # overwrite some default values
     do_train:bool =True
     do_eval:bool =True

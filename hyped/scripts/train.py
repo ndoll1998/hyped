@@ -4,8 +4,10 @@ import hyped
 import datasets
 import evaluate
 import transformers
+import numpy as np
 import logging
 # utils
+import json
 from typing import Any
 from functools import partial
 from hyped.scripts.utils.data import DataDump
@@ -40,7 +42,9 @@ class Metrics(object):
         # unpack and build label lookups
         # note that labels are ordered by `trainer.config.label_names`
         preds, labels = eval_pred
+        labels = (labels,) if isinstance(labels, np.ndarray) else labels
         labels = dict(zip(self.label_names, labels))
+
         # compute metrics
         return {
             "%s_%s" % (name, key): val
@@ -94,6 +98,7 @@ def train(
     # build combined train and validation datasets
     train_data = torch.utils.data.ConcatDataset(data[datasets.Split.TRAIN])
     val_data = torch.utils.data.ConcatDataset(data[datasets.Split.VALIDATION])
+    test_data = torch.utils.data.ConcatDataset(data[datasets.Split.TEST])
 
     # set label space
     config.model.check_and_prepare(features)
@@ -107,6 +112,8 @@ def train(
     # specify label columns and overwrite output directory if given
     config.trainer.label_names = [h.label_column for h in config.model.heads.values()]
     config.trainer.output_dir = output_dir or config.trainer.output_dir
+    # disable tqdm
+    config.trainer.disable_tqdm = disable_tqdm
 
     # create metrics instance
     metrics = Metrics(
@@ -134,8 +141,18 @@ def train(
         compute_metrics=metrics
     )
 
-    # train model
+    # train and test model
     trainer.train()
+    test_metrics = trainer.evaluate(
+        eval_dataset=test_data,
+        metric_key_prefix="test"
+    )
+
+    # save test metrics to output directory
+    with open(os.path.join(config.trainer.output_dir, "test_scores.json"), 'w+') as f:
+        f.write(json.dumps(test_metrics, indent=4))
+
+    return trainer
 
 def main():
     from argparse import ArgumentParser
