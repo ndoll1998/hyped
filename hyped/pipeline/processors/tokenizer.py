@@ -1,5 +1,5 @@
 import numpy as np
-from .processor import DataProcessor, DataProcessorConfig
+from .base import DataProcessor, DataProcessorConfig
 from transformers import AutoTokenizer
 from datasets import Features, Sequence, Value
 from dataclasses import dataclass, asdict

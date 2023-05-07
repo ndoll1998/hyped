@@ -1,2 +1,2 @@
-from .filter import DataFilter, DataFilterConfig
+from .base import DataFilter, DataFilterConfig
 from .msl import MinSeqLenFilter, MinSeqLenFilterConfig

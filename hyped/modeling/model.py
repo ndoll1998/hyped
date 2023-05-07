@@ -15,7 +15,7 @@ from inspect import signature
 from functools import cached_property
 
 from transformers.modeling_outputs import ModelOutput
-from .heads.head import PredictionHeadOutput, PredictionHeadConfig, PredictionHead
+from .heads.base import PredictionHeadOutput, PredictionHeadConfig, PredictionHead
 
 logger = logging.getLogger(__name__)
 

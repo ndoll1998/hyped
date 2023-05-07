@@ -1,4 +1,4 @@
-from .filter import DataFilter, DataFilterConfig
+from .base import DataFilter, DataFilterConfig
 from dataclasses import dataclass
 from typing import Any, Literal
 from transformers import AutoTokenizer
