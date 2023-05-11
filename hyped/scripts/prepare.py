@@ -15,15 +15,21 @@ import numpy as np
 import logging
 # utils
 from hyped.scripts.utils.data import NamedTensorDataset, DataDump
-from hyped.scripts.utils.configs import DataConfig
+from hyped.scripts.utils.configs import PrepareConfig
 
 logger = logging.getLogger(__name__)
 
 def prepare_dataset(
     ds:datasets.DatasetDict,
-    config:DataConfig,
+    config:PrepareConfig,
     max_size:int | None =None,
 ) -> DataDump:
+
+    # create pipeline
+    pipe = hyped.pipeline.Pipeline(
+        processors=config.pipeline,
+        filters=config.filters
+    )
 
     # reduce datasets if they are too large
     for s, d in ds.items():
@@ -32,43 +38,10 @@ def prepare_dataset(
             idx = np.random.choice(len(d), max_size, replace=False)
             ds[s] = d.select(idx)
 
-    # get initial features
-    features = config.info.features
-    # apply pipeline to dataset
-    for p_config in config.pipeline:
-        # build processor
-        p_type = hyped.pipeline.get_processor_type_from_config(p_config)
-        p = p_type(p_config)
-        # map features
-        features = p.map_features(features)
-        # apply processor
-        ds = ds.map(
-            function=p,
-            with_indices=p.requires_index,
-            with_rank=p.requires_rank,
-            batched=False,
-            load_from_cache_file=False,
-            desc=p_type.__name__
-        )
-
-        # make sure the dataset columns match the updated
-        # features at least in terms of naming
-        for s, d in ds.items():
-            assert set(d.column_names) == set(features), "Mismatch between %s dataset columns (%s) and features (%s)" % (s, str(d.column_names), str(list(features.keys())))
-
-    # apply filters to dataset
-    for f_config in config.filters:
-        # build processor
-        f_type = hyped.pipeline.get_filter_type_from_config(f_config)
-        f = f_type(f_config)
-        # apply processor
-        ds = ds.filter(
-            function=f,
-            with_indices=f.requires_index,
-            batched=False,
-            load_from_cache_file=False,
-            desc=f_type.__name__
-        )
+    # pass features through pipeline
+    features = pipe.map_features(config.data.info.features)
+    # pass datasets through pipeline
+    ds = pipe(ds)
 
     # rename columns
     for t, s in config.columns.items():
@@ -113,10 +86,14 @@ def main():
 
     # load config
     logger.info("Loading data configuration from %s" % args.config)
-    config = DataConfig.parse_file(args.config)
+    config = PrepareConfig.parse_file(args.config)
     # load dataset splits
     logger.info("Downloading/Loading dataset splits")
-    ds = datasets.load_dataset(config.dataset, split=config.splits)
+    ds = datasets.load_dataset(
+        config.data.dataset,
+        split=config.data.splits,
+        **config.data.kwargs
+    )
     # prepare dataset
     logger.info("Prepareing dataset splits")
     ds = prepare_dataset(ds, config, max_size=args.max_size)

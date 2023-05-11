@@ -1,3 +1,4 @@
+import os
 import hyped
 import datasets
 import transformers
@@ -19,34 +20,13 @@ warnings.filterwarnings(
 
 class DataConfig(pydantic.BaseModel):
     """Data Configuration Model"""
-    # dataset config
     dataset:str
     splits:dict[str, str] = {
         datasets.Split.TRAIN: datasets.Split.TRAIN,
         datasets.Split.VALIDATION: datasets.Split.VALIDATION,
         datasets.Split.TEST: datasets.Split.TEST
     }
-
-    # preprocessing pipeline
-    pipeline:list[hyped.pipeline.AnyProcessorConfig]
-    filters:list[hyped.pipeline.AnyFilterConfig]
-
-    # columns to keep
-    columns:dict[str, str]
-
-    #pipeline:list[
-    #    Annotated[
-    #        hyped.AnyProcessorConfig,
-    #        pydantic.Field(..., discriminator='processor_type')
-    #    ]
-    #]
-    # data filters
-    #filters:list[
-    #    Annotated[
-    #        hyped.AnyFilterConfig,
-    #        pydantic.Field(..., discriminator='filter_type')
-    #    ]
-    #]
+    kwargs:dict = {}
 
     @pydantic.validator('dataset')
     def _check_dataset(cls, v):
@@ -60,9 +40,47 @@ class DataConfig(pydantic.BaseModel):
             # raise exception if dataset builder cannot be found
             raise ValueError("Dataset not found: %s" % v) from e
 
+    @pydantic.validator('kwargs')
+    def _prepare_kwargs(cls, v):
+        if 'data_files' in v:
+            data_files = v['data_files']
+            # make data files absolut paths
+            if isinstance(data_files, str):
+                data_files = os.path.abspath(data_files)
+            elif isinstance(data_files, (tuple, list)):
+                data_files = [os.path.abspath(f) for f in data_files]
+            elif isinstance(data_files, dict):
+                data_files = {k: os.path.abspath(f) for k,f in data_files.items()}
+            # update data files
+            v['data_files'] = data_files
+        return v
+
     @property
     def info(self) -> datasets.DatasetInfo:
-        return datasets.load_dataset_builder(self.dataset)._info()
+        return datasets.load_dataset_builder(self.dataset, **self.kwargs)._info()
+
+class PrepareConfig(pydantic.BaseModel):
+    """Data Configuration Model"""
+    # dataset config
+    data:DataConfig
+    # preprocessing pipeline
+    pipeline:list[
+        Annotated[
+            hyped.pipeline.AnyProcessorConfig,
+            pydantic.Field(..., discriminator='processor_type')
+        ]
+    ]
+    filters:list[hyped.pipeline.AnyFilterConfig]
+    # columns to keep
+    columns:dict[str, str]
+
+    # data filters
+    #filters:list[
+    #    Annotated[
+    #        hyped.AnyFilterConfig,
+    #        pydantic.Field(..., discriminator='filter_type')
+    #    ]
+    #]
 
 class ModelConfig(pydantic.BaseModel):
     """Model Configuration Model"""
