@@ -3,7 +3,7 @@ from .base import DataProcessor, DataProcessorConfig
 from transformers import AutoTokenizer
 from datasets import Features, Sequence, Value
 from dataclasses import dataclass, asdict
-from typing import Literal, Union, Optional, Any
+from typing import Literal, Optional, Any
 
 @dataclass
 class TokenizerProcessorConfig(DataProcessorConfig):
@@ -13,16 +13,16 @@ class TokenizerProcessorConfig(DataProcessorConfig):
     text_column:str = "text"
     # tokenization arguments
     add_special_tokens:bool =True
-    padding:Union[bool, Literal[
+    padding:bool | Literal[
         'max_length',
         'do_not_pad'
-    ]] =False
-    truncation:Union[bool, Literal[
+    ] =False
+    truncation:bool | Literal[
             'longest_first',
             'only_first',
             'only_second',
             'do_not_truncate'
-    ]] =False
+    ] =False
     max_length:Optional[int] =None
     stride:int =0
     is_split_into_words:bool =False
@@ -34,6 +34,7 @@ class TokenizerProcessorConfig(DataProcessorConfig):
     return_special_tokens_mask:bool =False
     return_offsets_mapping:bool =False
     return_length:bool =False
+    return_word_ids:bool =False
 
 class TokenizerProcessor(DataProcessor):
     """Tokenizer Data Processor"""
@@ -48,6 +49,16 @@ class TokenizerProcessor(DataProcessor):
         )
 
     def map_features(self, features:Features) -> Features:
+        # make sure text column is present
+        if self.config.text_column not in features:
+            raise KeyError("`%s` not present in features!" % self.config.text_column)
+        # check type of input feature
+        f = features[self.config.text_column]
+        if self.config.is_split_into_words and not (isinstance(f, Sequence) and (f.feature == Value('string'))):
+            raise TypeError("Input feature `%s` must be sequence of strings, got %s." % (self.config.text_column, features[self.config.text_column]))
+        elif (not self.config.is_split_into_words) and (f != Value('string')):
+            raise TypeError("Input feature `%s` must be string, got %s." % (self.config.text_column, features[self.config.text_column]))
+
         # check for constant length
         is_constant = (self.config.max_length is not None) and \
             (self.config.padding == 'max_length') and \
@@ -68,6 +79,8 @@ class TokenizerProcessor(DataProcessor):
             features['special_tokens_mask'] = Sequence(Value(dtype='int32'), length=length)
         if self.config.return_length:
             features['length'] = Value(dtype='int32')
+        if self.config.return_word_ids:
+            features['word_ids'] = Sequence(Value(dtype='int32'), length=length)
         # return updated features
         return features
 
@@ -77,10 +90,17 @@ class TokenizerProcessor(DataProcessor):
         kwargs.pop('processor_type')
         kwargs.pop('pretrained_ckpt')
         kwargs.pop('text_column')
+        kwargs.pop('return_word_ids')
         return kwargs
 
     def process(self, example:dict[str, Any]) -> dict[str, np.ndarray]:
-        return self.tokenizer(
-            text=example['text'],
+        # apply tokenizer
+        enc = self.tokenizer(
+            text=example[self.config.text_column],
             **self.tokenization_kwargs
         )
+        # add word ids to encoding
+        if self.config.return_word_ids:
+            enc['word_ids'] = [(i if i is not None else -1) for i in enc.word_ids()]
+        # return encoding
+        return enc
