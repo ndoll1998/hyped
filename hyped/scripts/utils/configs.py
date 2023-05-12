@@ -89,7 +89,13 @@ class ModelConfig(pydantic.BaseModel):
     kwargs:dict ={}
     # adapters and heads
 
-    heads:dict[str,hyped.modeling.heads.AnyHypedHeadConfig]
+    heads:dict[
+        str,
+        Annotated[
+            hyped.modeling.heads.AnyHypedHeadConfig,
+            pydantic.Field(..., discriminator='head_type')
+        ]
+    ]
 
     def check_and_prepare(self, features:datasets.Features) -> None:
         [hconfig.check_and_prepare(features) for hconfig in self.heads.values()]

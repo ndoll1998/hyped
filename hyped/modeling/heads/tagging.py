@@ -1,28 +1,25 @@
 from transformers import PreTrainedModel
-from transformers.adapters.heads import ClassificationHead
+from transformers.adapters.heads import TaggingHead
 from .base import HypedPredictionHead, HypedPredictionHeadConfig
 
-from datasets.features import ClassLabel
+from datasets.features import Sequence, ClassLabel
 from dataclasses import dataclass
 from typing import Literal
 
 @dataclass
-class HypedClsHeadConfig(HypedPredictionHeadConfig):
-    head_type:Literal['hyped-cls-head'] = 'hyped-cls-head'
+class HypedTaggingHeadConfig(HypedPredictionHeadConfig):
+    head_type:Literal['hyped-tagging-head'] = 'hyped-tagging-head'
 
-    layers:int = 2
+    layers:int = 1
     activation_function:str = "tanh"
-    use_pooler:bool = False
-    bias:bool = True
 
     def get_label_space(self, feature):
-        if not isinstance(feature, ClassLabel):
-            raise ValueError("Expected label feature for text classification to be `ClassLabel`, got %s." % str(feature))
+        if not isinstance(feature, Sequence) and isinstance(feature.feature, ClassLabel):
+            raise ValueError("Expected label feature for tagging to be a `Sequence` of `ClassLabel`, got %s." % str(feature))
         # return label space
-        return feature.names
+        return feature.feature.names
 
-
-class HypedClsHead(HypedPredictionHead, ClassificationHead):
+class HypedTaggingHead(HypedPredictionHead, TaggingHead):
 
     def __init__(
         self,
@@ -33,7 +30,7 @@ class HypedClsHead(HypedPredictionHead, ClassificationHead):
         **kwargs
     ) -> None:
         # initialize base classes in correct order
-        ClassificationHead.__init__(
+        TaggingHead.__init__(
             self,
             model=model,
             head_name=head_name,
@@ -46,4 +43,4 @@ class HypedClsHead(HypedPredictionHead, ClassificationHead):
         )
 
     # set forward function
-    wrapped_forward = ClassificationHead.forward
+    wrapped_forward = TaggingHead.forward
