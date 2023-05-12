@@ -54,14 +54,60 @@ def collect_data(data_dumps:list[str]) -> DataDump:
         }
     )
 
+def build_trainer(
+    model:transformers.PreTrainedModel,
+    args:transformers.TrainingArguments,
+    early_stopping_patience:int,
+    early_stopping_threshold:float,
+    metrics_kwargs:dict ={},
+    output_dir:str = None,
+    disable_tqdm:bool =False
+) -> transformers.Trainer:
+    """Create trainer instance ensuring correct interfacing between trainer and metrics"""
+
+    # create fixed order over label names
+    label_names = chain.from_iterable(h.get_label_names() for h in model.heads.values())
+    label_names = list(set(list(label_names)))
+    # specify label columns and overwrite output directory if given
+    args.label_names = label_names
+    args.output_dir = output_dir or args.output_dir
+    # disable tqdm
+    args.disable_tqdm = disable_tqdm
+
+    # create metrics
+    metrics = hyped.evaluate.HypedAutoMetrics.from_model(
+        model=model,
+        metrics_kwargs=metrics_kwargs,
+        label_order=args.label_names
+    )
+
+    # create trainer instance
+    return hyped.modeling.MultiHeadTrainer(
+        model=model,
+        args=args,
+        # datasets need to be set manually
+        train_dataset=None,
+        eval_dataset=None,
+        # add early stopping callback
+        callbacks=[
+            transformers.EarlyStoppingCallback(
+                early_stopping_patience=early_stopping_patience,
+                early_stopping_threshold=early_stopping_threshold
+            )
+        ],
+        # compute metrics
+        preprocess_logits_for_metrics=metrics.preprocess,
+        compute_metrics=metrics
+    )
+
 def train(
     config:RunConfig,
     data_dump:DataDump,
-    output_dir:None|str =None,
-    disable_tqdm:bool =False
+    output_dir:str = None,
+    disable_tqdm:bool = False
 ) -> transformers.Trainer:
 
-    # set label space
+    # prepare model for data
     config.model.check_and_prepare(data_dump.features)
     # build the model
     model = hyped.modeling.HypedAutoAdapterModel.from_pretrained(
@@ -70,53 +116,23 @@ def train(
         **config.model.kwargs
     )
     # activate all heads
-    model.active_head = list(config.model.heads.keys())
+    model.active_head = list(model.heads.keys())
 
-    # create fixed order over label names
-    label_names = chain.from_iterable(h.get_label_names() for h in model.heads.values())
-    label_names = list(set(list(label_names)))
-    # specify label columns and overwrite output directory if given
-    config.trainer.label_names = label_names
-    config.trainer.output_dir = output_dir or config.trainer.output_dir
-    # disable tqdm
-    config.trainer.disable_tqdm = disable_tqdm
-
-    # create metrics
-    metrics = hyped.evaluate.HypedAutoMetrics.from_model(
-        model=model,
-        metrics_kwargs=config.metrics,
-        label_order=config.trainer.label_names
-    )
-
-    # create trainer instance
-    trainer = hyped.modeling.MultiHeadTrainer(
+    trainer = build_trainer(
         model=model,
         args=config.trainer,
-        # set datasets
-        train_dataset=data_dump.datasets[datasets.Split.TRAIN],
-        eval_dataset=data_dump.datasets[datasets.Split.VALIDATION],
-        # add early stopping callback
-        callbacks=[
-            transformers.EarlyStoppingCallback(
-                early_stopping_patience=config.trainer.early_stopping_patience,
-                early_stopping_threshold=config.trainer.early_stopping_threshold
-            )
-        ],
-        # compute metrics
-        preprocess_logits_for_metrics=metrics.preprocess,
-        compute_metrics=metrics
+        early_stopping_patience=config.trainer.early_stopping_patience,
+        early_stopping_threshold=config.trainer.early_stopping_threshold,
+        metrics_kwargs=config.metrics,
+        output_dir=output_dir,
+        disable_tqdm=disable_tqdm
     )
+    # set train and validation datasets
+    trainer.train_dataset=data_dump.datasets[datasets.Split.TRAIN]
+    trainer.eval_dataset=data_dump.datasets[datasets.Split.VALIDATION]
 
-    # train and test model
+    # run trainer
     trainer.train()
-    test_metrics = trainer.evaluate(
-        eval_dataset=data_dump.datasets[datasets.Split.TEST],
-        metric_key_prefix="test"
-    )
-
-    # save test metrics to output directory
-    with open(os.path.join(config.trainer.output_dir, "test_scores.json"), 'w+') as f:
-        f.write(json.dumps(test_metrics, indent=4))
 
     return trainer
 
@@ -137,11 +153,8 @@ def main():
     logger.info("Loading run configuration from %s" % args.config)
     config = RunConfig.parse_file(args.config)
 
-    # collect all data from data dumps
-    data = collect_data(args.data)
-
     # run training
-    train(config, data, args.out_dir, disable_tqdm=False)
+    train(config, collect_data(args.data), args.out_dir)
 
 if __name__ == '__main__':
     main()
