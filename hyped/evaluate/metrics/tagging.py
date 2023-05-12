@@ -16,7 +16,7 @@ class HypedTaggingMetrics(HypedMetrics):
         if label2id is None:
             raise ValueError("Config of head type %s has no `label2id` entry." % type(head))
         # build label space array from mapping
-        self.label_space = np.empty(len(label2id), dtype=str)
+        self.label_space = np.empty(len(label2id), dtype=object)
         for label, i in label2id.items():
             self.label_space[i] = label
 
