@@ -37,12 +37,20 @@ class Pipeline(object):
         self.processors.extend(processors)
         self.filters.extend(filters)
 
-    def map_features(self, features:datasets.Features) -> datasets.Features:
-        # pass features throw pipeline
+    @property
+    def features(self) -> datasets.Features:
+        return self.processors[0].features
+
+    @property
+    def out_features(self) -> datasets.Features:
+        return self.processors[-1].out_features
+
+    def prepare(self, features:datasets.Features) -> datasets.Features:
+        # prepare all processors
         for p in self.processors:
             assert isinstance(p, DataProcessor)
-            features = p.map_features(features)
-        # return output features
+            features = p.prepare(features)
+        # prepare pipeline
         return features
 
     def __call__(self,

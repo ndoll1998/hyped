@@ -38,9 +38,8 @@ def prepare_dataset(
             idx = np.random.choice(len(d), max_size, replace=False)
             ds[s] = d.select(idx)
 
-    # pass features through pipeline
-    features = pipe.map_features(config.data.info.features)
-    # pass datasets through pipeline
+    # prepare pipeline and pass datasets through
+    features = pipe.prepare(config.data.info.features)
     ds = pipe(ds)
 
     # rename columns
