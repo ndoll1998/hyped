@@ -1,10 +1,4 @@
-from .heads import (
-    PredictionHeadConfig,
-    PredictionHead,
-    TextClsHeadConfig,
-    TextClsHead
-)
-from .model import (
-    ArbitraryEncoderWithHeads,
-    ArbitraryEncoderWithHeadsConfig
-)
+from .auto import HypedAutoAdapterModel
+from .heads import *
+
+from .trainer import MultiHeadTrainer

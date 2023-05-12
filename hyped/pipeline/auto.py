@@ -17,7 +17,7 @@ class ConfigMapping(typedmapping[C, T]):
         if not isinstance(key, type):
             raise TypeError("Excepted key to be a type object, got %s." % key)
         if not issubclass(key, self._K):
-            raise TypeError("Expected key of type %s, got %s." % (self._K, key))
+            raise TypeError("Expected key to be sub-type of %s, got %s." % (self._K, key))
         # otherwise all fine
         return key
 
@@ -26,7 +26,7 @@ class ConfigMapping(typedmapping[C, T]):
         if not isinstance(val, type):
             raise TypeError("Excepted key to be a type object, got %s." % val)
         if not issubclass(val, self._V):
-            raise TypeError("Expected value of type %s, got %s." % (self._V, val))
+            raise TypeError("Expected value to be sub-type of %s, got %s." % (self._V, val))
         # otherwise all fine
         return val
 

@@ -1,2 +1,4 @@
-from .base import PredictionHeadConfig, PredictionHead
-from .text_cls import TextClsHead, TextClsHeadConfig
+from .cls import HypedClsHead, HypedClsHeadConfig
+
+AnyHypedHeadConfig = \
+    HypedClsHeadConfig

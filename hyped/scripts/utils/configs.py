@@ -84,24 +84,23 @@ class PrepareConfig(pydantic.BaseModel):
 
 class ModelConfig(pydantic.BaseModel):
     """Model Configuration Model"""
-    encoder_pretrained_ckpt:str
-    heads:dict[str,dict|hyped.modeling.PredictionHeadConfig]
+    # base model
+    pretrained_ckpt:str
     kwargs:dict ={}
+    # adapters and heads
+
+    heads:dict[str,hyped.modeling.heads.AnyHypedHeadConfig]
 
     def check_and_prepare(self, features:datasets.Features) -> None:
-        [h.check_and_prepare(features) for h in self.heads.values()]
+        [hconfig.check_and_prepare(features) for hconfig in self.heads.values()]
 
-    @pydantic.validator('heads', each_item=True)
-    def _parse_head_configs(cls, value):
-        # check for head type
-        if 'head_type' not in value:
-            raise ValueError("`head_type` not provided")
-        # create head config instance
-        return transformers.AutoConfig.for_model(
-            value.pop('head_type'), **value
-        )
+    @property
+    def pretrained_config(self) -> transformers.PretrainedConfig:
+        config = transformers.AutoConfig.from_pretrained(self.pretrained_ckpt)
+        config.prediction_heads = {hname: dataclasses.asdict(hconfig) for hname, hconfig in self.heads.items()}
+        return config
 
-    @pydantic.validator('encoder_pretrained_ckpt')
+    @pydantic.validator('pretrained_ckpt')
     def _check_pretrained_ckpt(cls, value):
         try:
             # check if model is valid by loading config
@@ -111,10 +110,6 @@ class ModelConfig(pydantic.BaseModel):
             raise ValueError("Unkown pretrained checkpoint: %s" % value) from e
 
         return value
-
-    class Config:
-        # required as PredictionHeadConfig instances are not type safe
-        arbitrary_types_allowed=True
 
 @pydantic.dataclasses.dataclass
 @dataclasses.dataclass

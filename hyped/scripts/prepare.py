@@ -54,6 +54,11 @@ def prepare_dataset(
     features = datasets.Features({t: features[s] for t, s in config.columns.items()})
     logger.debug("Dataset Features: %s" % str(features))
 
+    # log some info
+    logger.info("Data Preprocessing Complete.")
+    for s, d in ds.items():
+        logger.info("Generated %s split of %i documents" % (s, len(d)))
+
     # check if all features are stackable
     for n, f in features.items():
         if isinstance(f, datasets.Sequence) and (f.length == -1):
@@ -80,6 +85,9 @@ def main():
     # parse arguments
     args = parser.parse_args()
 
+    # set log level
+    logging.basicConfig(level=logging.INFO)
+
     # check if config exists
     if not os.path.isfile(args.config):
         raise FileNotFoundError(args.config)
@@ -95,13 +103,15 @@ def main():
         **config.data.kwargs
     )
     # prepare dataset
-    logger.info("Prepareing dataset splits")
+    logger.info("Preparing dataset splits")
     ds = prepare_dataset(ds, config, max_size=args.max_size)
 
     # save data splits to file
     logger.info("Saving dataset to %s" % args.out_file)
     # create output directory
-    os.makedirs(os.path.dirname(args.out_file), exist_ok=True)
+    dirname = os.path.dirname(args.out_file)
+    if len(dirname) > 0:
+        os.makedirs(os.path.dirname(args.out_file), exist_ok=True)
     torch.save(ds, args.out_file)
 
 if __name__ == '__main__':
