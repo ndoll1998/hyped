@@ -1,9 +1,11 @@
 {
-    "dataset": "trec",
-    "splits": {
-        "train": "train[:80%]",
-        "validation": "train[80%:]",
-        "test": "test"
+    "data": {
+        "dataset": "trec",
+        "splits": {
+            "train": "train[:80%]",
+            "validation": "train[80%:]",
+            "test": "test"
+        }
     },
 
     "pipeline": [

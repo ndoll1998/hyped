@@ -2,15 +2,11 @@
     "name": "imdb-bert",
 
     "model": {
-        "encoder_pretrained_ckpt": "bert-base-uncased",
-        "kwargs": {
-            "add_pooling_layer": false
-        },
+        "pretrained_ckpt": "bert-base-uncased",
 
         "heads": {
             "cls": {
-                "head_type": "text-cls-head",
-                "dropout": 0.2,
+                "head_type": "hyped-cls-head",
                 "label_column": "labels"
             }
         }
@@ -41,10 +37,7 @@
 
     "metrics": {
         "cls": {
-            "accuracy": {},
-            "recall": {"average": "micro"},
-            "precision": {"average": "micro"},
-            "f1": {"average": "micro"}
+            "average": "micro"
         }
     }
 }
