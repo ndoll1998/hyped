@@ -1,5 +1,6 @@
 from . import (
     pipeline,
     modeling,
-    evaluate
+    evaluate,
+    datasets
 )
