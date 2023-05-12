@@ -80,6 +80,7 @@ def main():
     parser = ArgumentParser(description="Prepare dataset for training")
     parser.add_argument("-c", "--config", type=str, required=True, help="Path to run configuration file in .json format")
     parser.add_argument("-n", "--max-size", type=int, default=None, help="Maximum number of data points per split")
+    parser.add_argument("-s", "--splits", type=str, nargs='*', default=[], help="Subset of data splits to prepare")
     parser.add_argument("-o", "--out-file", type=str, required=True, help="File to store prepared dataset in")
     # parse arguments
     args = parser.parse_args()
@@ -94,6 +95,15 @@ def main():
     # load config
     logger.info("Loading data configuration from %s" % args.config)
     config = PrepareConfig.parse_file(args.config)
+
+    # overwrite splits
+    for split in args.splits:
+        if split not in config.data.splits:
+            raise ValueError("Splits `%s` not specified in configuration %s." % (split, args.config))
+    # only keep splits that are named in arguments
+    if len(args.splits) > 0:
+        config.data.splits = {s: config.data.splits[s] for s in args.splits}
+
     # load dataset splits
     logger.info("Downloading/Loading dataset splits")
     ds = datasets.load_dataset(

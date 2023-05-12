@@ -51,6 +51,7 @@ def collect_data(data_dumps:list[str]) -> DataDump:
         datasets={
             k: torch.utils.data.ConcatDataset(ds)
             for k, ds in data.items()
+            if len(ds) > 0
         }
     )
 
@@ -106,6 +107,12 @@ def train(
     output_dir:str = None,
     disable_tqdm:bool = False
 ) -> transformers.Trainer:
+
+    # check for train and validation datasets
+    if datasets.Split.TRAIN not in data_dump.datasets:
+        raise KeyError("No train dataset found, got %s!" % list(data_dump.datasets.keys()))
+    if datasets.Split.VALIDATION not in data_dump.datasets:
+        raise KeyError("No validation dataset found, got %s!" % list(data_dump.datasets.keys()))
 
     # prepare model for data
     config.model.check_and_prepare(data_dump.features)
