@@ -1,0 +1,60 @@
+stages:
+
+  prepare-train:
+    cmd: python -m hyped.scripts.prepare
+      -s train
+      -c ../../text_cls/imdb/distilbert_data.json
+      -o ./dump/data/distilbert_train.bin
+    params:
+      - ../../text_cls/imdb/distilbert_data.json:
+    outs:
+      - ./dump/data/distilbert_train.bin
+  
+  prepare-val:
+    cmd: python -m hyped.scripts.prepare
+      -s validation
+      -c ../../text_cls/imdb/distilbert_data.json
+      -o ./dump/data/distilbert_val.bin
+    params:
+      - ../../text_cls/imdb/distilbert_data.json:
+    outs:
+      - ./dump/data/distilbert_val.bin
+
+  prepare-test:
+    cmd: python -m hyped.scripts.prepare
+      -s test
+      -c ../../text_cls/imdb/distilbert_data.json
+      -o ./dump/data/distilbert_test.bin
+    params:
+      - ../../text_cls/imdb/distilbert_data.json:
+    outs:
+      - ./dump/data/distilbert_test.bin
+  
+  train:
+    cmd: python -m hyped.scripts.train
+      -c ../../text_cls/imdb/distilbert_run.json
+      -d ./dump/data/distilbert_train.bin ./dump/data/distilbert_val.bin
+      -o ./dump/models/distilbert_adv
+    params:
+      - ../../text_cls/imdb/distilbert_run.json:
+    deps:
+      - ./dump/data/distilbert_train.bin
+      - ./dump/data/distilbert_val.bin
+    outs:
+      - ./dump/models/distilbert_adv
+  
+  evaluate:
+    cmd: python -m hyped.scripts.evaluate
+      -c ../../text_cls/imdb/distilbert_run.json
+      -m ./dump/models/distilbert_adv/best-model
+      -d ./dump/data/distilbert_test.bin
+      -o ./dump/scores/distilbert_adv
+      -s test
+    params:
+      - ../../text_cls/imdb/distilbert_run.json:
+    deps:
+      - ./dump/models/distilbert_adv/best-model
+      - ./dump/data/distilbert_test.bin
+    metrics:
+      - ./dump/scores/distilbert_adv/imdb-test.json:
+          cache: true

@@ -1,4 +1,4 @@
 .dvc
 .dvcignore
-dvc.lock
-dump/
+*/dvc.lock
+*/dump
