@@ -29,6 +29,11 @@ def main():
     logger.info("Loading run configuration from %s" % args.config)
     config = RunConfig.parse_file(args.config)
 
+    # prepare config for evaluation
+    config.trainer.save_strategy = 'no'
+    # not used but created and there is no way around i guess
+    config.trainer.output_dir = os.path.join("/tmp", config.output_dir)
+
     # load model and activate all heads
     model = hyped.modeling.HypedAutoAdapterModel.from_pretrained(args.model_ckpt)
     model.active_heads = list(model.heads.keys())
