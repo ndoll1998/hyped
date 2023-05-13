@@ -1,0 +1,4 @@
+.dvc
+.dvcignore
+dvc.lock
+dump/

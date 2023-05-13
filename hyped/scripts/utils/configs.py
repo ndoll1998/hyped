@@ -55,10 +55,6 @@ class DataConfig(pydantic.BaseModel):
             v['data_files'] = data_files
         return v
 
-    @property
-    def info(self) -> datasets.DatasetInfo:
-        return datasets.load_dataset_builder(self.dataset, **self.kwargs)._info()
-
 class PrepareConfig(pydantic.BaseModel):
     """Data Configuration Model"""
     # dataset config

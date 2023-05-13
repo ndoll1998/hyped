@@ -30,5 +30,6 @@ class NamedTensorDataset(TensorDataset):
 
 @dataclass
 class DataDump(object):
+    name:str
     features:datasets.Features
     datasets:dict[str,Dataset]

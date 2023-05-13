@@ -1,4 +1,5 @@
 import os
+import json
 import torch
 import hyped
 import datasets
@@ -7,7 +8,6 @@ import transformers
 import numpy as np
 import logging
 # utils
-import json
 from typing import Any
 from itertools import chain
 from functools import partial
@@ -17,13 +17,16 @@ from hyped.scripts.utils.configs import RunConfig
 # TODO: log more stuff
 logger = logging.getLogger(__name__)
 
-def collect_data(data_dumps:list[str]) -> DataDump:
+def collect_data(
+    data_dumps:list[str],
+    splits:list[str] = [
+        datasets.Split.TRAIN,
+        datasets.Split.VALIDATION,
+        datasets.Split.TEST
+    ]
+) -> DataDump:
 
-    data = {
-        datasets.Split.TRAIN: [],
-        datasets.Split.VALIDATION: [],
-        datasets.Split.TEST: []
-    }
+    data = {split: [] for split in splits}
     features = None
     # load data dumps
     for dpath in data_dumps:
@@ -41,12 +44,12 @@ def collect_data(data_dumps:list[str]) -> DataDump:
         # add to total data
         for s, d in dump.datasets.items():
             if s in data:
+                logger.debug("Loaded `%s` split of data dump %s." % (s, dpath))
                 data[s].append(d)
-            else:
-                logger.warning("Discarding `%s` split of data dump %s." % (s, dpath))
 
     # create data dump object for collected datasets
     return DataDump(
+        name="combined",
         features=features,
         datasets={
             k: torch.utils.data.ConcatDataset(ds)
@@ -58,8 +61,6 @@ def collect_data(data_dumps:list[str]) -> DataDump:
 def build_trainer(
     model:transformers.PreTrainedModel,
     args:transformers.TrainingArguments,
-    early_stopping_patience:int,
-    early_stopping_threshold:float,
     metrics_kwargs:dict ={},
     output_dir:str = None,
     disable_tqdm:bool =False
@@ -89,13 +90,6 @@ def build_trainer(
         # datasets need to be set manually
         train_dataset=None,
         eval_dataset=None,
-        # add early stopping callback
-        callbacks=[
-            transformers.EarlyStoppingCallback(
-                early_stopping_patience=early_stopping_patience,
-                early_stopping_threshold=early_stopping_threshold
-            )
-        ],
         # compute metrics
         preprocess_logits_for_metrics=metrics.preprocess,
         compute_metrics=metrics
@@ -128,8 +122,6 @@ def train(
     trainer = build_trainer(
         model=model,
         args=config.trainer,
-        early_stopping_patience=config.trainer.early_stopping_patience,
-        early_stopping_threshold=config.trainer.early_stopping_threshold,
         metrics_kwargs=config.metrics,
         output_dir=output_dir,
         disable_tqdm=disable_tqdm
@@ -137,6 +129,13 @@ def train(
     # set train and validation datasets
     trainer.train_dataset=data_dump.datasets[datasets.Split.TRAIN]
     trainer.eval_dataset=data_dump.datasets[datasets.Split.VALIDATION]
+    # add early stopping callback
+    trainer.add_callback(
+        transformers.EarlyStoppingCallback(
+            early_stopping_patience=config.trainer.early_stopping_patience,
+            early_stopping_threshold=config.trainer.early_stopping_threshold
+        )
+    )
 
     # run trainer
     trainer.train()
@@ -161,7 +160,13 @@ def main():
     config = RunConfig.parse_file(args.config)
 
     # run training
-    train(config, collect_data(args.data), args.out_dir)
+    splits = [datasets.Split.TRAIN, datasets.Split.VALIDATION]
+    trainer = train(config, collect_data(args.data, splits), args.out_dir)
+
+    # save trainer model in output directory if given
+    if args.out_dir is not None:
+        trainer.save_model(os.path.join(args.out_dir, "best-model"))
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     main()

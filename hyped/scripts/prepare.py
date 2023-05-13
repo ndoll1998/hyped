@@ -25,6 +25,9 @@ def prepare_dataset(
     max_size:int | None =None,
 ) -> DataDump:
 
+    # get dataset info
+    info = next(iter(ds.values())).info
+
     # create pipeline
     pipe = hyped.pipeline.Pipeline(
         processors=config.pipeline,
@@ -39,7 +42,7 @@ def prepare_dataset(
             ds[s] = d.select(idx)
 
     # prepare pipeline and pass datasets through
-    features = pipe.prepare(config.data.info.features)
+    features = pipe.prepare(info.features)
     ds = pipe(ds)
 
     # rename columns
@@ -66,12 +69,13 @@ def prepare_dataset(
     else:
         # convert to tensor dataset as all sequences have fixed length
         return DataDump(
+            name=info.builder_name,
             features=features,
             datasets={s: NamedTensorDataset.from_dataset(d) for s, d in ds.items()}
         )
 
     # return as is
-    return DataDump(features=features, datasets=ds)
+    return DataDump(name=info.builder_name, features=features, datasets=ds)
 
 
 def main():
@@ -84,9 +88,6 @@ def main():
     parser.add_argument("-o", "--out-file", type=str, required=True, help="File to store prepared dataset in")
     # parse arguments
     args = parser.parse_args()
-
-    # set log level
-    logging.basicConfig(level=logging.INFO)
 
     # check if config exists
     if not os.path.isfile(args.config):
@@ -124,4 +125,5 @@ def main():
     torch.save(ds, args.out_file)
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     main()
