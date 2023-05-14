@@ -4,34 +4,10 @@ from . import processors
 from .filters.base import DataFilter, DataFilterConfig
 from .processors.base import DataProcessor, DataProcessorConfig
 # utils
-from typing import Generic, TypeVar, Any
 from hyped.utils.typedmapping import typedmapping
 
-C = TypeVar('C')
-T = TypeVar('T')
-
-class ConfigMapping(typedmapping[C, T]):
-
-    def check_key_type(self, key:Any) -> C:
-        # handle type conflict if value has incorrect type
-        if not isinstance(key, type):
-            raise TypeError("Excepted key to be a type object, got %s." % key)
-        if not issubclass(key, self._K):
-            raise TypeError("Expected key to be sub-type of %s, got %s." % (self._K, key))
-        # otherwise all fine
-        return key
-
-    def check_val_type(self, val:Any) -> T:
-        # handle type conflict if value has incorrect type
-        if not isinstance(val, type):
-            raise TypeError("Excepted key to be a type object, got %s." % val)
-        if not issubclass(val, self._V):
-            raise TypeError("Expected value to be sub-type of %s, got %s." % (self._V, val))
-        # otherwise all fine
-        return val
-
 class AutoClass(object):
-    MAPPING:ConfigMapping
+    MAPPING:typedmapping
 
     def __init__(self):
         raise EnvironmentError("AutoClasses are designed to be instantiated using the `AutoClass.from_config(config)` method.")
@@ -50,10 +26,16 @@ class AutoClass(object):
         cls.MAPPING[config_t] = processor_t
 
 class AutoDataProcessor(AutoClass):
-    MAPPING = ConfigMapping[DataProcessorConfig, DataProcessor]()
+    MAPPING = typedmapping[
+        type[DataProcessorConfig],
+        type[DataProcessor]
+    ]()
 
 class AutoDataFilter(AutoClass):
-    MAPPING = ConfigMapping[DataFilterConfig, DataFilter]()
+    MAPPING = typedmapping[
+        type[DataFilterConfig],
+        type[DataFilter]
+    ]()
 
 # register all processors
 AutoDataProcessor.register(processors.TokenizerProcessorConfig, processors.TokenizerProcessor)

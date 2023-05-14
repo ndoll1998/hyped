@@ -1,3 +1,4 @@
+from .typedlist import check_type
 from typing import Generic, TypeVar, Any, get_args
 
 K = TypeVar("K")
@@ -24,20 +25,20 @@ class typedmapping(Generic[K, V], dict):
 
     def check_key_type(self, key:Any) -> K:
         # handle type conflict if value has incorrect type
-        if not isinstance(key, self._K):
+        if not check_type(key, self._K):
             key = self.handle_key_type_conflict(key)
             # check again
-            if not isinstance(key, self._K):
+            if not check_type(key, self._K):
                 raise TypeError("Expected key of type %s, got %s." % (self._K, type(key)))
         # otherwise all fine
         return key
 
     def check_val_type(self, val:Any) -> V:
         # handle type conflict if value has incorrect type
-        if not isinstance(val, self._V):
+        if not check_type(val, self._V):
             val = self.handle_key_type_conflict(val)
             # check again
-            if not isinstance(val, self._V):
+            if not check_type(val, self._V):
                 raise TypeError("Expected value of type %s, got %s." % (self._V, type(val)))
         # otherwise all fine
         return val

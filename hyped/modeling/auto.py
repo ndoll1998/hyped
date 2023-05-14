@@ -3,26 +3,11 @@ from transformers.adapters import AutoAdapterModel
 # custom heads
 from . import heads
 # typing utils
-from typing import TypeVar, Any
 from transformers.adapters import PredictionHead
 from hyped.utils.typedmapping import typedmapping
 
-T = TypeVar('T')
-U = TypeVar('U')
-
-class HeadMapping(typedmapping[T, U]):
-
-    def check_val_type(self, val:Any) -> T:
-        # handle type conflict if value has incorrect type
-        if not isinstance(val, type):
-            raise TypeError("Excepted key to be a type object, got %s." % val)
-        if not issubclass(val, self._V):
-            raise TypeError("Expected value to be sub-type of %s, got %s." % (self._V, val))
-        # otherwise all fine
-        return val
-
 class HypedAutoAdapterModel(AutoAdapterModel):
-    CUSTOM_HEAD_MAPPING = HeadMapping[str, PredictionHead]()
+    CUSTOM_HEAD_MAPPING = typedmapping[str, type[PredictionHead]]()
 
     @classmethod
     def _register_custom_heads_to_config(cls, config):

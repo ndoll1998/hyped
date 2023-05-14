@@ -32,7 +32,7 @@ def main():
     # prepare config for evaluation
     config.trainer.save_strategy = 'no'
     # not used but created and there is no way around i guess
-    config.trainer.output_dir = os.path.join("/tmp", config.output_dir)
+    config.trainer.output_dir = os.path.join("/tmp", config.trainer.output_dir)
 
     # load model and activate all heads
     model = hyped.modeling.HypedAutoAdapterModel.from_pretrained(args.model_ckpt)

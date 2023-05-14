@@ -3,33 +3,12 @@ from .metrics.base import HypedMetrics
 from .metrics.collection import HypedMetricsCollection
 from transformers.adapters import heads
 from hyped.utils.typedmapping import typedmapping
-from typing import TypeVar, Any
-
-H = TypeVar('H')
-M = TypeVar('M')
-
-class MetricsMapping(typedmapping[H, M]):
-
-    def check_key_type(self, key:Any) -> H:
-        # handle type conflict if value has incorrect type
-        if not isinstance(key, type):
-            raise TypeError("Excepted key to be a type object, got %s." % key)
-        if not issubclass(key, self._K):
-            raise TypeError("Expected key to be sub-type of %s, got %s." % (self._K, key))
-        # otherwise all fine
-        return key
-
-    def check_val_type(self, val:Any) -> H:
-        # handle type conflict if value has incorrect type
-        if not isinstance(val, type):
-            raise TypeError("Excepted key to be a type object, got %s." % val)
-        if not issubclass(val, self._V):
-            raise TypeError("Expected value to be sub-type of %s, got %s." % (self._V, val))
-        # otherwise all fine
-        return val
 
 class HypedAutoMetrics(object):
-    METRICS_MAPPING = MetricsMapping[heads.PredictionHead, HypedMetrics]()
+    METRICS_MAPPING = typedmapping[
+        type[heads.PredictionHead],
+        type[HypedMetrics]
+    ]()
 
     @classmethod
     def from_head(cls, head:heads.PredictionHead, **kwargs):

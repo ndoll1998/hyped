@@ -1,7 +1,16 @@
 from __future__ import annotations
-from typing import Generic, TypeVar, Any, get_args
+from typing import Generic, GenericAlias, TypeVar, Any, get_args, get_origin
 
 T = TypeVar("T")
+
+def check_type(obj:Any, t:type) -> bool:
+    # check if type is a generic type
+    if isinstance(t, GenericAlias) and issubclass(get_origin(t), type):
+        # in this case we want the object to be a class/type
+        # instead of an instance of a specific class
+        return issubclass(obj, get_args(t))
+    # check if object is an instance of the requested type
+    return isinstance(obj, t)
 
 class typedlist(Generic[T], list):
 
