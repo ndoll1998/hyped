@@ -17,8 +17,9 @@ setup(
         "Programming Language :: Python :: 3.10"
     ],
     install_requires=[
-        'transformers>=4.28.1',
+        'adapter-transformers>=3.2.1',
         'datasets>=2.12.0',
+        'evaluate>=0.4.0',
         'torch>=2.0.0',
         'pydantic>=1.10.7'
     ]
