@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name="hyped",
-    version="0.0.1",
+    version="0.0.2",
     description="A collection of data pipelines to ease the training of transformer models",
     long_description=open("README.md", "r").read(),
     long_description_content_type='text/markdown',
