@@ -13,6 +13,8 @@ import datasets
 import transformers
 import numpy as np
 import logging
+# register packaged datasets
+import hyped.datasets
 # utils
 from hyped.scripts.utils.data import NamedTensorDataset, DataDump
 from hyped.scripts.utils.configs import PrepareConfig
