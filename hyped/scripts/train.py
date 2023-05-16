@@ -1,21 +1,155 @@
 import os
 import json
-import torch
 import hyped
 import datasets
-import evaluate
 import transformers
-import numpy as np
+import pydantic
+import dataclasses
 import logging
 # utils
-from typing import Any
-from itertools import chain
+from datetime import datetime
 from functools import partial
-from hyped.scripts.utils.data import DataDump
-from hyped.scripts.utils.configs import RunConfig
+from itertools import chain, product
+from typing import Any, Optional
+from typing_extensions import Annotated
+
+import warnings
+# ignore warning of _n_gpu field of TrainingArguments
+# dataclass when converted to pydantic model
+warnings.filterwarnings(
+    "ignore",
+    category=RuntimeWarning,
+    message="fields may not start with an underscore, ignoring \"_n_gpu\""
+)
 
 # TODO: log more stuff
 logger = logging.getLogger(__name__)
+
+class ModelConfig(pydantic.BaseModel):
+    """Model Configuration Model"""
+    # base model
+    pretrained_ckpt:str
+    kwargs:dict ={}
+    # adapters and heads
+
+    heads:dict[
+        str,
+        Annotated[
+            hyped.modeling.heads.AnyHypedHeadConfig,
+            pydantic.Field(..., discriminator='head_type')
+        ]
+    ]
+
+    def check_and_prepare(self, features:datasets.Features) -> None:
+        [hconfig.check_and_prepare(features) for hconfig in self.heads.values()]
+
+    @property
+    def pretrained_config(self) -> transformers.PretrainedConfig:
+        config = transformers.AutoConfig.from_pretrained(self.pretrained_ckpt)
+        config.prediction_heads = {hname: dataclasses.asdict(hconfig) for hname, hconfig in self.heads.items()}
+        return config
+
+    @pydantic.validator('pretrained_ckpt')
+    def _check_pretrained_ckpt(cls, value):
+        try:
+            # check if model is valid by loading config
+            transformers.AutoConfig.from_pretrained(value)
+        except OSError as e:
+            # handle model invalid
+            raise ValueError("Unkown pretrained checkpoint: %s" % value) from e
+
+        return value
+
+@pydantic.dataclasses.dataclass
+@dataclasses.dataclass
+class TrainerConfig(transformers.TrainingArguments):
+    """ Trainer Configuration """
+    # passed fromi run config and needed for output directory
+    name:str =None
+    # create default for output directory
+    run_name:str ="{name}-{timestamp}"
+    output_dir:str ="output/{name}-{timestamp}"
+    overwrite_output_dir:bool =True
+    # early stopping setup
+    early_stopping_patience:Optional[int] =1
+    early_stopping_threshold:Optional[float] =0.0
+    # checkpointing
+    load_best_model_at_end:bool =True
+    metric_for_best_model:str ='eval_loss'
+    greater_is_better:bool =False
+    # overwrite some default values
+    do_train:bool =True
+    do_eval:bool =True
+    evaluation_strategy:transformers.trainer_utils.IntervalStrategy ="epoch"
+    save_strategy:transformers.trainer_utils.IntervalStrategy ="epoch"
+    eval_accumulation_steps:Optional[int] =1
+    save_total_limit:Optional[int] =3
+    label_names:list[str] =dataclasses.field(default_factory=lambda: ['labels'])
+    report_to:Optional[list[str]] =dataclasses.field(default_factory=list)
+    log_level:Optional[str] ='warning'
+    # fields with incomplete types in Training Arguments
+    # set type to avoid error in pydantic validation
+    debug:str|list[transformers.debug_utils.DebugOption]               =""
+    sharded_ddp:str|list[transformers.trainer_utils.ShardedDDPOption]  =""
+    fsdp:str|list[transformers.trainer_utils.FSDPOption]               =""
+    fsdp_config:Optional[str|dict]                                     =None
+    # don't do that because we use args and kwargs in the
+    # model's forward function which confuses the trainer
+    remove_unused_columns:bool =False
+
+    # use pytorch implementation of AdamW optimizer
+    # to avoid deprecation warning
+    optim="adamw_torch"
+
+    @pydantic.root_validator()
+    def _format_output_directory(cls, values):
+        # get timestamp
+        timestamp=datetime.now().isoformat()
+        # format all values depending on output directory
+        return values | {
+            'output_dir': values.get('output_dir').format(
+                name=values.get('name'),
+                timestamp=datetime.now().isoformat()
+            ),
+            'logging_dir': values.get('logging_dir').format(
+                name=values.get('name'),
+                timestamp=datetime.now().isoformat()
+            ),
+            'run_name': values.get('run_name').format(
+                name=values.get('name'),
+                timestamp=datetime.now().isoformat()
+            ),
+        }
+
+class RunConfig(pydantic.BaseModel):
+    """Run Configuration Model"""
+    # run name
+    name:str
+    # model and trainer configuration
+    model:ModelConfig
+    trainer:TrainerConfig
+    metrics:dict[str,dict[str,Any]]
+
+    @pydantic.validator('trainer', pre=True)
+    def _pass_name_to_trainer_config(cls, v, values):
+        assert 'name' in values
+        if isinstance(v, pydantic.BaseModel):
+            return v.copy(update={'name': values.get('name')})
+        elif isinstance(v, dict):
+            return v | {'name': values.get('name')}
+
+
+def load_data_split(path:str, split:str) -> datasets.Dataset:
+    # check if specific dataset split exists
+    dpath = os.path.join(path, str(split))
+    if not os.path.isdir(dpath):
+        raise FileNotFoundError(dpath)
+    # load split
+    in_memory = os.environ.get("HF_DATASETS_FORCE_IN_MEMORY", None)
+    data = datasets.load_from_disk(dpath, keep_in_memory=in_memory)
+    logger.debug("Loaded data from `%s`" % dpath)
+    # return loaded dataset
+    return data
 
 def collect_data(
     data_dumps:list[str],
@@ -23,40 +157,26 @@ def collect_data(
         datasets.Split.TRAIN,
         datasets.Split.VALIDATION,
         datasets.Split.TEST
-    ]
-) -> DataDump:
+    ],
+    in_memory:bool =False
+) -> datasets.DatasetDict:
 
-    data = {split: [] for split in splits}
-    features = None
-    # load data dumps
-    for dpath in data_dumps:
-        # check if data dump file exists
-        if not os.path.isfile(dpath):
-            raise FileNotFoundError(dpath)
-        # load data
-        dump = torch.load(dpath)
-        # set features at first iteration
-        features = features or dump.features
-        # check feature compatibility
-        if dump.features != features:
-            raise ValueError("Features of dataset %s don't align with those of %s." % (
-                dpath, data_dumps[0]))
-        # add to total data
-        for s, d in dump.datasets.items():
-            if s in data:
-                logger.debug("Loaded `%s` split of data dump %s." % (s, dpath))
-                data[s].append(d)
+    ds = {split: [] for split in splits}
+    # load dataset splits of interest
+    for path, split in product(data_dumps, splits):
+        try:
+            # try to load data split
+            data = load_data_split(path, split)
+            ds[split].append(data)
+        except FileNotFoundError:
+            pass
 
-    # create data dump object for collected datasets
-    return DataDump(
-        name="combined",
-        features=features,
-        datasets={
-            k: torch.utils.data.ConcatDataset(ds)
-            for k, ds in data.items()
-            if len(ds) > 0
-        }
-    )
+    # concatenate datasets
+    return datasets.DatasetDict({
+        split: datasets.concatenate_datasets(data)
+        for split, data in ds.items()
+        if len(data) > 0
+    })
 
 def build_trainer(
     model:transformers.PreTrainedModel,
@@ -97,19 +217,20 @@ def build_trainer(
 
 def train(
     config:RunConfig,
-    data_dump:DataDump,
+    ds:datasets.DatasetDict,
     output_dir:str = None,
     disable_tqdm:bool = False
 ) -> transformers.Trainer:
 
     # check for train and validation datasets
-    if datasets.Split.TRAIN not in data_dump.datasets:
+    if datasets.Split.TRAIN not in ds:
         raise KeyError("No train dataset found, got %s!" % list(data_dump.datasets.keys()))
-    if datasets.Split.VALIDATION not in data_dump.datasets:
+    if datasets.Split.VALIDATION not in ds:
         raise KeyError("No validation dataset found, got %s!" % list(data_dump.datasets.keys()))
 
     # prepare model for data
-    config.model.check_and_prepare(data_dump.features)
+    features = ds[datasets.Split.TRAIN].info.features
+    config.model.check_and_prepare(features)
     # build the model
     model = hyped.modeling.HypedAutoAdapterModel.from_pretrained(
         config.model.pretrained_ckpt,
@@ -127,8 +248,8 @@ def train(
         disable_tqdm=disable_tqdm
     )
     # set train and validation datasets
-    trainer.train_dataset=data_dump.datasets[datasets.Split.TRAIN]
-    trainer.eval_dataset=data_dump.datasets[datasets.Split.VALIDATION]
+    trainer.train_dataset=ds[datasets.Split.TRAIN]
+    trainer.eval_dataset=ds[datasets.Split.VALIDATION]
     # add early stopping callback
     trainer.add_callback(
         transformers.EarlyStoppingCallback(

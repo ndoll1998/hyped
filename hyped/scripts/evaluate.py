@@ -1,12 +1,15 @@
 import os
 import json
-import torch
 import hyped
 import datasets
 import logging
 # utils
-from hyped.scripts.train import build_trainer
-from hyped.scripts.utils.configs import RunConfig
+from itertools import product
+from hyped.scripts.train import (
+    RunConfig,
+    build_trainer,
+    load_data_split
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,21 +53,19 @@ def main():
     fpath = args.out_dir if args.out_dir is not None else fpath
     os.makedirs(fpath, exist_ok=True)
 
-    for dpath in args.data:
-        # load data dump
-        dump = torch.load(dpath)
-        name = dump.name
+    for path, split in product(args.data, args.splits):
+        # load dataset
+        data = load_data_split(path, split)
+        name = data.info.builder_name
         # log dataset to evaluate
         logger.info("Evaluating dataset %s" % name)
 
-        for split in args.splits:
-            if split in dump.datasets:
-                # evaluate model on dataset
-                metrics = trainer.evaluate(dump.datasets[split], metric_key_prefix=split)
-                logger.info(metrics)
-                # save metrics in checkpoint directory
-                with open(os.path.join(fpath, "%s-%s.json" % (name, split)), 'w+') as f:
-                    f.write(json.dumps(metrics, indent=2))
+        # evaluate model on dataset
+        metrics = trainer.evaluate(data, metric_key_prefix=split)
+        logger.info(metrics)
+        # save metrics in checkpoint directory
+        with open(os.path.join(fpath, "%s-%s.json" % (name, split)), 'w+') as f:
+            f.write(json.dumps(metrics, indent=2))
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)

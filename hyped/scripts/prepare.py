@@ -1,31 +1,83 @@
-"""Script to prepare a dataset.
-
-Dataset Preparation consists of the following steps:
-    0. download raw data (if necessary)
-    1. apply data processor
-    2. filter dataset
-    3. convert to faster data format (NamedTensorDataset)
-"""
 import os
 import hyped
-import torch
 import datasets
 import transformers
 import numpy as np
+import pydantic
 import logging
 # register packaged datasets
 import hyped.datasets
 # utils
-from hyped.scripts.utils.data import NamedTensorDataset, DataDump
-from hyped.scripts.utils.configs import PrepareConfig
+from typing_extensions import Annotated
 
 logger = logging.getLogger(__name__)
+
+class DataConfig(pydantic.BaseModel):
+    """Data Configuration Model"""
+    dataset:str
+    splits:dict[str, str] = {
+        datasets.Split.TRAIN: datasets.Split.TRAIN,
+        datasets.Split.VALIDATION: datasets.Split.VALIDATION,
+        datasets.Split.TEST: datasets.Split.TEST
+    }
+    kwargs:dict = {}
+
+    @pydantic.root_validator(pre=False)
+    def _check_dataset(cls, v):
+
+        if v.get('dataset', None) is None:
+            raise ValueError("No Dataset provided by configuration!")
+        try:
+            # try to load dataset builder
+            builder = datasets.load_dataset_builder(v['dataset'], **v['kwargs'])
+            return v
+        except FileNotFoundError as e:
+            # raise exception if dataset builder cannot be found
+            raise ValueError("Dataset not found: %s" % v) from e
+
+    @pydantic.validator('kwargs')
+    def _prepare_kwargs(cls, v):
+        if 'data_files' in v:
+            data_files = v['data_files']
+            # make data files absolut paths
+            if isinstance(data_files, str):
+                data_files = os.path.abspath(data_files)
+            elif isinstance(data_files, (tuple, list)):
+                data_files = [os.path.abspath(f) for f in data_files]
+            elif isinstance(data_files, dict):
+                data_files = {k: os.path.abspath(f) for k,f in data_files.items()}
+            # update data files
+            v['data_files'] = data_files
+        return v
+
+class PrepareConfig(pydantic.BaseModel):
+    """Data Configuration Model"""
+    # dataset config
+    data:DataConfig
+    # preprocessing pipeline
+    pipeline:list[
+        Annotated[
+            hyped.pipeline.AnyProcessorConfig,
+            pydantic.Field(..., discriminator='processor_type')
+        ]
+    ]
+    filters:list[hyped.pipeline.AnyFilterConfig]
+    # columns to keep
+    columns:dict[str, str]
+
+    # data filters
+    #filters:list[
+    #    Annotated[
+    #        hyped.AnyFilterConfig,
+    #        pydantic.Field(..., discriminator='filter_type')
+    #    ]
+    #]
 
 def prepare_dataset(
     ds:datasets.DatasetDict,
     config:PrepareConfig,
     max_size:int | None =None,
-) -> DataDump:
+) -> datasets.DatasetDict:
 
     # get dataset info
     info = next(iter(ds.values())).info
@@ -63,21 +115,7 @@ def prepare_dataset(
     for s, d in ds.items():
         logger.info("Generated %s split of %i documents" % (s, len(d)))
 
-    # check if all features are stackable
-    for n, f in features.items():
-        if isinstance(f, datasets.Sequence) and (f.length == -1):
-            logger.info("Feature %s has undefined length, cannot converting to Tensor Dataset!" % n)
-            break
-    else:
-        # convert to tensor dataset as all sequences have fixed length
-        return DataDump(
-            name=info.builder_name,
-            features=features,
-            datasets={s: NamedTensorDataset.from_dataset(d) for s, d in ds.items()}
-        )
-
-    # return as is
-    return DataDump(name=info.builder_name, features=features, datasets=ds)
+    return ds
 
 
 def main():
@@ -87,7 +125,7 @@ def main():
     parser.add_argument("-c", "--config", type=str, required=True, help="Path to run configuration file in .json format")
     parser.add_argument("-n", "--max-size", type=int, default=None, help="Maximum number of data points per split")
     parser.add_argument("-s", "--splits", type=str, nargs='*', default=[], help="Subset of data splits to prepare")
-    parser.add_argument("-o", "--out-file", type=str, required=True, help="File to store prepared dataset in")
+    parser.add_argument("-o", "--out-dir", type=str, required=True, help="Path to store prepared dataset in")
     # parse arguments
     args = parser.parse_args()
 
@@ -118,13 +156,9 @@ def main():
     logger.info("Preparing dataset splits")
     ds = prepare_dataset(ds, config, max_size=args.max_size)
 
-    # save data splits to file
-    logger.info("Saving dataset to %s" % args.out_file)
-    # create output directory
-    dirname = os.path.dirname(args.out_file)
-    if len(dirname) > 0:
-        os.makedirs(os.path.dirname(args.out_file), exist_ok=True)
-    torch.save(ds, args.out_file)
+    # save dataset to disk
+    logger.info("Saving dataset to %s" % args.out_dir)
+    ds.save_to_disk(args.out_dir)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
