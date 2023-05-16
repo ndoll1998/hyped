@@ -3,21 +3,21 @@ stages:
   prepare:
     cmd: python -m hyped.scripts.prepare
       -c ../../text_cls/imdb/distilbert_data.json
-      -o ./dump/data/distilbert.bin
+      -o ./dump/data/distilbert
     params:
       - ../../text_cls/imdb/distilbert_data.json:
     outs:
-      - ./dump/data/distilbert.bin
+      - ./dump/data/distilbert
 
   train:
     cmd: python -m hyped.scripts.train
       -c ../../text_cls/imdb/distilbert_run.json
-      -d ./dump/data/distilbert.bin
+      -d ./dump/data/distilbert
       -o ./dump/models/distilbert
     params:
       - ../../text_cls/imdb/distilbert_run.json:
     deps:
-      - ./dump/data/distilbert.bin
+      - ./dump/data/distilbert
     outs:
       - ./dump/models/distilbert
 
@@ -25,14 +25,14 @@ stages:
     cmd: python -m hyped.scripts.evaluate
       -c ../../text_cls/imdb/distilbert_run.json
       -m ./dump/models/distilbert/best-model
-      -d ./dump/data/distilbert.bin
+      -d ./dump/data/distilbert
       -o ./dump/scores/distilbert
       -s test
     params:
       - ../../text_cls/imdb/distilbert_run.json:
     deps:
       - ./dump/models/distilbert/best-model
-      - ./dump/data/distilbert.bin
+      - ./dump/data/distilbert
     metrics:
       - ./dump/scores/distilbert/imdb-test.json:
           cache: true
