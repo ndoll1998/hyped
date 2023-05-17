@@ -224,9 +224,9 @@ def train(
 
     # check for train and validation datasets
     if datasets.Split.TRAIN not in ds:
-        raise KeyError("No train dataset found, got %s!" % list(data_dump.datasets.keys()))
+        raise KeyError("No train dataset found, got %s!" % list(ds.keys()))
     if datasets.Split.VALIDATION not in ds:
-        raise KeyError("No validation dataset found, got %s!" % list(data_dump.datasets.keys()))
+        raise KeyError("No validation dataset found, got %s!" % list(ds.keys()))
 
     # prepare model for data
     features = ds[datasets.Split.TRAIN].info.features

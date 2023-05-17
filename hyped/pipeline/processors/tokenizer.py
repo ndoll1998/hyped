@@ -49,6 +49,7 @@ class TokenizerProcessor(DataProcessor):
         )
 
     def map_features(self, features:Features) -> Features:
+
         # make sure text column is present
         if self.config.text_column not in features:
             raise KeyError("`%s` not present in features!" % self.config.text_column)
@@ -64,25 +65,28 @@ class TokenizerProcessor(DataProcessor):
             (self.config.padding == 'max_length') and \
             (self.config.truncation in (True, 'longest_first', 'only_first', 'only_second'))
         length = self.config.max_length if is_constant else -1
+
+        # create new features
+        new_features = Features()
         # add features
-        features['input_ids'] = Sequence(Value(dtype='int64'), length=length)
+        new_features['input_ids'] = Sequence(Value(dtype='int64'), length=length)
         if self.config.return_token_type_ids:
-            features['token_type_ids'] = Sequence(Value(dtype='int64'), length=length)
+            new_features['token_type_ids'] = Sequence(Value(dtype='int64'), length=length)
         if self.config.return_attention_mask:
-            features['attention_mask'] = Sequence(Value(dtype='int32'), length=length)
+            new_features['attention_mask'] = Sequence(Value(dtype='int32'), length=length)
         if self.config.return_overflowing_tokens:
-            features['overflowing_tokens'] = Sequence(Value(dtype='string'))
-            features['num_truncated_tokens'] = Value(dtype='int32')
+            new_features['overflowing_tokens'] = Sequence(Value(dtype='string'))
+            new_features['num_truncated_tokens'] = Value(dtype='int32')
         if self.config.return_special_tokens_mask:
-            features['special_tokens_mask'] = Sequence(Value(dtype='int32'), length=length)
+            new_features['special_tokens_mask'] = Sequence(Value(dtype='int32'), length=length)
         if self.config.return_special_tokens_mask:
-            features['special_tokens_mask'] = Sequence(Value(dtype='int32'), length=length)
+            new_features['special_tokens_mask'] = Sequence(Value(dtype='int32'), length=length)
         if self.config.return_length:
-            features['length'] = Value(dtype='int32')
+            new_features['length'] = Value(dtype='int32')
         if self.config.return_word_ids:
-            features['word_ids'] = Sequence(Value(dtype='int32'), length=length)
+            new_features['word_ids'] = Sequence(Value(dtype='int32'), length=length)
         # return updated features
-        return features
+        return new_features
 
     @property
     def tokenization_kwargs(self) -> dict:

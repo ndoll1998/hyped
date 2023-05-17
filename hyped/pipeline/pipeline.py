@@ -38,8 +38,8 @@ class Pipeline(object):
         self.filters.extend(filters)
 
     @property
-    def features(self) -> datasets.Features:
-        return self.processors[0].features
+    def in_features(self) -> datasets.Features:
+        return self.processors[0].in_features
 
     @property
     def out_features(self) -> datasets.Features:

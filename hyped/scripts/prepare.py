@@ -98,11 +98,14 @@ def prepare_dataset(
     # prepare pipeline and pass datasets through
     features = pipe.prepare(info.features)
     ds = pipe(ds)
+    # check features
+    assert features == next(iter(ds.values())).features
 
     # rename columns
     for t, s in config.columns.items():
         if t != s:
             ds = ds.rename_column(s, t)
+
     # set data format to torch
     ds.set_format(type='torch', columns=list(config.columns.keys()))
 
@@ -156,6 +159,8 @@ def main():
     logger.info("Preparing dataset splits")
     ds = prepare_dataset(ds, config, max_size=args.max_size)
 
+    # convert dataset dict keys to string for save to disk
+    ds = datasets.DatasetDict({str(k): d for k, d in ds.items()})
     # save dataset to disk
     logger.info("Saving dataset to %s" % args.out_dir)
     ds.save_to_disk(args.out_dir)

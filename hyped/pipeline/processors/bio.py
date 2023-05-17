@@ -92,6 +92,7 @@ class BioLabelProcessor(DataProcessor):
         # get length of word-ids sequence
         l = f.length
 
+        out_feature = None
         if self.config.token_bio_column is not None:
             # check if token bio labels column is present
             if self.config.token_bio_column not in features:
@@ -102,7 +103,7 @@ class BioLabelProcessor(DataProcessor):
                 raise TypeError("Expected bio labels to be a `Sequence` of `ClassLabels`, got %s." % f)
 
             # add feature
-            features[self.config.output_column] = Sequence(ClassLabel(names=f.feature.names), length=l)
+            out_feature = Sequence(ClassLabel(names=f.feature.names), length=l)
 
         elif self.config.token_span_column is not None:
             # check if token span column is present
@@ -121,11 +122,10 @@ class BioLabelProcessor(DataProcessor):
                 )
             ]
             # add feature
-            features[self.config.output_column] = Sequence(ClassLabel(names=bio_tags), length=l)
+            out_feature = Sequence(ClassLabel(names=bio_tags), length=l)
 
-        # return updated features
-        assert self.config.output_column in features
-        return features
+        assert out_feature is not None
+        return Features({self.config.output_column: out_feature})
 
     def process(self, example:dict[str, Any]) -> dict[str, np.ndarray]:
 
