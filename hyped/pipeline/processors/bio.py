@@ -40,7 +40,7 @@ class BioLabelProcessor(DataProcessor):
         if self.config.token_bio_column is not None:
             raise NotImplementedError()
         # return entity names from input features
-        return self.features[self.config.token_span_column]['type'].feature.names
+        return self.in_features[self.config.token_span_column]['type'].feature.names
 
     @property
     def out_tag_id(self) -> int:
