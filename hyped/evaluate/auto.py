@@ -59,4 +59,5 @@ class HypedAutoMetrics(object):
 
 # register metrics
 HypedAutoMetrics.register(heads.ClassificationHead, metrics.HypedClsMetrics)
+HypedAutoMetrics.register(heads.MultiLabelClassificationHead, metrics.HypedMlcMetrics)
 HypedAutoMetrics.register(heads.TaggingHead, metrics.HypedTaggingMetrics)

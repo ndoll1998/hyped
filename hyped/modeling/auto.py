@@ -61,4 +61,5 @@ class HypedAutoAdapterModel(AutoAdapterModel):
 
 # register prediction heads
 HypedAutoAdapterModel.register_custom_head(heads.HypedClsHeadConfig.head_type, heads.HypedClsHead)
+HypedAutoAdapterModel.register_custom_head(heads.HypedMlcHeadConfig.head_type, heads.HypedMlcHead)
 HypedAutoAdapterModel.register_custom_head(heads.HypedTaggingHeadConfig.head_type, heads.HypedTaggingHead)

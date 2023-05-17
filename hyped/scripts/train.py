@@ -181,6 +181,7 @@ def collect_data(
 def build_trainer(
     model:transformers.PreTrainedModel,
     args:transformers.TrainingArguments,
+    features:datasets.Features,
     metrics_kwargs:dict ={},
     output_dir:str = None,
     disable_tqdm:bool =False
@@ -203,6 +204,12 @@ def build_trainer(
         label_order=args.label_names
     )
 
+    # create data collator
+    collator = hyped.modeling.HypedDataCollator(
+        heads=model.heads.values(),
+        features=features
+    )
+
     # create trainer instance
     return hyped.modeling.MultiHeadTrainer(
         model=model,
@@ -210,6 +217,8 @@ def build_trainer(
         # datasets need to be set manually
         train_dataset=None,
         eval_dataset=None,
+        # data collator
+        data_collator=collator,
         # compute metrics
         preprocess_logits_for_metrics=metrics.preprocess,
         compute_metrics=metrics
@@ -243,6 +252,7 @@ def train(
     trainer = build_trainer(
         model=model,
         args=config.trainer,
+        features=features,
         metrics_kwargs=config.metrics,
         output_dir=output_dir,
         disable_tqdm=disable_tqdm

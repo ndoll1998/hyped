@@ -5,6 +5,7 @@ from transformers import EvalPrediction
 from transformers.adapters import PredictionHead
 
 class HypedTaggingMetrics(HypedMetrics):
+    # TODO: this is specific to BIO tagging not tagging in general
 
     def __init__(self, head:PredictionHead):
         super(HypedTaggingMetrics, self).__init__(head)
@@ -25,13 +26,13 @@ class HypedTaggingMetrics(HypedMetrics):
         preds, labels = eval_pred
         # compute valid mask and lengths
         mask = (labels >= 0)
-        lengths = mask.sum(axis=-1)
+        splits = np.cumsum(mask.sum(axis=-1)[:-1])
         # compute metric
         return self.seqeval.compute(
             # apply valid mask, convert label ids to label names
             # and split into seperate examples (masking flattens the arrays)
-            predictions=np.array_split(self.label_space[preds[mask]], lengths[:-1]),
-            references=np.array_split(self.label_space[labels[mask]], lengths[:-1])
+            predictions=np.array_split(self.label_space[preds[mask]], splits),
+            references=np.array_split(self.label_space[labels[mask]], splits)
         )
 
     def preprocess(self, logits:np.ndarray, labels:np.ndarray) -> np.ndarray:

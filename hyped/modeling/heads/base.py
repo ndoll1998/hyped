@@ -1,9 +1,10 @@
+import torch
+import logging
 from abc import ABC, abstractmethod
 from transformers.adapters.heads import PredictionHead
 from dataclasses import dataclass
 from datasets.features import Features
-from typing import Literal
-import logging
+from typing import Literal, Any
 
 logger = logging.getLogger(__name__)
 
@@ -89,3 +90,8 @@ class HypedPredictionHead(PredictionHead, ABC):
     @abstractmethod
     def wrapped_forward(self, *args, **kwargs):
         ...
+
+    def collate_labels(self, labels:list, return_tensors:str ='pt'):
+        if return_tensors != 'pt':
+            raise NotImplementedError()
+        return torch.stack(labels, dim=0)

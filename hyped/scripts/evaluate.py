@@ -40,13 +40,8 @@ def main():
     # load model and activate all heads
     model = hyped.modeling.HypedAutoAdapterModel.from_pretrained(args.model_ckpt)
     model.active_heads = list(model.heads.keys())
-    # build trainer but we're only using it for evaluation
-    trainer = build_trainer(
-        model=model,
-        args=config.trainer,
-        metrics_kwargs=config.metrics,
-        disable_tqdm=False
-    )
+    # trainer but we're only using it for evaluation
+    trainer = None
 
     # create directory to save metrics in
     fpath = os.path.join(args.model_ckpt, "metrics")
@@ -57,6 +52,15 @@ def main():
         # load dataset
         data = load_data_split(path, split)
         name = data.info.builder_name
+
+        # build trainer on first iteration
+        trainer = trainer or build_trainer(
+            model=model,
+            args=config.trainer,
+            features=data.features,
+            metrics_kwargs=config.metrics,
+            disable_tqdm=False
+        )
         # log dataset to evaluate
         logger.info("Evaluating dataset %s" % name)
 
