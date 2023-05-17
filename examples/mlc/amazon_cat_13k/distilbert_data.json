@@ -1,0 +1,32 @@
+{
+    "data": {
+        "dataset": "hyped.datasets.xcr",
+        "splits": {
+            "train": "train[:10000]",
+            "validation": "train[10000:12000]",
+            "test": "test[:6000]"
+        },
+        "kwargs": {
+            "name": "AmazonCat-13K"
+        }
+    },
+
+    "pipeline": [
+        {
+            "processor_type": "tokenizer",
+            "pretrained_ckpt": "distilbert-base-uncased",
+            "text_column": "text",
+            "max_length": 256,
+            "truncation": true,
+            "padding": "max_length"
+        }
+    ],
+
+    "filters": [],
+
+    "columns": {
+        "input_ids": "input_ids",
+        "attention_mask": "attention_mask",
+        "labels": "labels"
+    }
+}
