@@ -37,9 +37,16 @@ def main():
     # not used but created and there is no way around i guess
     config.trainer.output_dir = os.path.join("/tmp", config.trainer.output_dir)
 
-    # load model and activate all heads
+    # load model and activate first adapter and all heads
     model = hyped.modeling.HypedAutoAdapterModel.from_pretrained(args.model_ckpt)
-    model.active_heads = list(model.heads.keys())
+    # ativate adapter
+    if config.model.adapter is not None:
+        # fallback to first adapter in model
+        adapter = config.model.adapter_name or next(iter(model.config.adapters))
+        model.active_adapters = adapter
+    # activate all prediciton heads
+    model.active_heads = list(config.model.heads.keys())
+
     # trainer but we're only using it for evaluation
     trainer = None
 
@@ -55,6 +62,7 @@ def main():
 
         # build trainer on first iteration
         trainer = trainer or build_trainer(
+            trainer_t=config.model.trainer_t,
             model=model,
             args=config.trainer,
             features=data.features,

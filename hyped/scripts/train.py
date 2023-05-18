@@ -7,6 +7,7 @@ import pydantic
 import dataclasses
 import logging
 # utils
+from copy import copy
 from datetime import datetime
 from functools import partial
 from itertools import chain, product
@@ -30,8 +31,10 @@ class ModelConfig(pydantic.BaseModel):
     # base model
     pretrained_ckpt:str
     kwargs:dict ={}
-    # adapters and heads
-
+    # adapter setup
+    adapter_name:None|str = None # defaults to dataset name
+    adapter:None|transformers.adapters.AdapterArguments = None
+    # prediction heads
     heads:dict[
         str,
         Annotated[
@@ -45,9 +48,25 @@ class ModelConfig(pydantic.BaseModel):
 
     @property
     def pretrained_config(self) -> transformers.PretrainedConfig:
+        # load pretrained configuration and wrap for adapter model
         config = transformers.AutoConfig.from_pretrained(self.pretrained_ckpt)
+        config = transformers.adapters.wrappers.configuration.wrap_config(config)
+        # add prediction head configs
         config.prediction_heads = {hname: dataclasses.asdict(hconfig) for hname, hconfig in self.heads.items()}
+        # add adapter configs if needed
+        if self.adapter is not None:
+            if self.adapter_name is None:
+                raise ValueError("`adapter_name` in model configuration not set!")
+            if self.adapter_name not in config.adapters:
+                adapter_config = transformers.adapters.AdapterConfig.load(self.adapter.adapter_config)
+                config.adapters.add(self.adapter_name, config=adapter_config)
+        # return config
         return config
+
+    @property
+    def trainer_t(self) -> type[transformers.Trainer]:
+        use_adapter_trainer = (self.adapter is not None) and self.adapter.train_adapter
+        return hyped.modeling.MultiHeadAdapterTrainer if use_adapter_trainer else hyped.modeling.MultiHeadTrainer
 
     @pydantic.validator('pretrained_ckpt')
     def _check_pretrained_ckpt(cls, value):
@@ -159,6 +178,17 @@ def load_data_split(path:str, split:str) -> datasets.Dataset:
     # return loaded dataset
     return data
 
+def combine_infos(infos:list[datasets.DatasetInfo]):
+
+    first = copy(infos[0])
+    # check if features match up
+    for info in infos[1:]:
+        if info.features == first.features:
+            raise ValueError("Dataset features for `%s` and `%s` don't match up." % (first.builder_name, info.builder_name))
+    # build full name
+    first.builder_name = '_'.join([info.builder_name for info in infos])
+    return first
+
 def collect_data(
     data_dumps:list[str],
     splits:list[str] = [
@@ -181,12 +211,13 @@ def collect_data(
 
     # concatenate datasets
     return datasets.DatasetDict({
-        split: datasets.concatenate_datasets(data)
+        split: datasets.concatenate_datasets(data, info=combine_infos([d.info for d in data]), split=split)
         for split, data in ds.items()
         if len(data) > 0
     })
 
 def build_trainer(
+    trainer_t:type[transformers.Trainer],
     model:transformers.PreTrainedModel,
     args:transformers.TrainingArguments,
     features:datasets.Features,
@@ -219,7 +250,7 @@ def build_trainer(
     )
 
     # create trainer instance
-    return hyped.modeling.MultiHeadTrainer(
+    return trainer_t(
         model=model,
         args=args,
         # datasets need to be set manually
@@ -245,6 +276,10 @@ def train(
     if datasets.Split.VALIDATION not in ds:
         raise KeyError("No validation dataset found, got %s!" % list(ds.keys()))
 
+    # set default adapter name
+    config.model.adapter_name = config.model.adapter_name or \
+        ds[datasets.Split.TRAIN].info.builder_name
+
     # prepare model for data
     features = ds[datasets.Split.TRAIN].info.features
     config.model.check_and_prepare(features)
@@ -256,8 +291,16 @@ def train(
     )
     # activate all heads
     model.active_head = list(model.heads.keys())
+    # set up adapter
+    if config.model.adapter is not None:
+        transformers.adapters.training.setup_adapter_training(
+            model=model,
+            adapter_args=config.model.adapter,
+            adapter_name=config.model.adapter_name
+        )
 
     trainer = build_trainer(
+        trainer_t=config.model.trainer_t,
         model=model,
         args=config.trainer,
         features=features,

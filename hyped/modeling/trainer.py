@@ -3,8 +3,7 @@ from transformers import Trainer
 from transformers.adapters import AdapterTrainer
 from transformers.adapters.heads import MultiHeadOutput
 
-class MultiHeadTrainer(Trainer):
-
+class MultiHeadLossMixin(object):
     def compute_loss(self, model, inputs, return_outputs=False):
 
         # apply model and
@@ -26,3 +25,10 @@ class MultiHeadTrainer(Trainer):
         # get loss from output and return
         loss = output['loss'] if isinstance(output, dict) else output[0]
         return (loss, output) if return_outputs else loss
+
+class MultiHeadTrainer(MultiHeadLossMixin, Trainer):
+    """ Transformers trainer for multi-head models """
+
+class MultiHeadAdapterTrainer(MultiHeadLossMixin, AdapterTrainer):
+    """ Adapter trainer for multi-head models """
+
