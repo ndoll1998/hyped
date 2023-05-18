@@ -38,11 +38,17 @@
     },
 
     "metrics": {
-        "fine_cls": {
-            "average": "micro"
-        },
-        "coarse_cls": {
-            "average": "micro"
-        }
+        "fine_cls": [
+            {
+                "metric_type": "cls",
+                "average": "micro"
+            }
+        ],
+        "coarse_cls": [
+            {
+                "metric_type": "cls",
+                "average": "micro"
+            }
+        ]
     }
 }

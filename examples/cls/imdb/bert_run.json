@@ -36,8 +36,17 @@
     },
 
     "metrics": {
-        "cls": {
-            "average": "micro"
-        }
+        "cls": [
+            {
+                "metric_type": "cls",
+                "average": "micro",
+                "prefix": "micro"
+            },
+            {
+                "metric_type": "cls",
+                "average": "macro",
+                "prefix": "macro"
+            }
+        ]
     }
 }

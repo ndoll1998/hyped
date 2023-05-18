@@ -3,40 +3,40 @@ stages:
   prepare-train:
     cmd: python -m hyped.scripts.prepare
       -s train
-      -c ../../text_cls/imdb/distilbert_data.json
+      -c ../../cls/imdb/distilbert_data.json
       -o ./dump/data/distilbert_train
     params:
-      - ../../text_cls/imdb/distilbert_data.json:
+      - ../../cls/imdb/distilbert_data.json:
     outs:
       - ./dump/data/distilbert_train
   
   prepare-val:
     cmd: python -m hyped.scripts.prepare
       -s validation
-      -c ../../text_cls/imdb/distilbert_data.json
+      -c ../../cls/imdb/distilbert_data.json
       -o ./dump/data/distilbert_val
     params:
-      - ../../text_cls/imdb/distilbert_data.json:
+      - ../../cls/imdb/distilbert_data.json:
     outs:
       - ./dump/data/distilbert_val
 
   prepare-test:
     cmd: python -m hyped.scripts.prepare
       -s test
-      -c ../../text_cls/imdb/distilbert_data.json
+      -c ../../cls/imdb/distilbert_data.json
       -o ./dump/data/distilbert_test
     params:
-      - ../../text_cls/imdb/distilbert_data.json:
+      - ../../cls/imdb/distilbert_data.json:
     outs:
       - ./dump/data/distilbert_test
   
   train:
     cmd: python -m hyped.scripts.train
-      -c ../../text_cls/imdb/distilbert_run.json
+      -c ../../cls/imdb/distilbert_run.json
       -d ./dump/data/distilbert_train ./dump/data/distilbert_val
       -o ./dump/models/distilbert_adv
     params:
-      - ../../text_cls/imdb/distilbert_run.json:
+      - ../../cls/imdb/distilbert_run.json:
     deps:
       - ./dump/data/distilbert_train
       - ./dump/data/distilbert_val
@@ -45,13 +45,13 @@ stages:
   
   evaluate:
     cmd: python -m hyped.scripts.evaluate
-      -c ../../text_cls/imdb/distilbert_run.json
+      -c ../../cls/imdb/distilbert_run.json
       -m ./dump/models/distilbert_adv/best-model
       -d ./dump/data/distilbert_test
       -o ./dump/scores/distilbert_adv
       -s test
     params:
-      - ../../text_cls/imdb/distilbert_run.json:
+      - ../../cls/imdb/distilbert_run.json:
     deps:
       - ./dump/models/distilbert_adv/best-model
       - ./dump/data/distilbert_test
