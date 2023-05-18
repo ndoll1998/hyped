@@ -128,17 +128,15 @@ class RunConfig(pydantic.BaseModel):
     # model and trainer configuration
     model:ModelConfig
     trainer:TrainerConfig
-    metrics:dict[str, list[hyped.evaluate.metrics.AnyHypedMetricConfig]]
-
-
-    #metrics:dict[str,
-    #    list[
-    #        Annotated[
-    #            hyped.evaluate.metrics.AnyHypedMetricConfig,
-    #            pydantic.Field(..., discriminator='metric_type')
-    #        ]
-    #    ]
-    #]
+    metrics:dict[
+        str,
+        list[
+            Annotated[
+                hyped.evaluate.metrics.AnyHypedMetricConfig,
+                pydantic.Field(..., discriminator='metric_type')
+            ]
+        ]
+    ]
 
     @pydantic.validator('trainer', pre=True)
     def _pass_name_to_trainer_config(cls, v, values):
