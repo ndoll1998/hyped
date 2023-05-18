@@ -87,3 +87,13 @@ HypedAutoMetric.register(
     config_t=metrics.ClassificationMetricConfig,
     metrics_t=metrics.ClassificationMetric
 )
+HypedAutoMetric.register(
+    head_t=heads.MultiLabelClassificationHead,
+    config_t=metrics.MlcMetricConfig,
+    metrics_t=metrics.MlcMetric
+)
+HypedAutoMetric.register(
+    head_t=heads.TaggingHead,
+    config_t=metrics.SeqEvalMetricConfig,
+    metrics_t=metrics.SeqEvalMetric
+)

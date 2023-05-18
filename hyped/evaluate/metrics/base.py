@@ -29,7 +29,7 @@ class HypedMetric(ABC):
         ...
 
     def add_prefix(self, key:str) -> str:
-        return key if self.config.prefix is None else \
+        return ("%s_%s" % (self.head.name, key)) if self.config.prefix is None else \
             ("%s_%s_%s" % (self.head.name, self.config.prefix, key))
 
     def __call__(self, eval_pred:EvalPrediction) -> dict[str, Any]:

@@ -35,7 +35,12 @@ class TopKLogitsProcessor(LogitsProcessor):
         self.k = k
 
     def preprocess(self, logits:torch.Tensor, labels:torch.Tensor) -> torch.Tensor:
-        return torch.topk(logits, k=self.k, dim=-1).indices
+        mask = torch.zeros(logits.size(), dtype=bool)
+        idx = torch.topk(logits, k=self.k, dim=-1).indices
+        # binarize predicted indices
+        for i in range(idx.size(0)):
+            mask[i, idx[i, :]] = True
+        return mask
 
 class SigmoidAndThresholdLogitsProcessor(LogitsProcessor):
 
