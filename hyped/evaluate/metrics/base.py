@@ -1,24 +1,39 @@
-import numpy as np
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from transformers import EvalPrediction
-from transformers.adapters import PredictionHead
+from transformers.adapters.heads import PredictionHead
+from typing import Literal, Any
+from ..processors import LogitsProcessor
 
-class HypedMetrics(ABC):
+@dataclass
+class HypedMetricConfig(object):
+    metric_type:Literal['hyped-metric'] = 'hyped-metric'
+    # name prefix
+    prefix:None|str = None
 
-    def __init__(self, head:PredictionHead):
+class HypedMetric(ABC):
+
+    def __init__(
+        self,
+        head:PredictionHead,
+        config:HypedMetricConfig,
+        processor:None|LogitsProcessor
+    ) -> None:
+        # save head, config and logits preprocessor
         self.head = head
-
-    def __call__(self, eval_pred:EvalPrediction) -> dict[str, float]:
-        # evaluate metrics and add head prefix
-        scores = self.compute(eval_pred)
-        scores = {"%s_%s" % (self.head.name, key): val for key, val in scores.items()}
-        # return
-        return scores
+        self.config = config
+        self.processor = processor
 
     @abstractmethod
-    def compute(self, eval_pred:EvalPrediction) -> dict[str, float]:
+    def compute(self, eval_pred:EvalPrediction) -> dict[str, Any]:
         ...
 
-    @abstractmethod
-    def preprocess(self, logits:np.ndarray, labels:np.ndarray) -> np.ndarray:
-        ...
+    def add_prefix(self, key:str) -> str:
+        return key if self.config.prefix is None else \
+            ("%s_%s_%s" % (self.head.name, self.config.prefix, key))
+
+    def __call__(self, eval_pred:EvalPrediction) -> dict[str, Any]:
+        return {
+            self.add_prefix(key): val
+            for key, val in self.compute(eval_pred).items()
+        }

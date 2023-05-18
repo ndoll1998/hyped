@@ -1,33 +1,46 @@
 import evaluate
-import numpy as np
-from .base import HypedMetrics
 from transformers import EvalPrediction
-from transformers.adapters import PredictionHead
+from transformers.adapters.heads import PredictionHead
+from .base import HypedMetric, HypedMetricConfig
+from ..processors import ArgMaxLogitsProcessor
+from dataclasses import dataclass, field
+from functools import partial
+from typing import Literal
 
-class HypedClsMetrics(HypedMetrics):
+@dataclass
+class ClassificationMetricConfig(HypedMetricConfig):
+    metric_type:Literal['cls'] = 'cls'
+    metrics:list[str] = field(default_factory=lambda: [
+        'accuracy',
+        'precision',
+        'recall',
+        'f1'
+    ])
+    average:str = 'micro'
 
-    def __init__(self, head:PredictionHead, average:str ='micro'):
-        super(HypedClsMetrics, self).__init__(head)
-        self.average = average
+class ClassificationMetric(HypedMetric):
+
+    def __init__(self, head:PredictionHead, config:ClassificationMetricConfig) -> None:
+        super(ClassificationMetric, self).__init__(
+            head=head,
+            config=config,
+            processor=ArgMaxLogitsProcessor()
+        )
         # load all metrics
-        self.a = evaluate.load("accuracy")
-        self.p = evaluate.load("precision")
-        self.r = evaluate.load("recall")
-        self.f = evaluate.load("f1")
+        self.metrics = [evaluate.load(name) for name in self.config.metrics]
 
     def compute(self, eval_pred:EvalPrediction) -> dict[str, float]:
-        # convert to nameing expected by metrics
+        # convert to naming expected by metrics
         eval_pred = dict(
             predictions=eval_pred.predictions,
             references=eval_pred.label_ids
         )
-        # compute metrics
-        return {
-            **self.a.compute(**eval_pred),
-            **self.p.compute(**eval_pred, average=self.average),
-            **self.r.compute(**eval_pred, average=self.average),
-            **self.f.compute(**eval_pred, average=self.average)
-        }
-
-    def preprocess(self, logits:np.ndarray, labels:np.ndarray) -> np.ndarray:
-        return logits.argmax(dim=-1)
+        # evaluate all metrics
+        scores = {}
+        for metric in self.metrics:
+            scores.update(
+                metric.compute(**eval_pred) if metric.name == 'accuracy' else \
+                metric.compute(**eval_pred, average=self.config.average)
+            )
+        # return all scores
+        return scores

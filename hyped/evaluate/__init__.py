@@ -1,2 +1,3 @@
-from .auto import HypedAutoMetrics
-from .metrics import *
+from . import processors, metrics
+from .auto import HypedAutoMetric
+from .collection import HypedMetricCollection

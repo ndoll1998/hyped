@@ -58,7 +58,7 @@ def main():
             model=model,
             args=config.trainer,
             features=data.features,
-            metrics_kwargs=config.metrics,
+            metric_configs=config.metrics,
             disable_tqdm=False
         )
         # log dataset to evaluate

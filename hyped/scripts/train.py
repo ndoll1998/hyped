@@ -128,7 +128,17 @@ class RunConfig(pydantic.BaseModel):
     # model and trainer configuration
     model:ModelConfig
     trainer:TrainerConfig
-    metrics:dict[str,dict[str,Any]]
+    metrics:dict[str, list[hyped.evaluate.metrics.AnyHypedMetricConfig]]
+
+
+    #metrics:dict[str,
+    #    list[
+    #        Annotated[
+    #            hyped.evaluate.metrics.AnyHypedMetricConfig,
+    #            pydantic.Field(..., discriminator='metric_type')
+    #        ]
+    #    ]
+    #]
 
     @pydantic.validator('trainer', pre=True)
     def _pass_name_to_trainer_config(cls, v, values):
@@ -182,7 +192,7 @@ def build_trainer(
     model:transformers.PreTrainedModel,
     args:transformers.TrainingArguments,
     features:datasets.Features,
-    metrics_kwargs:dict ={},
+    metric_configs:dict[str, hyped.evaluate.metrics.AnyHypedMetricConfig],
     output_dir:str = None,
     disable_tqdm:bool =False
 ) -> transformers.Trainer:
@@ -198,9 +208,9 @@ def build_trainer(
     args.disable_tqdm = disable_tqdm
 
     # create metrics
-    metrics = hyped.evaluate.HypedAutoMetrics.from_model(
+    metrics = hyped.evaluate.HypedAutoMetric.from_model(
         model=model,
-        metrics_kwargs=metrics_kwargs,
+        metric_configs=metric_configs,
         label_order=args.label_names
     )
 
@@ -221,7 +231,7 @@ def build_trainer(
         data_collator=collator,
         # compute metrics
         preprocess_logits_for_metrics=metrics.preprocess,
-        compute_metrics=metrics
+        compute_metrics=metrics.compute
     )
 
 def train(
@@ -253,7 +263,7 @@ def train(
         model=model,
         args=config.trainer,
         features=features,
-        metrics_kwargs=config.metrics,
+        metric_configs=config.metrics,
         output_dir=output_dir,
         disable_tqdm=disable_tqdm
     )

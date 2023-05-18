@@ -1,3 +1,4 @@
-from .cls import HypedClsMetrics
-from .mlc import HypedMlcMetrics
-from .tagging import HypedTaggingMetrics
+from .cls import ClassificationMetric, ClassificationMetricConfig
+
+AnyHypedMetricConfig = \
+    ClassificationMetricConfig
