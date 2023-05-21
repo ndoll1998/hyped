@@ -5,6 +5,7 @@ from transformers.data import default_data_collator
 
 import warnings
 from datasets.features import Features
+from itertools import chain
 from typing import Any, Mapping
 
 class HypedDataCollator(object):
@@ -22,7 +23,7 @@ class HypedDataCollator(object):
 
     @property
     def label_columns(self) -> set[str]:
-        return set([h.label_column for h in self.heads])
+        return set(list(chain(*(h.get_label_names() for h in self.heads))))
 
     def __call__(self, features:list[dict[str, Any]]) -> dict[str, Any]:
         # convert features to mapping
@@ -42,14 +43,18 @@ class HypedDataCollator(object):
 
         # collate labels of all heads
         for h in self.heads:
-            if h.label_column in label_batch:
+            # TODO: handle heads with multiple label collumns
+            label_column = h.get_label_names()[0]
+            if label_column in label_batch:
 
-                if h.label_column in batch:
-                    warnings.warn("Label column `%s` already present in batch. This is likely due to multiple heads using the same label column.", UserWarning)
+                if label_column in batch:
+                    warnings.warn("Label column `%s` already present in batch. This is likely due to multiple heads using the same label column." % label_column, UserWarning)
                     continue
+
+                # TODO: support non-hyped heads that don't implement `collate_labels`
                 # collate labels for head
-                batch[h.label_column] = h.collate_labels(
-                    labels=label_batch[h.label_column],
+                batch[label_column] = h.collate_labels(
+                    labels=label_batch[label_column],
                     return_tensors=self.return_tensors
                 )
 

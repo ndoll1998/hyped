@@ -75,6 +75,7 @@ python -m hyped.scripts.evaluate \
 `hyped` is still in its very early stages. With time the goal is to make the framework applicable to a wide variety of tasks and setups. Planned features include the following:
 
  - ~~support adapter training~~
+ - ~~support transformers models~~
  - support more tasks
    - Masked Language Modeling
    - Causal Language Modeling

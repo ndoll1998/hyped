@@ -6,3 +6,4 @@ from .trainer import (
     MultiHeadAdapterTrainer
 )
 from .collator import HypedDataCollator
+from .wrapper import TransformerModelWrapper

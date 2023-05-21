@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import json
 import hyped
@@ -11,7 +12,7 @@ from copy import copy
 from datetime import datetime
 from functools import partial
 from itertools import chain, product
-from typing import Any, Optional
+from typing import Any, Optional, Literal
 from typing_extensions import Annotated
 
 import warnings
@@ -26,8 +27,86 @@ warnings.filterwarnings(
 # TODO: log more stuff
 logger = logging.getLogger(__name__)
 
-class ModelConfig(pydantic.BaseModel):
-    """Model Configuration Model"""
+class TransformerModelConfig(pydantic.BaseModel):
+    """Transformer Model Configuration Model"""
+    library:Literal['transformers'] = 'transformers'
+    # task and head name
+    task:str
+    head_name:str
+    # base model
+    pretrained_ckpt:str
+    kwargs:dict ={}
+
+    @pydantic.validator('pretrained_ckpt', pre=True)
+    def _check_pretrained_ckpt(cls, value):
+        try:
+            # check if model is valid by loading config
+            transformers.AutoConfig.from_pretrained(value)
+        except OSError as e:
+            # handle model invalid
+            raise ValueError("Unkown pretrained checkpoint: %s" % value) from e
+
+        return value
+
+    @property
+    def problem_type(self) -> str:
+        problem_type_lookup = {
+            "sequence-classification": "single_label_classification",
+            "multi-label-classification": "multi_label_classification",
+            "sequence-tagging": "token_classification"
+        }
+        # check if task is valid
+        if self.task not in problem_type_lookup:
+            raise ValueError("Invalid task `%s`, must be one of %s" % (value, list(problem_type_lookup.keys())))
+        # return problem type for task
+        return problem_type_lookup[self.task]
+
+    @property
+    def auto_class(self) -> type:
+        auto_class_lookup = {
+            "sequence-classification": transformers.AutoModelForSequenceClassification,
+            "multi-label-classification": transformers.AutoModelForSequenceClassification,
+            "sequence-tagging": transformers.AutoModelForTokenClassification
+        }
+        # check if task is valid
+        if self.task not in auto_class_lookup:
+            raise ValueError("Invalid task `%s`, must be one of %s" % (value, list(auto_class_lookup.keys())))
+        # return problem type for task
+        return auto_class_lookup[self.task]
+
+    def build(self, info:datasets.DatasetInfo) -> transformers.PreTrainedModel:
+
+        # load config and get model type
+        config, kwargs = transformers.AutoConfig.from_pretrained(self.pretrained_ckpt, **self.kwargs, return_unused_kwargs=True)
+        model_t = transformers.models.auto.auto_factory._get_model_class(config, self.auto_class._model_mapping)
+
+        # create a head config with the correct labels
+        # only used for generating the label space
+        head_config = hyped.modeling.heads.HypedClsHeadConfig(
+            label_column=transformers.utils.find_labels(model_t)[0]
+        )
+        head_config.check_and_prepare(info.features)
+        # update num labels and label2id mapping
+        config.num_labels = head_config.num_labels
+        config.id2label = head_config.id2label
+        # set the problem type, especially important for sequence classification
+        # tells the model whether to solve a single- or multi-label sequence classification task
+        config.problem_type = self.problem_type
+
+        # load pretrained model and wrap it
+        model = self.auto_class.from_pretrained(self.pretrained_ckpt, config=config, **kwargs)
+        model = hyped.modeling.TransformerModelWrapper(model, head_name=self.head_name)
+        # return wrapped model instance
+        return model
+
+    @property
+    def trainer_t(self) -> type[transformers.Trainer]:
+        # use the default transformers trainer
+        return transformers.Trainer
+
+class AdapterTransformerModelConfig(pydantic.BaseModel):
+    """Adapter Transformer Model Configuration Model"""
+    library:Literal['adapter-transformers'] = 'adapter-transformers'
     # base model
     pretrained_ckpt:str
     kwargs:dict ={}
@@ -46,10 +125,12 @@ class ModelConfig(pydantic.BaseModel):
     def check_and_prepare(self, features:datasets.Features) -> None:
         [hconfig.check_and_prepare(features) for hconfig in self.heads.values()]
 
-    @property
-    def pretrained_config(self) -> transformers.PretrainedConfig:
+    def build(self, info:datasets.DatasetInfo) -> transformers.PreTrainedModel:
+        # set default adapter name and prepare model for data
+        self.adapter_name = self.adapter_name or info.builder_name
+        self.check_and_prepare(info.features)
         # load pretrained configuration and wrap for adapter model
-        config = transformers.AutoConfig.from_pretrained(self.pretrained_ckpt)
+        config, kwargs = transformers.AutoConfig.from_pretrained(self.pretrained_ckpt, **self.kwargs, return_unused_kwargs=True)
         config = transformers.adapters.wrappers.configuration.wrap_config(config)
         # add prediction head configs
         config.prediction_heads = {hname: dataclasses.asdict(hconfig) for hname, hconfig in self.heads.items()}
@@ -60,15 +141,31 @@ class ModelConfig(pydantic.BaseModel):
             if self.adapter_name not in config.adapters:
                 adapter_config = transformers.adapters.AdapterConfig.load(self.adapter.adapter_config)
                 config.adapters.add(self.adapter_name, config=adapter_config)
-        # return config
-        return config
+        # build the model
+        model = hyped.modeling.HypedAutoAdapterModel.from_pretrained(
+            self.pretrained_ckpt,
+            config=self.pretrained_config,
+            **kwargs
+        )
+        # activate all heads
+        model.active_head = list(model.heads.keys())
+        # set up adapter
+        if self.adapter is not None:
+            transformers.adapters.training.setup_adapter_training(
+                model=model,
+                adapter_args=self.adapter,
+                adapter_name=self.adapter_name
+            )
+
+        # return model instance
+        return model
 
     @property
     def trainer_t(self) -> type[transformers.Trainer]:
         use_adapter_trainer = (self.adapter is not None) and self.adapter.train_adapter
         return hyped.modeling.MultiHeadAdapterTrainer if use_adapter_trainer else hyped.modeling.MultiHeadTrainer
 
-    @pydantic.validator('pretrained_ckpt')
+    @pydantic.validator('pretrained_ckpt', pre=True)
     def _check_pretrained_ckpt(cls, value):
         try:
             # check if model is valid by loading config
@@ -145,7 +242,7 @@ class RunConfig(pydantic.BaseModel):
     # run name
     name:str
     # model and trainer configuration
-    model:ModelConfig
+    model:TransformerModelConfig|AdapterTransformerModelConfig = pydantic.Field(..., discriminator='library')
     trainer:TrainerConfig
     metrics:dict[
         str,
@@ -157,6 +254,26 @@ class RunConfig(pydantic.BaseModel):
         ]
     ]
 
+    @pydantic.validator('model', pre=True)
+    def _infer_model_library(cls, value):
+        if 'library' not in value:
+
+            if ('heads' in value) and ('task' in value):
+                raise ValueError("Could not infer library from model config, both `heads` and `task` field specified!")
+
+            if 'heads' in value:
+                # if heads are present then this is an adapter model
+                value['library'] = "adapter-transformers"
+
+            elif 'task' in value:
+                # if task is specified then this is a pure transformer model
+                value['library'] = "transformers"
+
+            else:
+                raise ValueError("Could not infer library from model config, neither `heads` nor `task` field specified!")
+
+        return value
+
     @pydantic.validator('trainer', pre=True)
     def _pass_name_to_trainer_config(cls, v, values):
         assert 'name' in values
@@ -164,7 +281,6 @@ class RunConfig(pydantic.BaseModel):
             return v.copy(update={'name': values.get('name')})
         elif isinstance(v, dict):
             return v | {'name': values.get('name')}
-
 
 def load_data_split(path:str, split:str) -> datasets.Dataset:
     # check if specific dataset split exists
@@ -217,24 +333,19 @@ def collect_data(
     })
 
 def build_trainer(
+    info:datasets.DatasetInfo,
     trainer_t:type[transformers.Trainer],
     model:transformers.PreTrainedModel,
     args:transformers.TrainingArguments,
-    features:datasets.Features,
-    metric_configs:dict[str, hyped.evaluate.metrics.AnyHypedMetricConfig],
-    output_dir:str = None,
-    disable_tqdm:bool =False
+    metric_configs:dict[str, hyped.evaluate.metrics.AnyHypedMetricConfig]
 ) -> transformers.Trainer:
     """Create trainer instance ensuring correct interfacing between trainer and metrics"""
 
-    # create fixed order over label names
+    # create fixed order over label names for all model heads
     label_names = chain.from_iterable(h.get_label_names() for h in model.heads.values())
     label_names = list(set(list(label_names)))
-    # specify label columns and overwrite output directory if given
+    # set label names order in arguments
     args.label_names = label_names
-    args.output_dir = output_dir or args.output_dir
-    # disable tqdm
-    args.disable_tqdm = disable_tqdm
 
     # create metrics
     metrics = hyped.evaluate.HypedAutoMetric.from_model(
@@ -246,11 +357,11 @@ def build_trainer(
     # create data collator
     collator = hyped.modeling.HypedDataCollator(
         heads=model.heads.values(),
-        features=features
+        features=info.features
     )
 
     # create trainer instance
-    return trainer_t(
+    trainer = trainer_t(
         model=model,
         args=args,
         # datasets need to be set manually
@@ -262,6 +373,15 @@ def build_trainer(
         preprocess_logits_for_metrics=metrics.preprocess,
         compute_metrics=metrics.compute
     )
+    # add early stopping callback
+    trainer.add_callback(
+        transformers.EarlyStoppingCallback(
+            early_stopping_patience=args.early_stopping_patience,
+            early_stopping_threshold=args.early_stopping_threshold
+        )
+    )
+    # return trainer instance
+    return trainer
 
 def train(
     config:RunConfig,
@@ -276,48 +396,17 @@ def train(
     if datasets.Split.VALIDATION not in ds:
         raise KeyError("No validation dataset found, got %s!" % list(ds.keys()))
 
-    # set default adapter name
-    config.model.adapter_name = config.model.adapter_name or \
-        ds[datasets.Split.TRAIN].info.builder_name
+    # update trainer arguments
+    config.trainer.output_dir = output_dir or args.output_dir
+    config.trainer.disable_tqdm = disable_tqdm
 
-    # prepare model for data
-    features = ds[datasets.Split.TRAIN].info.features
-    config.model.check_and_prepare(features)
-    # build the model
-    model = hyped.modeling.HypedAutoAdapterModel.from_pretrained(
-        config.model.pretrained_ckpt,
-        config=config.model.pretrained_config,
-        **config.model.kwargs
-    )
-    # activate all heads
-    model.active_head = list(model.heads.keys())
-    # set up adapter
-    if config.model.adapter is not None:
-        transformers.adapters.training.setup_adapter_training(
-            model=model,
-            adapter_args=config.model.adapter,
-            adapter_name=config.model.adapter_name
-        )
-
-    trainer = build_trainer(
-        trainer_t=config.model.trainer_t,
-        model=model,
-        args=config.trainer,
-        features=features,
-        metric_configs=config.metrics,
-        output_dir=output_dir,
-        disable_tqdm=disable_tqdm
-    )
+    info = ds[datasets.Split.TRAIN].info
+    # build model and trainer
+    model = config.model.build(info)
+    trainer = build_trainer(info, config.model.trainer_t, model, config.trainer, config.metrics)
     # set train and validation datasets
     trainer.train_dataset=ds[datasets.Split.TRAIN]
     trainer.eval_dataset=ds[datasets.Split.VALIDATION]
-    # add early stopping callback
-    trainer.add_callback(
-        transformers.EarlyStoppingCallback(
-            early_stopping_patience=config.trainer.early_stopping_patience,
-            early_stopping_threshold=config.trainer.early_stopping_threshold
-        )
-    )
 
     # run trainer
     trainer.train()
