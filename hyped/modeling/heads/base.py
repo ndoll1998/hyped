@@ -70,10 +70,13 @@ class HypedPredictionHead(PredictionHead, ABC):
     def get_label_names(self) -> list[str]:
         return [self.label_column]
 
+    def get_labels(self, kwargs) -> dict[str, Any]:
+        return {'labels': kwargs.get(self.label_column, None)}
+
     def forward(self, *args, **kwargs):
         # prepare kwargs, rename label column as expected by base
         kwargs = kwargs.copy()
-        kwargs['labels'] = kwargs.pop(self.label_column, None)
+        kwargs.update(self.get_labels(kwargs))
         # run base class
         out = self.wrapped_forward(*args, **kwargs)
 
@@ -90,8 +93,3 @@ class HypedPredictionHead(PredictionHead, ABC):
     @abstractmethod
     def wrapped_forward(self, *args, **kwargs):
         ...
-
-    def collate_labels(self, labels:list, return_tensors:str ='pt'):
-        if return_tensors != 'pt':
-            raise NotImplementedError()
-        return torch.stack(labels, dim=0)

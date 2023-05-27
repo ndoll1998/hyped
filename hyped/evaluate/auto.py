@@ -3,6 +3,7 @@ from .metrics.base import HypedMetric, HypedMetricConfig
 from .collection import HypedMetricCollection
 from transformers.adapters import heads
 from hyped.utils.typedmapping import typedmapping
+from functools import cmp_to_key
 
 class HypedAutoMetric(object):
     METRICS_MAPPING = typedmapping[
@@ -17,9 +18,11 @@ class HypedAutoMetric(object):
         config:HypedMetricConfig
     ) -> HypedMetric:
         # find metrics for head
-        for head_t, metrics_mapping in cls.METRICS_MAPPING.items():
+        key = cmp_to_key(lambda t, v: 2 * issubclass(v, t) - 1)
+        for head_t in sorted(cls.METRICS_MAPPING, key=key):
             if isinstance(head, head_t):
                 # find specific metric
+                metrics_mapping = cls.METRICS_MAPPING[head_t]
                 metric_t = metrics_mapping.get(type(config), None)
                 # check if metric type found
                 if metric_t is None:

@@ -1,3 +1,4 @@
+import torch
 from transformers import PreTrainedModel
 from transformers.adapters.heads import TaggingHead
 from .base import HypedPredictionHead, HypedPredictionHeadConfig
@@ -41,6 +42,14 @@ class HypedTaggingHead(HypedPredictionHead, TaggingHead):
             label_column=label_column,
             loss_coeff=loss_coeff
         )
+
+    def get_labels(self, kwargs):
+        mask = kwargs.get('attention_mask', None)
+        # get labels and mask out invalid targets
+        labels = HypedPredictionHead.get_labels(self, kwargs)['labels']
+        labels = torch.where(mask.bool(), labels, -100) if mask is not None else labels
+        # return labels dict
+        return {'labels': labels}
 
     # set forward function
     wrapped_forward = TaggingHead.forward

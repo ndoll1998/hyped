@@ -71,6 +71,7 @@ def main():
         trainer = trainer or build_trainer(
             info=data.info,
             trainer_t=config.model.trainer_t,
+            tokenizer=config.model.build_tokenizer(),
             model=model,
             args=config.trainer,
             metric_configs=config.metrics

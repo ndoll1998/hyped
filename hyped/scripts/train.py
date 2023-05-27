@@ -33,6 +33,7 @@ class TransformerModelConfig(pydantic.BaseModel):
     # task and head name
     task:str
     head_name:str
+    label_column:str = "labels"
     # base model
     pretrained_ckpt:str
     kwargs:dict ={}
@@ -53,7 +54,8 @@ class TransformerModelConfig(pydantic.BaseModel):
         problem_type_lookup = {
             "sequence-classification": "single_label_classification",
             "multi-label-classification": "multi_label_classification",
-            "sequence-tagging": "token_classification"
+            "sequence-tagging": "token_classification",
+            "causal-language-modeling": "causal-language-modeling"
         }
         # check if task is valid
         if self.task not in problem_type_lookup:
@@ -66,7 +68,8 @@ class TransformerModelConfig(pydantic.BaseModel):
         auto_class_lookup = {
             "sequence-classification": transformers.AutoModelForSequenceClassification,
             "multi-label-classification": transformers.AutoModelForSequenceClassification,
-            "sequence-tagging": transformers.AutoModelForTokenClassification
+            "sequence-tagging": transformers.AutoModelForTokenClassification,
+            "causal-language-modeling": transformers.AutoModelForCausalLM
         }
         # check if task is valid
         if self.task not in auto_class_lookup:
@@ -74,30 +77,50 @@ class TransformerModelConfig(pydantic.BaseModel):
         # return problem type for task
         return auto_class_lookup[self.task]
 
+    @property
+    def head_config_class(self) -> type:
+        head_config_lookup = {
+            "sequence-classification": hyped.modeling.heads.HypedClsHeadConfig,
+            "multi-label-classification": hyped.modeling.heads.HypedMlcHeadConfig,
+            "sequence-tagging": hyped.modeling.heads.HypedTaggingHeadConfig,
+            "causal-language-modeling": hyped.modeling.heads.HypedCausalLMHeadConfig
+        }
+        # check if task is valid
+        if self.task not in head_config_lookup:
+            raise ValueError("Invalid task `%s`, must be one of %s" % (value, list(head_config_lookup.keys())))
+        # return problem type for task
+        return head_config_lookup[self.task]
+
     def build(self, info:datasets.DatasetInfo) -> transformers.PreTrainedModel:
 
-        # load config and get model type
+        # load pretrained config
         config, kwargs = transformers.AutoConfig.from_pretrained(self.pretrained_ckpt, **self.kwargs, return_unused_kwargs=True)
-        model_t = transformers.models.auto.auto_factory._get_model_class(config, self.auto_class._model_mapping)
 
         # create a head config with the correct labels
         # only used for generating the label space
-        head_config = hyped.modeling.heads.HypedClsHeadConfig(
-            label_column=transformers.utils.find_labels(model_t)[0]
-        )
+        head_config = self.head_config_class(label_column=self.label_column)
         head_config.check_and_prepare(info.features)
         # update num labels and label2id mapping
-        config.num_labels = head_config.num_labels
-        config.id2label = head_config.id2label
+        if head_config.num_labels is not None:
+            config.num_labels = head_config.num_labels
+        if head_config.id2label is not None:
+            config.id2label = head_config.id2label
         # set the problem type, especially important for sequence classification
         # tells the model whether to solve a single- or multi-label sequence classification task
         config.problem_type = self.problem_type
 
         # load pretrained model and wrap it
         model = self.auto_class.from_pretrained(self.pretrained_ckpt, config=config, **kwargs)
-        model = hyped.modeling.TransformerModelWrapper(model, head_name=self.head_name)
+        model = hyped.modeling.TransformerModelWrapper(
+            model,
+            head_name=self.head_name,
+            head_config=head_config
+        )
         # return wrapped model instance
         return model
+
+    def build_tokenizer(self) -> transformers.PreTrainedTokenizer:
+        return transformers.AutoTokenizer.from_pretrained(self.pretrained_ckpt, use_fast=True)
 
     @property
     def trainer_t(self) -> type[transformers.Trainer]:
@@ -144,7 +167,7 @@ class AdapterTransformerModelConfig(pydantic.BaseModel):
         # build the model
         model = hyped.modeling.HypedAutoAdapterModel.from_pretrained(
             self.pretrained_ckpt,
-            config=self.pretrained_config,
+            config=config,
             **kwargs
         )
         # activate all heads
@@ -159,6 +182,9 @@ class AdapterTransformerModelConfig(pydantic.BaseModel):
 
         # return model instance
         return model
+
+    def build_tokenizer(self) -> transformers.PreTrainedTokenizer:
+        return transformers.AutoTokenizer.from_pretrained(self.pretrained_ckpt, use_fast=True)
 
     @property
     def trainer_t(self) -> type[transformers.Trainer]:
@@ -335,6 +361,7 @@ def collect_data(
 def build_trainer(
     info:datasets.DatasetInfo,
     trainer_t:type[transformers.Trainer],
+    tokenizer:transformers.PreTrainedTokenizer,
     model:transformers.PreTrainedModel,
     args:transformers.TrainingArguments,
     metric_configs:dict[str, hyped.evaluate.metrics.AnyHypedMetricConfig]
@@ -356,6 +383,7 @@ def build_trainer(
 
     # create data collator
     collator = hyped.modeling.HypedDataCollator(
+        tokenizer=tokenizer,
         heads=model.heads.values(),
         features=info.features
     )
@@ -400,10 +428,20 @@ def train(
     config.trainer.output_dir = output_dir or args.output_dir
     config.trainer.disable_tqdm = disable_tqdm
 
+    # get dataset info and restrict features to dataset format
     info = ds[datasets.Split.TRAIN].info
+    info.features = datasets.Features({
+        n: info.features[n] for n in ds[datasets.Split.TRAIN].format['columns']
+    })
     # build model and trainer
-    model = config.model.build(info)
-    trainer = build_trainer(info, config.model.trainer_t, model, config.trainer, config.metrics)
+    trainer = build_trainer(
+        info=info,
+        trainer_t=config.model.trainer_t,
+        tokenizer=config.model.build_tokenizer(),
+        model=config.model.build(info),
+        args=config.trainer,
+        metric_configs=config.metrics
+    )
     # set train and validation datasets
     trainer.train_dataset=ds[datasets.Split.TRAIN]
     trainer.eval_dataset=ds[datasets.Split.VALIDATION]

@@ -47,15 +47,3 @@ class HypedMlcHead(HypedPredictionHead, MultiLabelClassificationHead):
 
     # set forward function
     wrapped_forward = MultiLabelClassificationHead.forward
-
-    def collate_labels(self, labels:list[list[int]], return_tensors:str ='pt'):
-        if return_tensors != 'pt':
-            raise NotImplementedError()
-
-        num_labels = self.config['num_labels']
-        # binarize labels
-        binarized_labels = torch.zeros((len(labels), num_labels), dtype=int)
-        for i, ids in enumerate(labels):
-            binarized_labels[i, ids] = 1
-        # return
-        return binarized_labels
