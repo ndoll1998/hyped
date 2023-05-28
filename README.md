@@ -68,22 +68,63 @@ python -m hyped.stages.evaluate \
  - Text Classification
  - Named Entity Recognition
  - Multi-label Classification
+ - Causal Language Modeling
 
+### adapters
+
+`hyped` is build upon [`adapter-transformers`](https://docs.adapterhub.ml/), which allows the configuration of a variety of model architectures. See the following excerpt for how to configure an adapter model in the run configuration (from [`examples/cls/imdb/distilbert_run.json`](examples/cls/imdb/distilbert_run.json)):
+
+```json
+{
+    "model": {
+        "pretrained_ckpt": "distilbert-base-uncased",
+        
+        "adapter_name": "imdb",
+        "adapter": {
+            "train_adapter": true,
+            "adapter_config": "pfeiffer"
+        },
+
+        "heads": {
+            "cls": {
+                "head_type": "hyped-cls-head",
+                "label_column": "labels"
+            }
+        }
+    }
+}
+```
+
+The `adapter` field in the above configuration mirrors the [`AdapterArguments`](https://docs.adapterhub.ml/classes/adapter_training.html#transformers.adapters.training.AdapterArguments) class and can specify all it's values (e.g. `load_adapter` for loading pretrained adapters). Furthermore, by setting `train_adapter` to True, only the paramters of the adapter and head are trained, while the pretrained encoder parameters are frozen.
+
+Alternatively, the adapter configuration can also be omitted, in which case no adapter is used and the encoder output is directly passed to the prediction heads.
+
+### dvc
+
+`hyped` is designed to be easily integratable into existing data pipelines. Thus, it fits well with [`dvc`](https://dvc.org/) pipelines. See [`examples/dvc`](examples/dvc) for an example setup.
+
+### deepspeed
+
+`hyped` supports distributed training allowing for both pre-training and fine-tuning of very large language models. See [`examples/lm/run.json`](examples/lm/run.json) for an example configuration. To lauch a distributed training you need to use `hyped`'s command line interface:
+
+```bash
+deepspeed --no_python hyped train -c config.json -d data/ -o model/
+```
 
 ## roadmap
 
-`hyped` is still in its very early stages. With time the goal is to make the framework applicable to a wide variety of tasks and setups. Planned features include the following:
+`hyped` is currently in its early stages of development. Over time, the goal is to expand its applicability to a diverse range of tasks and setups. The following features are planned for future development:
 
  - ~~support adapter training~~
  - ~~support transformers models~~
  - support more tasks
    - Masked Language Modeling
-   - Causal Language Modeling
+   - ~~Causal Language Modeling~~
    - nested Named Entity Recognition
    - Question Answering
  - support multi-modal encoders
    - LayoutLM
    - LiLT
  - support distributed training/inference
-   - deepspeed
+   - ~~deepspeed~~
    - pytorch DDP and FSDP
