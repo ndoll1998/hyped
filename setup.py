@@ -22,5 +22,10 @@ setup(
         'evaluate>=0.4.0',
         'torch>=2.0.0',
         'pydantic>=1.10.7'
-    ]
+    ],
+    entry_points={
+        "console_scripts": [
+            'hyped = hyped.cli:main'
+        ]
+    }
 )

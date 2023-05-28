@@ -1,7 +1,7 @@
 from __future__ import annotations
+
 import os
 import json
-import hyped
 import datasets
 import transformers
 import pydantic
@@ -14,6 +14,10 @@ from functools import partial
 from itertools import chain, product
 from typing import Any, Optional, Literal
 from typing_extensions import Annotated
+# hyped
+from . import modeling
+from .metrics import HypedAutoMetric
+from .metrics.metrics import AnyHypedMetricConfig
 
 import warnings
 # ignore warning of _n_gpu field of TrainingArguments
@@ -80,10 +84,10 @@ class TransformerModelConfig(pydantic.BaseModel):
     @property
     def head_config_class(self) -> type:
         head_config_lookup = {
-            "sequence-classification": hyped.modeling.heads.HypedClsHeadConfig,
-            "multi-label-classification": hyped.modeling.heads.HypedMlcHeadConfig,
-            "sequence-tagging": hyped.modeling.heads.HypedTaggingHeadConfig,
-            "causal-language-modeling": hyped.modeling.heads.HypedCausalLMHeadConfig
+            "sequence-classification": modeling.heads.HypedClsHeadConfig,
+            "multi-label-classification": modeling.heads.HypedMlcHeadConfig,
+            "sequence-tagging": modeling.heads.HypedTaggingHeadConfig,
+            "causal-language-modeling": modeling.heads.HypedCausalLMHeadConfig
         }
         # check if task is valid
         if self.task not in head_config_lookup:
@@ -111,7 +115,7 @@ class TransformerModelConfig(pydantic.BaseModel):
 
         # load pretrained model and wrap it
         model = self.auto_class.from_pretrained(self.pretrained_ckpt, config=config, **kwargs)
-        model = hyped.modeling.TransformerModelWrapper(
+        model = modeling.TransformerModelWrapper(
             model,
             head_name=self.head_name,
             head_config=head_config
@@ -140,7 +144,7 @@ class AdapterTransformerModelConfig(pydantic.BaseModel):
     heads:dict[
         str,
         Annotated[
-            hyped.modeling.heads.AnyHypedHeadConfig,
+            modeling.heads.AnyHypedHeadConfig,
             pydantic.Field(..., discriminator='head_type')
         ]
     ]
@@ -165,7 +169,7 @@ class AdapterTransformerModelConfig(pydantic.BaseModel):
                 adapter_config = transformers.adapters.AdapterConfig.load(self.adapter.adapter_config)
                 config.adapters.add(self.adapter_name, config=adapter_config)
         # build the model
-        model = hyped.modeling.HypedAutoAdapterModel.from_pretrained(
+        model = modeling.HypedAutoAdapterModel.from_pretrained(
             self.pretrained_ckpt,
             config=config,
             **kwargs
@@ -189,7 +193,8 @@ class AdapterTransformerModelConfig(pydantic.BaseModel):
     @property
     def trainer_t(self) -> type[transformers.Trainer]:
         use_adapter_trainer = (self.adapter is not None) and self.adapter.train_adapter
-        return hyped.modeling.MultiHeadAdapterTrainer if use_adapter_trainer else hyped.modeling.MultiHeadTrainer
+        return modeling.MultiHeadAdapterTrainer if use_adapter_trainer else \
+            modeling.MultiHeadTrainer
 
     @pydantic.validator('pretrained_ckpt', pre=True)
     def _check_pretrained_ckpt(cls, value):
@@ -275,7 +280,7 @@ class RunConfig(pydantic.BaseModel):
         str,
         list[
             Annotated[
-                hyped.evaluate.metrics.AnyHypedMetricConfig,
+                AnyHypedMetricConfig,
                 pydantic.Field(..., discriminator='metric_type')
             ]
         ]
@@ -308,6 +313,13 @@ class RunConfig(pydantic.BaseModel):
             return v.copy(update={'name': values.get('name')})
         elif isinstance(v, dict):
             return v | {'name': values.get('name')}
+
+def get_format_info(data:datasets.Dataset) -> datasets.Features:
+    return dataclasses.replace(
+        data.info,
+        features=data.info.features.copy() if data.format['columns'] is None else \
+            datasets.Features({n: data.info.features[n] for n in data.format['columns']})
+    )
 
 def load_data_split(path:str, split:str) -> datasets.Dataset:
     # check if specific dataset split exists
@@ -360,12 +372,12 @@ def collect_data(
     })
 
 def build_trainer(
-    info:datasets.DatasetInfo,
     trainer_t:type[transformers.Trainer],
+    info:datasets.DatasetInfo,
     tokenizer:transformers.PreTrainedTokenizer,
     model:transformers.PreTrainedModel,
     args:transformers.TrainingArguments,
-    metric_configs:dict[str, hyped.evaluate.metrics.AnyHypedMetricConfig]
+    metric_configs:dict[str, AnyHypedMetricConfig]
 ) -> transformers.Trainer:
     """Create trainer instance ensuring correct interfacing between trainer and metrics"""
 
@@ -376,14 +388,14 @@ def build_trainer(
     args.label_names = label_names
 
     # create metrics
-    metrics = hyped.evaluate.HypedAutoMetric.from_model(
+    metrics = HypedAutoMetric.from_model(
         model=model,
         metric_configs=metric_configs,
         label_order=args.label_names
     )
 
     # create data collator
-    collator = hyped.modeling.HypedDataCollator(
+    collator = modeling.HypedDataCollator(
         tokenizer=tokenizer,
         heads=model.heads.values(),
         features=info.features
@@ -416,6 +428,7 @@ def train(
     config:RunConfig,
     ds:datasets.DatasetDict,
     output_dir:str = None,
+    local_rank:int = -1,
     disable_tqdm:bool = False
 ) -> transformers.Trainer:
 
@@ -425,62 +438,51 @@ def train(
     if datasets.Split.VALIDATION not in ds:
         raise KeyError("No validation dataset found, got %s!" % list(ds.keys()))
 
+    # update local rank in trainer configuration
+    config.trainer.local_rank = local_rank
     # update trainer arguments
     config.trainer.output_dir = output_dir or args.output_dir
     config.trainer.disable_tqdm = disable_tqdm
 
-    # get dataset info and restrict features to dataset format
-    info = ds[datasets.Split.TRAIN].info
-    info.features = datasets.Features({
-        n: info.features[n] for n in ds[datasets.Split.TRAIN].format['columns']
-    })
+    # get dataset info but replace features with restricted features
+    data = next(iter(ds.values()))
+    info = get_format_info(data)
     # build model and trainer
     trainer = build_trainer(
-        info=info,
         trainer_t=config.model.trainer_t,
+        info=info,
         tokenizer=config.model.build_tokenizer(),
         model=config.model.build(info),
         args=config.trainer,
         metric_configs=config.metrics
     )
-    # set train and validation datasets
-    trainer.train_dataset=ds[datasets.Split.TRAIN]
-    trainer.eval_dataset=ds[datasets.Split.VALIDATION]
+    # set datasets
+    trainer.train_dataset = ds[datasets.Split.TRAIN]
+    trainer.eval_dataset = ds[datasets.Split.VALIDATION]
 
     # run trainer
     trainer.train()
 
     return trainer
 
-def main():
-    from argparse import ArgumentParser
-    # build argument parser
-    parser = ArgumentParser(description="Train Transformer model on prepared datasets")
-    parser.add_argument("-c", "--config", type=str, required=True, help="Path to run configuration file in .json format")
-    parser.add_argument("-d", "--data", type=str, nargs='+', required=True, help="Paths to prepared data dumps")
-    parser.add_argument("-o", "--out-dir", type=str, default=None, help="Output directory, by default uses directoy specified in config")
-    parser.add_argument("-r", "--local_rank", type=int, default=-1, help="Local rank of process during distributed training.")
-    # parse arguments
-    args = parser.parse_args()
-
+def main(
+    config:str,
+    data:list[str],
+    out_dir:str,
+    local_rank:int =-1
+) -> None:
     # check if config exists
-    if not os.path.isfile(args.config):
-        raise FileNotFoundError(args.config)
-    # load config
-    logger.info("Loading run configuration from %s" % args.config)
-    config = RunConfig.parse_file(args.config)
+    if not os.path.isfile(config):
+        raise FileNotFoundError(config)
 
-    # update local rank in trainer configuration
-    config.trainer.local_rank = args.local_rank
+    # load config
+    logger.info("Loading run configuration from %s" % config)
+    config = RunConfig.parse_file(config)
 
     # run training
     splits = [datasets.Split.TRAIN, datasets.Split.VALIDATION]
-    trainer = train(config, collect_data(args.data, splits), args.out_dir)
+    trainer = train(config, collect_data(data, splits), out_dir, local_rank)
 
     # save trainer model in output directory if given
-    if args.out_dir is not None:
-        trainer.save_model(os.path.join(args.out_dir, "best-model"))
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    main()
+    if out_dir is not None:
+        trainer.save_model(os.path.join(out_dir, "best-model"))
