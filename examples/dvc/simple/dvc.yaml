@@ -22,7 +22,7 @@ stages:
       - ./dump/models/distilbert
 
   evaluate:
-    cmd: python -m hyped.stages.evaluate
+    cmd: python -m hyped.stages.test
       -c ../../cls/imdb/distilbert_run.json
       -m ./dump/models/distilbert/best-model
       -d ./dump/data/distilbert

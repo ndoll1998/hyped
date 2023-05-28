@@ -44,7 +44,7 @@ stages:
       - ./dump/models/distilbert_adv
   
   test:
-    cmd: python -m hyped.stages.evaluate
+    cmd: python -m hyped.stages.test
       -c ../../cls/imdb/distilbert_run.json
       -m ./dump/models/distilbert_adv/best-model
       -d ./dump/data/distilbert_test
