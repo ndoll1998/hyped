@@ -156,18 +156,13 @@ class AdapterTransformerModelConfig(pydantic.BaseModel):
         # set default adapter name and prepare model for data
         self.adapter_name = self.adapter_name or info.builder_name
         self.check_and_prepare(info.features)
+
         # load pretrained configuration and wrap for adapter model
         config, kwargs = transformers.AutoConfig.from_pretrained(self.pretrained_ckpt, **self.kwargs, return_unused_kwargs=True)
         config = transformers.adapters.wrappers.configuration.wrap_config(config)
         # add prediction head configs
         config.prediction_heads = {hname: dataclasses.asdict(hconfig) for hname, hconfig in self.heads.items()}
-        # add adapter configs if needed
-        if self.adapter is not None:
-            if self.adapter_name is None:
-                raise ValueError("`adapter_name` in model configuration not set!")
-            if self.adapter_name not in config.adapters:
-                adapter_config = transformers.adapters.AdapterConfig.load(self.adapter.adapter_config)
-                config.adapters.add(self.adapter_name, config=adapter_config)
+
         # build the model
         model = modeling.HypedAutoAdapterModel.from_pretrained(
             self.pretrained_ckpt,
@@ -178,11 +173,23 @@ class AdapterTransformerModelConfig(pydantic.BaseModel):
         model.active_head = list(model.heads.keys())
         # set up adapter
         if self.adapter is not None:
+            # check if name is set
+            if self.adapter_name is None:
+                raise ValueError("`adapter_name` in model configuration not set!")
+            # set up adapter
             transformers.adapters.training.setup_adapter_training(
                 model=model,
-                adapter_args=self.adapter,
+                adapter_args=dataclasses.replace(
+                    self.adapter,
+                    train_adapter=True
+                ),
                 adapter_name=self.adapter_name
             )
+
+            # unfreeze model parameters when not only 
+            # training adapter weights 
+            if not self.adapter.train_adapter:
+                model.freeze_model(False)
 
         # return model instance
         return model
