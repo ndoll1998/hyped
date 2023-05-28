@@ -317,6 +317,7 @@ class RunConfig(pydantic.BaseModel):
 def get_format_info(data:datasets.Dataset) -> datasets.Features:
     return dataclasses.replace(
         data.info,
+        task_templates=[],
         features=data.info.features.copy() if data.format['columns'] is None else \
             datasets.Features({n: data.info.features[n] for n in data.format['columns']})
     )
@@ -377,7 +378,8 @@ def build_trainer(
     tokenizer:transformers.PreTrainedTokenizer,
     model:transformers.PreTrainedModel,
     args:transformers.TrainingArguments,
-    metric_configs:dict[str, AnyHypedMetricConfig]
+    metric_configs:dict[str, AnyHypedMetricConfig],
+    local_rank:int =-1
 ) -> transformers.Trainer:
     """Create trainer instance ensuring correct interfacing between trainer and metrics"""
 
@@ -386,6 +388,8 @@ def build_trainer(
     label_names = list(set(list(label_names)))
     # set label names order in arguments
     args.label_names = label_names
+    # update local rank in trainer configuration
+    args.local_rank = local_rank
 
     # create metrics
     metrics = HypedAutoMetric.from_model(
@@ -438,8 +442,6 @@ def train(
     if datasets.Split.VALIDATION not in ds:
         raise KeyError("No validation dataset found, got %s!" % list(ds.keys()))
 
-    # update local rank in trainer configuration
-    config.trainer.local_rank = local_rank
     # update trainer arguments
     config.trainer.output_dir = output_dir or args.output_dir
     config.trainer.disable_tqdm = disable_tqdm
@@ -454,7 +456,8 @@ def train(
         tokenizer=config.model.build_tokenizer(),
         model=config.model.build(info),
         args=config.trainer,
-        metric_configs=config.metrics
+        metric_configs=config.metrics,
+        local_rank=local_rank
     )
     # set datasets
     trainer.train_dataset = ds[datasets.Split.TRAIN]

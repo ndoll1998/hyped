@@ -18,7 +18,8 @@ def main(
     model_ckpt:str,
     data:list[str],
     splits:list[str],
-    out_dir:str
+    out_dir:str,
+    local_rank:int =-1
 ) -> None:
 
     # check if config exists
@@ -70,7 +71,8 @@ def main(
             tokenizer=config.model.build_tokenizer(),
             model=model,
             args=config.trainer,
-            metric_configs=config.metrics
+            metric_configs=config.metrics,
+            local_rank=local_rank
         )
         # log dataset to evaluate
         logger.info("Evaluating dataset %s" % name)

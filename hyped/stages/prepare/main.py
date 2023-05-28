@@ -127,7 +127,8 @@ def main(
     config:str,
     max_size:int,
     splits:list[str],
-    out_dir:str
+    out_dir:str,
+    local_rank:int =-1 # not used
 ) -> None:
 
     # register hyped datasets
