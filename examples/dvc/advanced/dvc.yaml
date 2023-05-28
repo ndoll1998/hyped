@@ -1,7 +1,7 @@
 stages:
 
   prepare-train:
-    cmd: python -m hyped.scripts.prepare
+    cmd: python -m hyped.stages.prepare
       -s train
       -c ../../cls/imdb/distilbert_data.json
       -o ./dump/data/distilbert_train
@@ -11,7 +11,7 @@ stages:
       - ./dump/data/distilbert_train
   
   prepare-val:
-    cmd: python -m hyped.scripts.prepare
+    cmd: python -m hyped.stages.prepare
       -s validation
       -c ../../cls/imdb/distilbert_data.json
       -o ./dump/data/distilbert_val
@@ -21,7 +21,7 @@ stages:
       - ./dump/data/distilbert_val
 
   prepare-test:
-    cmd: python -m hyped.scripts.prepare
+    cmd: python -m hyped.stages.prepare
       -s test
       -c ../../cls/imdb/distilbert_data.json
       -o ./dump/data/distilbert_test
@@ -31,7 +31,7 @@ stages:
       - ./dump/data/distilbert_test
   
   train:
-    cmd: python -m hyped.scripts.train
+    cmd: python -m hyped.stages.train
       -c ../../cls/imdb/distilbert_run.json
       -d ./dump/data/distilbert_train ./dump/data/distilbert_val
       -o ./dump/models/distilbert_adv
@@ -43,8 +43,8 @@ stages:
     outs:
       - ./dump/models/distilbert_adv
   
-  evaluate:
-    cmd: python -m hyped.scripts.evaluate
+  test:
+    cmd: python -m hyped.stages.evaluate
       -c ../../cls/imdb/distilbert_run.json
       -m ./dump/models/distilbert_adv/best-model
       -d ./dump/data/distilbert_test
