@@ -137,6 +137,7 @@ class AdapterTransformerModelConfig(pydantic.BaseModel):
     # base model
     pretrained_ckpt:str
     kwargs:dict ={}
+    freeze_model:None|bool =None
     # adapter setup
     adapter_name:None|str = None # defaults to dataset name
     adapter:None|transformers.adapters.AdapterArguments = None
@@ -186,10 +187,9 @@ class AdapterTransformerModelConfig(pydantic.BaseModel):
                 adapter_name=self.adapter_name
             )
 
-            # unfreeze model parameters when not only 
-            # training adapter weights 
-            if not self.adapter.train_adapter:
-                model.freeze_model(False)
+        if self.freeze_model is not None:
+            # freeze/unfreeze model parameters
+            model.freeze_model(self.freeze_model)
 
         # return model instance
         return model

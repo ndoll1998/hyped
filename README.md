@@ -95,7 +95,7 @@ python -m hyped.stages.evaluate \
 }
 ```
 
-The `adapter` field in the above configuration mirrors the [`AdapterArguments`](https://docs.adapterhub.ml/classes/adapter_training.html#transformers.adapters.training.AdapterArguments) class and can specify all it's values (e.g. `load_adapter` for loading pretrained adapters). Furthermore, by setting `train_adapter` to True, only the paramters of the adapter and head are trained, while the pretrained encoder parameters are frozen.
+The `adapter` field in the above configuration mirrors the [`AdapterArguments`](https://docs.adapterhub.ml/classes/adapter_training.html#transformers.adapters.training.AdapterArguments) class and can specify all it's values (e.g. `load_adapter` for loading pretrained adapters).
 
 Alternatively, the adapter configuration can also be omitted, in which case no adapter is used and the encoder output is directly passed to the prediction heads.
 
