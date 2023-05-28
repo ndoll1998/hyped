@@ -12,7 +12,7 @@ def main():
     # create global parser
     parser = ArgumentParser(prog="hyped")
     stage_parsers = parser.add_subparsers(
-        title="stages", help="Stages"
+        title="stages", help="Pipeline stages"
     )
 
     # prepare stage argument parser
