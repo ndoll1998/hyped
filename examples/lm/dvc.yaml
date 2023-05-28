@@ -1,0 +1,22 @@
+stages:
+
+  prepare-bookcorpus:
+    cmd: hyped prepare
+      -c ./data_bookcorpus.json
+      -o ./dump/data/bookcorpus
+    params:
+      - ./data_bookcorpus.json:
+    outs:
+      - ./dump/data/bookcorpus
+
+  train:
+    cmd: deepspeed --num_gpus=2 --no_python hyped train
+      -c ./run.json
+      -d ./dump/data/bookcorpus
+      -o ./dump/model/
+    params:
+      - ./run.json:
+    deps:
+      - ./dump/data/bookcorpus
+    outs:
+      - ./dump/model/
