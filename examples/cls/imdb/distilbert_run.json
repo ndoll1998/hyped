@@ -4,6 +4,12 @@
     "model": {
         "pretrained_ckpt": "distilbert-base-uncased",
 
+        "adapter_name": "imdb",
+        "adapter": {
+            "train_adapter": true,
+            "adapter_config": "pfeiffer"
+        },
+
         "heads": {
             "cls": {
                 "head_type": "hyped-cls-head",
