@@ -23,7 +23,7 @@ class SeqEvalMetric(HypedMetric):
         super(SeqEvalMetric, self).__init__(
             head=head,
             config=config,
-            processor=ArgMaxLogitsProcessor()
+            processor=ArgMaxLogitsProcessor(head=head)
         )
         # load seceval metric
         self.metric = evaluate.load('seqeval')
