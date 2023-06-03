@@ -123,6 +123,13 @@ class TransformerModelConfig(pydantic.BaseModel):
         # return wrapped model instance
         return model
 
+    def load(self, path:str) -> transformers.PreTrainedModel:
+        # load trained model from path
+        model = self.auto_class.from_pretrained(path)
+        model = modeling.TransformerModelWrapper(model, head_name=self.head_name)
+        # return the loaded model
+        return model
+
     def build_tokenizer(self) -> transformers.PreTrainedTokenizer:
         return transformers.AutoTokenizer.from_pretrained(self.pretrained_ckpt, use_fast=True)
 
@@ -194,13 +201,45 @@ class AdapterTransformerModelConfig(pydantic.BaseModel):
         # return model instance
         return model
 
+    def load(self, path:str) -> transformers.PreTrainedModel:
+
+        if self.freeze_model:
+            # only the adapter and head are saved to the directory
+            # the pretrained model has to be loaded from the pretrained ckpt
+            model = modeling.HypedAutoAdapterModel.from_pretrained(self.pretrained_ckpt)
+
+            # load adapter
+            if self.adapter is not None:
+                assert self.adapter_name is not None
+                # TODO: what if adapter name is not set
+                model.load_adapter(os.path.join(model_ckpt, self.adapter_name))
+                model.active_adapters = self.adapter_name
+
+            # load all prediction heads
+            for head_name in self.heads:
+                model.load_head(os.path.join(path, head_name))
+
+        else:
+            # full model saved
+            model = modeling.HypedAutoAdapterModel.from_pretrained(path)
+
+            # activate adapter
+            if self.adapter is not None:
+                # fallback to first adapter in model
+                adapter = self.adapter_name or next(iter(model.config.adapters))
+                model.active_adapters = adapter
+
+        # activate all prediciton heads
+        model.active_heads = list(self.heads.keys())
+
+        return model
+
     def build_tokenizer(self) -> transformers.PreTrainedTokenizer:
         return transformers.AutoTokenizer.from_pretrained(self.pretrained_ckpt, use_fast=True)
 
     @property
     def trainer_t(self) -> type[transformers.Trainer]:
-        use_adapter_trainer = (self.adapter is not None) and self.adapter.train_adapter
-        return modeling.MultiHeadAdapterTrainer if use_adapter_trainer else \
+        return modeling.MultiHeadAdapterTrainer if self.freeze_model else \
             modeling.MultiHeadTrainer
 
     @pydantic.validator('pretrained_ckpt', pre=True)

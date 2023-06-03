@@ -34,38 +34,8 @@ def main(
     # not used but created and there is no way around i guess
     config.trainer.output_dir = os.path.join("/tmp", config.trainer.output_dir)
 
-    # load model
-    if config.model.library == 'transformers':
-        # load pretrained model and wrap
-        model = config.model.auto_class.from_pretrained(model_ckpt)
-        model = modeling.TransformerModelWrapper(model, head_name=config.model.head_name)
-
-    elif config.model.library == 'adapter-transformers':
-
-        if config.model.adapter is None:
-            # load adapter transformers model but without adapter and activate all heads
-            model = modeling.HypedAutoAdapterModel.from_pretrained(model_ckpt)
-            model.active_heads = list(config.model.heads.keys())
-
-        elif config.model.adapter.train_adapter:
-            # trained adapter only thus we need to load the adapter and heads separately
-            model = modeling.HypedAutoAdapterModel.from_pretrained(config.model.pretrained_ckpt)
-            # load and activate adapter
-            # TODO: what if adapter name is not set
-            model.load_adapter(os.path.join(model_ckpt, config.model.adapter_name))
-            model.active_adapters = config.model.adapter_name
-            # load all prediction heads
-            for head_name in config.model.heads:
-                model.load_head(os.path.join(model_ckpt, head_name))
-
-        else:
-            # model has adapter but was trained end-to-end
-            model = modeling.hypedAutoAdapterModel.from_pretrained(model_ckpt)
-            # fallback to first adapter in model
-            adapter = config.model.adapter_name or next(iter(model.config.adapters))
-            model.active_adapters = adapter
-            # activate all prediciton heads
-            model.active_heads = list(config.model.heads.keys())
+    # load model from checkpoint
+    model = config.model.load(model_ckpt)
 
     # trainer but we're only using it for evaluation
     trainer = None
