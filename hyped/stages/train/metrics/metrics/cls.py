@@ -24,7 +24,7 @@ class ClassificationMetric(HypedMetric):
         super(ClassificationMetric, self).__init__(
             head=head,
             config=config,
-            processor=ArgMaxLogitsProcessor()
+            processor=ArgMaxLogitsProcessor(head=head)
         )
         # load all metrics
         self.metrics = [evaluate.load(name) for name in self.config.metrics]

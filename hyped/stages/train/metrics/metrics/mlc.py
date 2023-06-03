@@ -28,7 +28,7 @@ class MlcMetric(HypedMetric):
         super(MlcMetric, self).__init__(
             head=head,
             config=config,
-            processor=TopKLogitsProcessor(k=config.k)
+            processor=TopKLogitsProcessor(head=head, k=config.k)
         )
         # get label mapping from head config
         label2id = head.config.get('label2id', None)
@@ -42,6 +42,7 @@ class MlcMetric(HypedMetric):
     def compute(self, eval_pred:EvalPrediction) -> dict[str, float]:
 
         preds, labels = eval_pred
+        preds = (preds >= 0)
         # compute confusion matrix
         tp = (preds & labels).sum(axis=0)
         fp = (preds & ~labels).sum(axis=0)

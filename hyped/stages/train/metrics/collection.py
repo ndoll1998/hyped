@@ -1,4 +1,5 @@
 from .metrics.base import HypedMetric
+from .processors import LogitsProcessor
 from transformers import EvalPrediction
 from collections import defaultdict
 
@@ -18,12 +19,13 @@ class HypedMetricCollection(object):
         # save head and label order
         self.head_order = head_order
         self.label_order = label_order
-
+        # save metrics
         self.metrics = metrics
-        self.processors = defaultdict(set)
 
-        for metric in metrics:
-            self.processors[metric.head].add(metric.processor)
+    @property
+    def processors(self) -> set[LogitsProcessor]:
+        # unique set of all logits preprocessors
+        return set(m.processor for m in self.metrics)
 
     def compute(self, eval_pred):
         scores = {}
@@ -36,7 +38,7 @@ class HypedMetricCollection(object):
         for metric in self.metrics:
             scores.update(metric(
                 EvalPrediction(
-                    predictions=preds[metric.head.name, metric.processor],
+                    predictions=preds[metric.processor],
                     label_ids=get_labels(labels, metric.head.get_label_names())
                 )
             ))
@@ -57,10 +59,9 @@ class HypedMetricCollection(object):
         labels = dict(zip(self.label_order, labels))
         # preprocess all logits
         return {
-            (h.name, p): p(
-                logits=logits[h.name],
-                labels=get_labels(labels, h.get_label_names())
+            p: p(
+                logits=logits[p.head.name],
+                labels=get_labels(labels, p.head.get_label_names())
             )
-            for h, ps in self.processors.items()
-            for p in ps
+            for p in self.processors
         }
