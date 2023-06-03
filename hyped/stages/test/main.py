@@ -3,7 +3,7 @@ import json
 import logging
 # utils
 from itertools import product
-from hyped.stages.train import modeling
+from hyped import modeling
 from hyped.stages.train.main import (
     RunConfig,
     get_format_info,

@@ -15,9 +15,11 @@ from itertools import chain, product
 from typing import Any, Optional, Literal
 from typing_extensions import Annotated
 # hyped
-from . import modeling
-from .metrics import HypedAutoMetric
-from .metrics.metrics import AnyHypedMetricConfig
+from hyped import modeling
+from hyped.metrics import (
+    HypedAutoMetric,
+    AnyHypedMetricConfig
+)
 
 import warnings
 # ignore warning of _n_gpu field of TrainingArguments

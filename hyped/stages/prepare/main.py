@@ -5,9 +5,9 @@ import numpy as np
 import pydantic
 import logging
 # hyped
-from .pipeline import Pipeline
-from .processors import AnyProcessorConfig
-from .filters import AnyFilterConfig
+from hyped.pipeline import Pipeline
+from hyped.pipeline.processors import AnyProcessorConfig
+from hyped.pipeline.filters import AnyFilterConfig
 # utils
 from typing_extensions import Annotated
 
