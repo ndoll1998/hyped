@@ -123,7 +123,11 @@ class TaggingLabelsCollator(LabelsCollator):
         mask = self.build_attn_mask(enc)
         # pad label features to match sequence length
         return {
-            n: self.pad([f[n] for f in features], mask)
+            n: (
+                self.pad([f[n] for f in features], mask)
+                if not is_sized(self.features[n]) else
+                torch.stack([f[n] for f in features], dim=0)
+            )
             for n in self.head.get_label_names()
         }
 
