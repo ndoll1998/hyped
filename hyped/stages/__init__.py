@@ -1,4 +1,6 @@
 from . import (
     prepare,
-    train
+    train,
+    test,
+    predict
 )
