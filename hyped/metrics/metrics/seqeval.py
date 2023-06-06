@@ -4,13 +4,13 @@ from transformers import EvalPrediction
 from transformers.adapters.heads import PredictionHead
 from .base import HypedMetric, HypedMetricConfig
 from ..processors import ArgMaxLogitsProcessor
+from hyped.modeling.heads import HypedTaggingHeadConfig
 from dataclasses import dataclass, field
 from functools import partial
 from typing import Literal
 
 @dataclass
 class SeqEvalMetricConfig(HypedMetricConfig):
-    metric_type:Literal['seqeval'] = 'seqeval'
     # additional arguments
     suffix:bool = False
     scheme:None|Literal["IOB1","IOB2","IOE1","IOE2","IOBES","BILOU"] = None
@@ -19,17 +19,17 @@ class SeqEvalMetricConfig(HypedMetricConfig):
 
 class SeqEvalMetric(HypedMetric):
 
-    def __init__(self, head:PredictionHead, config:SeqEvalMetricConfig) -> None:
+    def __init__(self, h_config:HypedTaggingHeadConfig, m_config:SeqEvalMetricConfig) -> None:
         super(SeqEvalMetric, self).__init__(
-            head=head,
-            config=config,
+            h_config=h_config,
+            m_config=m_config,
             processor=ArgMaxLogitsProcessor()
         )
         # load seceval metric
         self.metric = evaluate.load('seqeval')
 
         # get label mapping from head config
-        label2id = head.config.get('label2id', None)
+        label2id = h_config.get('label2id', None)
         if label2id is None:
             raise ValueError("Config of head type %s has no `label2id` entry." % type(head))
         # build label space array from mapping

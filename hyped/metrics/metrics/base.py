@@ -1,13 +1,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from transformers import EvalPrediction
-from transformers.adapters.heads import PredictionHead
-from typing import Literal, Any
+from typing import Any
 from ..processors import LogitsProcessor
+from hyped.modeling.heads import HypedHeadConfig
 
 @dataclass
 class HypedMetricConfig(object):
-    metric_type:Literal['hyped-metric'] = 'hyped-metric'
     # name prefix
     prefix:None|str = None
 
@@ -15,13 +14,13 @@ class HypedMetric(ABC):
 
     def __init__(
         self,
-        head:PredictionHead,
-        config:HypedMetricConfig,
+        h_config:HypedHeadConfig,
+        m_config:HypedMetricConfig,
         processor:None|LogitsProcessor
     ) -> None:
         # save head, config and logits preprocessor
-        self.head = head
-        self.config = config
+        self.h_config = h_config
+        self.m_config = m_config
         self.processor = processor
 
     @abstractmethod
@@ -29,8 +28,8 @@ class HypedMetric(ABC):
         ...
 
     def add_prefix(self, key:str) -> str:
-        return ("%s_%s" % (self.head.name, key)) if self.config.prefix is None else \
-            ("%s_%s_%s" % (self.head.name, self.config.prefix, key))
+        return ("%s_%s" % (self.h_config.head_name, key)) if self.m_config.prefix is None else \
+            ("%s_%s_%s" % (self.h_config.head_name, self.m_config.prefix, key))
 
     def __call__(self, eval_pred:EvalPrediction) -> dict[str, Any]:
         return {

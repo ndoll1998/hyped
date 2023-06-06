@@ -4,11 +4,9 @@ from transformers.adapters.heads import PredictionHead
 from .base import HypedMetric, HypedMetricConfig
 from ..processors import TopKLogitsProcessor
 from dataclasses import dataclass, field
-from typing import Literal
 
 @dataclass
 class MlcMetricConfig(HypedMetricConfig):
-    metric_type:Literal['mlc'] = 'mlc'
     metrics:list[str] = field(default_factory=lambda: [
         'accuracy',
         'precision',

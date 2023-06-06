@@ -1,9 +1,5 @@
-from .heads import *
-from .auto import HypedAutoAdapterModel
-from .wrapper import TransformerModelWrapper
-
+from . import heads
+from .wrapper import HypedModelWrapper
 from .collator import HypedDataCollator
-from .trainer import (
-    MultiHeadTrainer,
-    MultiHeadAdapterTrainer
-)
+
+from . import adapters
