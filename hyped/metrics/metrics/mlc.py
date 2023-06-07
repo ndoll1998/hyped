@@ -20,22 +20,17 @@ class MlcMetric(HypedMetric):
 
     def __init__(
         self,
-        head:PredictionHead,
-        config:HypedMetricConfig
+        h_config:PredictionHead,
+        m_config:HypedMetricConfig
     ) -> None:
         super(MlcMetric, self).__init__(
-            head=head,
-            config=config,
-            processor=TopKLogitsProcessor(k=config.k)
+            h_config=h_config,
+            m_config=m_config,
+            processor=TopKLogitsProcessor(k=m_config.k)
         )
-        # get label mapping from head config
-        label2id = head.config.get('label2id', None)
-        if label2id is None:
-            raise ValueError("Config of head type %s has no `label2id` entry." % type(head))
-        # build label space array from mapping
-        self.label_space = [None] * len(label2id)
-        for label, i in label2id.items():
-            self.label_space[i] = label
+
+        if self.h_config.id2label is None:
+            raise ValueError("`label2id` entry not specified in head `%s`." % h_config.head_name)
 
     def compute(self, eval_pred:EvalPrediction) -> dict[str, float]:
 
@@ -71,7 +66,7 @@ class MlcMetric(HypedMetric):
                     'fn': fn[i]
                 }
             }
-            for i, label in enumerate(self.label_space)
+            for i, label in self.h_config.id2label.items()
         }
         # add global confusion matrix
         metrics['confusion'] = {
@@ -84,7 +79,7 @@ class MlcMetric(HypedMetric):
         metrics['average_accuracy'] = a.mean()
 
         # compute average metrics
-        if self.config.average == 'micro':
+        if self.m_config.average == 'micro':
             # micro average precision and recall
             avg_p = total_tp / (total_tp + total_fp + 1e-5)
             avg_r = total_tp / (total_tp + total_fn + 1e-5)

@@ -81,11 +81,11 @@ AutoHypedMetric.register(
     config_t=metrics.ClsMetricConfig,
     metrics_t=metrics.ClsMetric
 )
-#AutoHypedMetric.register(
-#    head_t=heads.MultiLabelClassificationHead,
-#    config_t=metrics.MlcMetricConfig,
-#    metrics_t=metrics.MlcMetric
-#)
+AutoHypedMetric.register(
+    head_t=heads.HypedMlcHeadConfig,
+    config_t=metrics.MlcMetricConfig,
+    metrics_t=metrics.MlcMetric
+)
 AutoHypedMetric.register(
     head_t=heads.HypedTaggingHeadConfig,
     config_t=metrics.SeqEvalMetricConfig,

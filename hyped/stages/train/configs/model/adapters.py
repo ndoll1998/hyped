@@ -12,9 +12,16 @@ class ClsHeadConfig(hyped.modeling.adapters.heads.HypedAdapterClsHeadConfig):
     head_type:Literal["classification"] = "classification"
 
 @dataclasses.dataclass
+class MlcHeadConfig(hyped.modeling.adapters.heads.HypedAdapterMlcHeadConfig):
+    head_type:Literal["mlc"] = "mlc"
+
+@dataclasses.dataclass
 class TaggingHeadConfig(hyped.modeling.adapters.heads.HypedAdapterTaggingHeadConfig):
     head_type:Literal["tagging"] = "tagging"
 
+@dataclasses.dataclass
+class CausalLMHeadConfig(hyped.modeling.adapters.heads.HypedAdapterCausalLMHeadConfig):
+    head_type:Literal["causal-lm"] = "causal-lm"
 
 class AdapterTransformerModelConfig(ModelConfig):
     """Adapter Transformer Model Configuration Model"""
@@ -28,13 +35,16 @@ class AdapterTransformerModelConfig(ModelConfig):
         Annotated[
             (
                 ClsHeadConfig |
-                TaggingHeadConfig
+                MlcHeadConfig |
+                TaggingHeadConfig |
+                CausalLMHeadConfig
             ),
             pydantic.Field(..., discriminator='head_type')
         ]
     ]
 
     def check_and_prepare(self, features:datasets.Features) -> None:
+        print(self.heads['mlc'])
         [hconfig.check_and_prepare(features) for hconfig in self.heads.values()]
 
     @pydantic.validator('heads', pre=True)

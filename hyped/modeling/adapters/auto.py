@@ -34,4 +34,5 @@ class AutoHypedAdapterHead(object):
         cls.HEAD_MAPPING[config_t] = head_t
 
 AutoHypedAdapterHead.register(heads.HypedAdapterClsHeadConfig, heads.HypedAdapterClsHead)
+AutoHypedAdapterHead.register(heads.HypedAdapterMlcHeadConfig, heads.HypedAdapterMlcHead)
 AutoHypedAdapterHead.register(heads.HypedAdapterTaggingHeadConfig, heads.HypedAdapterTaggingHead)

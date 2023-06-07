@@ -4,7 +4,9 @@ from transformers.data import DefaultDataCollator
 from hyped.modeling.heads import (
     HypedHeadConfig,
     HypedClsHeadConfig,
-    HypedTaggingHeadConfig
+    HypedMlcHeadConfig,
+    HypedTaggingHeadConfig,
+    HypedCausalLMHeadConfig
 )
 from datasets.features import Features, Sequence
 # utils
@@ -79,11 +81,50 @@ class DefaultLabelsCollator(DefaultDataCollator, LabelsCollator):
     def __call__(self, features:list[dict[str, Any]], enc:dict[str, Any]) -> dict[str, Any]:
         return DefaultDataCollator.__call__(self, features)
 
+class MultiLabelsCollator(LabelsCollator):
+
+    def __init__(
+        self,
+        h_config:HypedMlcHeadConfig,
+        tokenizer:PreTrainedTokenizer,
+        features:Features,
+        return_tensors:str ='pt'
+    ) -> None:
+        # initialize collator
+        super(MultiLabelsCollator, self).__init__(
+            h_config=h_config,
+            tokenizer=tokenizer,
+            features=features,
+            return_tensors=return_tensors
+        )
+
+        # get the label space size
+        assert self.h_config.num_labels is not None
+        self.num_labels = self.h_config.num_labels
+
+        if return_tensors != 'pt':
+            raise NotImplementedError("Only pytorch tensors supported yet")
+
+    def binarize(self, labels:list[list[int]]) -> torch.Tensor:
+
+        bin_labels = torch.zeros((len(labels), self.num_labels), dtype=torch.long)
+        # binarize labels
+        for i, ids in enumerate(labels):
+            bin_labels[i, ids] = 1
+
+        return bin_labels
+
+    def __call__(self, features:list[dict[str, Any]], enc:dict[str, Any]) -> dict[str, Any]:
+        return {
+            n: self.binarize([f[n] for f in features])
+            for n in self.h_config.label_columns
+        }
+
 class TaggingLabelsCollator(LabelsCollator):
 
     def __init__(
         self,
-        h_config:HypedHeadConfig,
+        h_config:HypedTaggingHeadConfig,
         tokenizer:PreTrainedTokenizer,
         features:Features,
         return_tensors:str ='pt'
@@ -130,6 +171,30 @@ class TaggingLabelsCollator(LabelsCollator):
             for n in self.h_config.label_columns
         }
 
+
+class CausalLMLabelsCollator(TaggingLabelsCollator):
+
+    def __init__(
+        self,
+        h_config:HypedCausalLMHeadConfig,
+        tokenizer:PreTrainedTokenizer,
+        features:Features,
+        return_tensors:str ='pt'
+    ) -> None:
+        assert isinstance(h_config, HypedCausalLMHeadConfig)
+        # initialize collator
+        super(CausalLMLabelsCollator, self).__init__(
+            h_config=h_config,
+            tokenizer=tokenizer,
+            features=features,
+            return_tensors=return_tensors
+        )
+
+    def __call__(self, features:list[dict[str, Any]], enc:dict[str, Any]) -> dict[str, Any]:
+        # check if the labels are already present in the encoding
+        # then it is also already present in the collation output
+        return {} if self.h_config.label_column in enc else \
+            TaggingLabelsCollator.__call__(self, features, enc)
 
 class HypedDataCollator(object):
 
@@ -260,7 +325,7 @@ class HypedDataCollator(object):
 # register data collators
 HypedDataCollator.register_head_collator(HypedHeadConfig, DefaultLabelsCollator)
 HypedDataCollator.register_head_collator(HypedClsHeadConfig, DefaultLabelsCollator)
+HypedDataCollator.register_head_collator(HypedMlcHeadConfig, MultiLabelsCollator)
 HypedDataCollator.register_head_collator(HypedTaggingHeadConfig, TaggingLabelsCollator)
-#HypedDataCollator.register_head_collator(MultiLabelClassificationHead, MultiLabelsCollator)
-#HypedDataCollator.register_head_collator(CausalLMHead, CausalLMLabelsCollator)
+HypedDataCollator.register_head_collator(HypedCausalLMHeadConfig, CausalLMLabelsCollator)
 

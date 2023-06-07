@@ -56,9 +56,29 @@ class HypedClsHeadConfig(HypedHeadConfig):
     def label_columns(self) -> list[str]:
         return [self.label_column]
 
+@dataclass
+class HypedMlcHeadConfig(HypedClsHeadConfig):
+
+    def get_label_space(self, feature) -> list[str]:
+        if not isinstance(feature, Sequence) and isinstance(feature.feature, ClassLabel):
+            raise ValueError("Expected label feature for multi-label classification to be a `Sequence` of `ClassLabel`, got %s." % str(feature))
+        # return label space
+        return feature.feature.names
 
 @dataclass
 class HypedTaggingHeadConfig(HypedClsHeadConfig):
+
+    def get_label_space(self, feature) -> list[str]:
+        if not isinstance(feature, Sequence) and isinstance(feature.feature, ClassLabel):
+            raise ValueError("Expected label feature for tagging to be a `Sequence` of `ClassLabel`, got %s." % str(feature))
+        # return label space
+        return feature.feature.names
+
+@dataclass
+class HypedCausalLMHeadConfig(HypedClsHeadConfig):
+    # default behavior is to reproduce input ids
+    # note that shift labels is set to true by default
+    label_column:str ="input_ids"
 
     def get_label_space(self, feature) -> list[str]:
         if not isinstance(feature, Sequence) and isinstance(feature.feature, ClassLabel):

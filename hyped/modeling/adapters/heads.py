@@ -3,18 +3,49 @@ from abc import ABC, abstractmethod
 from ..heads import (
     HypedHeadConfig,
     HypedClsHeadConfig,
-    HypedTaggingHeadConfig
+    HypedMlcHeadConfig,
+    HypedTaggingHeadConfig,
+    HypedCausalLMHeadConfig
 )
 # adapter transformers heads
 from transformers import PreTrainedModel
 from transformers.adapters.heads import (
     PredictionHead,
     ClassificationHead,
-    TaggingHead
+    MultiLabelClassificationHead,
+    TaggingHead,
+    CausalLMHead
 )
 
 from typing import Any
 from dataclasses import dataclass, asdict
+
+@dataclass
+class HypedAdapterClsHeadConfig(HypedClsHeadConfig):
+    layers:int = 2
+    activation_function:str = "tanh"
+    use_pooler:bool = False
+    bias:bool = True
+
+@dataclass
+class HypedAdapterMlcHeadConfig(HypedMlcHeadConfig):
+    layers:int = 2
+    activation_function:str = "tanh"
+    use_pooler:bool = False
+    bias:bool = True
+
+@dataclass
+class HypedAdapterTaggingHeadConfig(HypedTaggingHeadConfig):
+    layers:int = 2
+    activation_function:str = "tanh"
+
+@dataclass
+class HypedAdapterCausalLMHeadConfig(HypedCausalLMHeadConfig):
+    layers:int = 1
+    activation_function:str = "tanh"
+    layer_norm:bool = False
+    bias:bool = True
+    shift_labels:bool = True
 
 class ForwardWrapper(object):
 
@@ -44,13 +75,6 @@ class HypedAdapterHead(PredictionHead):
         ...
 
 
-@dataclass
-class HypedAdapterClsHeadConfig(HypedClsHeadConfig):
-    layers:int = 2
-    activation_function:str ="tanh"
-    use_pooler:bool =False
-    bias:bool =True
-
 class HypedAdapterClsHead(HypedAdapterHead, ClassificationHead):
 
     def __init__(
@@ -70,10 +94,26 @@ class HypedAdapterClsHead(HypedAdapterHead, ClassificationHead):
     def get_labels(self, kwargs:dict[str, Any]) -> dict[str, Any]:
         return {'labels': kwargs.get(self.h_config.label_column)}
 
-@dataclass
-class HypedAdapterTaggingHeadConfig(HypedClsHeadConfig):
-    layers:int = 2
-    activation_function:str ="tanh"
+
+class HypedAdapterMlcHead(HypedAdapterHead, MultiLabelClassificationHead):
+
+    def __init__(
+        self,
+        model:PreTrainedModel,
+        h_config:HypedAdapterClsHeadConfig
+    ) -> None:
+        # extract head kwargs from config
+        kwargs = asdict(h_config)
+        kwargs.pop("loss_coeff")
+        kwargs.pop("label_column")
+        kwargs.pop("head_type", None)
+        # initialize head
+        MultiLabelClassificationHead.__init__(self, model, **kwargs)
+        HypedAdapterHead.__init__(self, h_config)
+
+    def get_labels(self, kwargs:dict[str, Any]) -> dict[str, Any]:
+        return {'labels': kwargs.get(self.h_config.label_column)}
+
 
 class HypedAdapterTaggingHead(HypedAdapterHead, TaggingHead):
 
@@ -90,6 +130,29 @@ class HypedAdapterTaggingHead(HypedAdapterHead, TaggingHead):
         # initialize head
         TaggingHead.__init__(self, model, **kwargs)
         HypedAdapterHead.__init__(self, h_config)
+
+    def get_labels(self, kwargs:dict[str, Any]) -> dict[str, Any]:
+        return {'labels': kwargs.get(self.label_column)}
+
+
+class HypedAdapterCausalLMHead(HypedAdapterHead, CausalLMHead):
+
+    def __init__(
+        self,
+        model:PreTrainedModel,
+        h_config:HypedAdapterTaggingHeadConfig
+    ) -> None:
+        # extract head kwargs from config
+        kwargs = asdict(h_config)
+        kwargs.pop("loss_coeff")
+        kwargs.pop("label_column")
+        kwargs.pop("head_type", None)
+        # initialize head
+        CausalLMHead.__init__(self, model, **kwargs)
+        HypedAdapterHead.__init__(self, h_config)
+
+        if (not self.h_config.shift_labels) and (self.h_config.label_column == "input_ids"):
+            warnings.warn("Causal LM head got label_column='input_ids' and shift_labels=False. This specifies the trivial task of reproducing the input, NOT next word prediction.", UserWarning)
 
     def get_labels(self, kwargs:dict[str, Any]) -> dict[str, Any]:
         return {'labels': kwargs.get(self.label_column)}

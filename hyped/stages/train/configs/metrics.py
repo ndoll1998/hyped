@@ -9,9 +9,9 @@ from hyped.metrics import metrics
 class ClsMetricConfig(hyped.metrics.metrics.ClsMetricConfig):
     metric_type:Literal["cls"] = "cls"
 
-#@dataclasses.dataclass
-#class MlcMetricConfig(hyped.metrics.metrics.MlcMetricConfig):
-#    metric_type:Literal["mlc"] = "mlc"
+@dataclasses.dataclass
+class MlcMetricConfig(hyped.metrics.metrics.MlcMetricConfig):
+    metric_type:Literal["mlc"] = "mlc"
 
 @dataclasses.dataclass
 class SeqEvalMetricConfig(hyped.metrics.metrics.SeqEvalMetricConfig):
@@ -24,6 +24,7 @@ MetricsConfig = dict[
         Annotated[
             (
                 ClsMetricConfig |
+                MlcMetricConfig |
                 SeqEvalMetricConfig
             ),
             pydantic.Field(..., discriminator='metric_type')
