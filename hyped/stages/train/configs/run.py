@@ -1,40 +1,49 @@
 import pydantic
 from .trainer import TrainerConfig
 from .metrics import MetricsConfig
-from .model.adapters import AdapterTransformerModelConfig
-from .model.transformers import TransformerModelConfig
+from .model.base import ModelConfig
 
 class RunConfig(pydantic.BaseModel):
     """Run Configuration Model"""
     # run name
     name:str
     # model and trainer configuration
-    model:(
-        AdapterTransformerModelConfig |
-        TransformerModelConfig
-    ) = pydantic.Field(..., discriminator='library')
+    model:ModelConfig
     trainer:TrainerConfig
     metrics:MetricsConfig
 
     @pydantic.validator('model', pre=True)
-    def _infer_model_library(cls, value):
-        if 'library' not in value:
+    def _parse_model_config(cls, value):
+
+        # try to infer library from model configuration
+        if 'backend' not in value:
 
             if ('heads' in value) and ('task' in value):
                 raise ValueError("Could not infer library from model config, both `heads` and `task` field specified!")
 
             if 'heads' in value:
                 # if heads are present then this is an adapter model
-                value['library'] = "adapter-transformers"
+                value['backend'] = "adapter-transformers"
 
             elif 'task' in value:
                 # if task is specified then this is a pure transformer model
-                value['library'] = "transformers"
+                value['backend'] = "transformers"
 
             else:
                 raise ValueError("Could not infer library from model config, neither `heads` nor `task` field specified!")
 
-        return value
+        # must have backend specification at this point
+        assert 'backend' in value
+
+        if value['backend'] == 'transformers':
+            from .model.transformers import TransformerModelConfig
+            return TransformerModelConfig(**value)
+
+        if value['backend'] == 'adapter-transformers':
+            from .model.adapters import AdapterTransformerModelConfig
+            return AdapterTransformerModelConfig(**value)
+
+        raise ValueError("Invalid backend %s" % value['backend'])
 
     @pydantic.validator('trainer', pre=True)
     def _pass_name_to_trainer_config(cls, v, values):

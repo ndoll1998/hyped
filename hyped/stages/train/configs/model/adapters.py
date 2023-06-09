@@ -6,6 +6,8 @@ import transformers
 from typing import Literal
 from typing_extensions import Annotated
 from .base import ModelConfig
+# import adapters backend
+import hyped.modeling.adapters
 
 @dataclasses.dataclass
 class ClsHeadConfig(hyped.modeling.adapters.heads.HypedAdapterClsHeadConfig):
@@ -25,7 +27,7 @@ class CausalLMHeadConfig(hyped.modeling.adapters.heads.HypedAdapterCausalLMHeadC
 
 class AdapterTransformerModelConfig(ModelConfig):
     """Adapter Transformer Model Configuration Model"""
-    library:Literal['adapter-transformers'] = 'adapter-transformers'
+    backend:Literal['adapter-transformers'] = 'adapter-transformers'
     # adapter setup
     adapter_name:None|str = None # defaults to dataset name
     adapter:None|transformers.adapters.AdapterArguments = None

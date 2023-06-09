@@ -1,8 +1,8 @@
 import torch
 from transformers import EvalPrediction
-from transformers.adapters.heads import PredictionHead
 from .base import HypedMetric, HypedMetricConfig
 from ..processors import TopKLogitsProcessor
+from hyped.modeling.heads import HypedMlcHeadConfig
 from dataclasses import dataclass, field
 
 @dataclass
@@ -20,7 +20,7 @@ class MlcMetric(HypedMetric):
 
     def __init__(
         self,
-        h_config:PredictionHead,
+        h_config:HypedMlcHeadConfig,
         m_config:HypedMetricConfig
     ) -> None:
         super(MlcMetric, self).__init__(

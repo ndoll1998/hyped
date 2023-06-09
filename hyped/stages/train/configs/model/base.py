@@ -5,7 +5,7 @@ from typing import Literal
 from abc import ABC, abstractmethod
 
 class ModelConfig(pydantic.BaseModel, ABC):
-    library:Literal[None]
+    backend:Literal[None]
     # base model
     pretrained_ckpt:str
     kwargs:dict ={}

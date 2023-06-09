@@ -37,7 +37,7 @@ class Task(Enum):
         }.get(self, self.value)
 
 class TransformerModelConfig(ModelConfig):
-    library:Literal['transformers'] = 'transformers'
+    backend:Literal['transformers'] = 'transformers'
     # specify head
     task:Task
     head_name:str
@@ -72,7 +72,7 @@ class TransformerModelConfig(ModelConfig):
         config.problem_type = self.task.problem_type
 
         # load pretrained model and wrap it
-        model = hyped.modeling.transformers.wrapper.HypedTransformerModelWrapper(
+        model = hyped.modeling.transformers.HypedTransformerModelWrapper(
             model=self.task.auto_class.from_pretrained(
                 self.pretrained_ckpt,
                 config=config,

@@ -1,7 +1,6 @@
 import evaluate
 import numpy as np
 from transformers import EvalPrediction
-from transformers.adapters.heads import PredictionHead
 from .base import HypedMetric, HypedMetricConfig
 from ..processors import ArgMaxLogitsProcessor
 from hyped.modeling.heads import HypedTaggingHeadConfig

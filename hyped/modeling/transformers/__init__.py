@@ -1,1 +1,1 @@
-from . import wrapper
+from .wrapper import HypedTransformerModelWrapper
