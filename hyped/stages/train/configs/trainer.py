@@ -4,6 +4,15 @@ import transformers
 from datetime import datetime
 from typing import Optional
 
+import warnings
+# ignore warning of _n_gpu field of TrainingArguments
+# dataclass when converted to pydantic model
+warnings.filterwarnings(
+    "ignore",
+    category=RuntimeWarning,
+    message="fields may not start with an underscore, ignoring \"_n_gpu\""
+)
+
 @pydantic.dataclasses.dataclass
 @dataclasses.dataclass
 class TrainerConfig(transformers.TrainingArguments):
