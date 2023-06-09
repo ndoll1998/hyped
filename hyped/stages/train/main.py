@@ -180,6 +180,10 @@ def train(
     trainer.train_dataset = ds[datasets.Split.TRAIN]
     trainer.eval_dataset = ds[datasets.Split.VALIDATION]
 
+    # log number of trainable paramters
+    num_trainable_params = sum(p.numel() for p in trainer.model.parameters() if p.requires_grad)
+    logger.info("Number of trainable parameters: %i" % num_trainable_params)
+
     # run trainer
     trainer.train()
 

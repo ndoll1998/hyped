@@ -43,6 +43,11 @@ class AdapterTransformerModelConfig(ModelConfig):
         ]
     ]
 
+    @property
+    def trainer_t(self) -> transformers.Trainer:
+        # use the adapter trainer if the model is froozen
+        return transformers.Trainer if not self.freeze else transformers.adapters.AdapterTrainer
+
     def check_and_prepare(self, features:datasets.Features) -> None:
         [hconfig.check_and_prepare(features) for hconfig in self.heads.values()]
 

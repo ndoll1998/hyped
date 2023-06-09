@@ -1,7 +1,7 @@
+import transformers
 from ..wrapper import HypedModelWrapper
 from ..heads import HypedHeadConfig
-from transformers import PreTrainedModel
-from transformers.utils.generic import find_labels
+from .utils import get_pretrained_module
 
 class HypedTransformerModelWrapper(HypedModelWrapper):
 
@@ -9,14 +9,14 @@ class HypedTransformerModelWrapper(HypedModelWrapper):
 
     def __init__(
         self,
-        model:PreTrainedModel,
+        model:transformers.PreTrainedModel,
         h_config:HypedHeadConfig
     ) -> None:
         # only supports single label column tasks
         if len(h_config.label_columns) != 1:
             raise NotImplementedError()
         # get label names expected by model
-        label_names = find_labels(type(model)) or ['labels']
+        label_names = transformers.utils.generic.find_labels(type(model)) or ['labels']
         assert len(label_names) == len(h_config.label_columns)
 
         # save head config and label name expected by model
@@ -35,3 +35,9 @@ class HypedTransformerModelWrapper(HypedModelWrapper):
     @property
     def head_configs(self) -> list[HypedHeadConfig]:
         return [self.__h_config__]
+
+    def freeze_pretrained(self, freeze:bool =True) -> None:
+        # get module of pretrained weights and freeze/unfreeze it's parameters
+        for p in get_pretrained_module(self).parameters():
+            p.requires_grad_(not freeze)
+

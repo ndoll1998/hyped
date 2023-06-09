@@ -72,7 +72,7 @@ class TransformerModelConfig(ModelConfig):
         config.problem_type = self.task.problem_type
 
         # load pretrained model and wrap it
-        return hyped.modeling.transformers.wrapper.HypedTransformerModelWrapper(
+        model = hyped.modeling.transformers.wrapper.HypedTransformerModelWrapper(
             model=self.task.auto_class.from_pretrained(
                 self.pretrained_ckpt,
                 config=config,
@@ -80,5 +80,8 @@ class TransformerModelConfig(ModelConfig):
             ),
             h_config=h_config
         )
+
+        # freeze/unfreeze pretrained weights
+        model.freeze_pretrained(self.freeze)
 
         return model
