@@ -2,19 +2,21 @@ import pydantic
 from .trainer import TrainerConfig
 from .metrics import MetricsConfig
 from .model.adapters import AdapterTransformerModelConfig
-
+from .model.transformers import TransformerModelConfig
 
 class RunConfig(pydantic.BaseModel):
     """Run Configuration Model"""
     # run name
     name:str
     # model and trainer configuration
-    model:AdapterTransformerModelConfig
+    model:(
+        AdapterTransformerModelConfig |
+        TransformerModelConfig
+    ) = pydantic.Field(..., discriminator='library')
     trainer:TrainerConfig
     metrics:MetricsConfig
 
-    # TODO
-    #@pydantic.validator('model', pre=True)
+    @pydantic.validator('model', pre=True)
     def _infer_model_library(cls, value):
         if 'library' not in value:
 

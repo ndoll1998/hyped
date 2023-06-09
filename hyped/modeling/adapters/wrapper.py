@@ -18,7 +18,7 @@ class HypedAdapterModelWrapper(HypedModelWrapper):
 
     def __call__(self, *args, **kwargs):
         # apply model
-        out = self.__wrapped__(*args, **kwargs)
+        out = super(HypedAdapterModelWrapper, self).__call__(*args, **kwargs)
         # compute combined loss for parallel heads
         if isinstance(out, MultiHeadOutput) and (out.get('loss', None) is None):
             h_outs = out['head_outputs']
@@ -39,5 +39,6 @@ class HypedAdapterModelWrapper(HypedModelWrapper):
         # get active head names
         head_names = self.active_head
         head_names = [head_names] if isinstance(head_names, str) else head_names
+        # TODO: create head configs from adapter-transformers heads
         # collect heads to the active names
         return [self.heads[name].h_config for name in head_names]

@@ -13,7 +13,7 @@ class ClsHeadConfig(hyped.modeling.adapters.heads.HypedAdapterClsHeadConfig):
 
 @dataclasses.dataclass
 class MlcHeadConfig(hyped.modeling.adapters.heads.HypedAdapterMlcHeadConfig):
-    head_type:Literal["mlc"] = "mlc"
+    head_type:Literal["multi-label-classification"] = "multi-label-classification"
 
 @dataclasses.dataclass
 class TaggingHeadConfig(hyped.modeling.adapters.heads.HypedAdapterTaggingHeadConfig):
@@ -44,7 +44,6 @@ class AdapterTransformerModelConfig(ModelConfig):
     ]
 
     def check_and_prepare(self, features:datasets.Features) -> None:
-        print(self.heads['mlc'])
         [hconfig.check_and_prepare(features) for hconfig in self.heads.values()]
 
     @pydantic.validator('heads', pre=True)
