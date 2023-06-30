@@ -28,13 +28,13 @@ class SeqEvalMetric(HypedMetric):
         self.metric = evaluate.load('seqeval')
 
         # get label mapping from head config
-        label2id = h_config.get('label2id', None)
-        if label2id is None:
-            raise ValueError("Config of head type %s has no `label2id` entry." % type(head))
-        # build label space array from mapping
-        self.label_space = np.empty(len(label2id), dtype=object)
-        for label, i in label2id.items():
-            self.label_space[i] = label
+        id2label = h_config.id2label
+        if id2label is None:
+            raise ValueError("`label2id` not set in head %s." % h_config.head_name)
+        
+        self.label_space = np.empty(h_config.num_labels+1, dtype=object)
+        for i, l in id2label.items():
+            self.label_space[i] = l
 
     def compute(self, eval_pred:EvalPrediction) -> dict[str, float]:
         # unpack predicitons and labels
@@ -49,8 +49,8 @@ class SeqEvalMetric(HypedMetric):
             predictions=np.array_split(self.label_space[preds[mask]], splits),
             references=np.array_split(self.label_space[labels[mask]], splits),
             # additional arguments
-            suffix=self.config.suffix,
-            scheme=self.config.scheme,
-            mode=self.config.mode,
-            zero_division=self.config.zero_division
+            suffix=self.m_config.suffix,
+            scheme=self.m_config.scheme,
+            mode=self.m_config.mode,
+            zero_division=self.m_config.zero_division
         )
