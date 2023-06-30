@@ -1,5 +1,6 @@
 from . import heads
 from transformers import PreTrainedModel
+from transformers.adapters import PredictionHead
 from hyped.utils.typedmapping import typedmapping
 from functools import cmp_to_key
 
@@ -30,9 +31,29 @@ class AutoHypedAdapterHead(object):
         raise ValueError("No head type registered for config of type `%s`." % type(config))
 
     @classmethod
+    def from_head(
+        cls,
+        model:PreTrainedModel,
+        head:PredictionHead,
+        **kwargs
+    ) -> heads.HypedAdapterHead:
+        # find head type corrensponding to head
+        key = cmp_to_key(lambda t, v: 2 * issubclass(v[1], t[1]) - 1)
+        for config_t, head_t in sorted(cls.HEAD_MAPPING.items(), key=key):
+            if issubclass(head_t, type(head)):
+                # create head instance and load in parameters from given head
+                config = config_t.from_head(head, **kwargs)
+                new_head = head_t(model, config)
+                new_head.load_state_dict(head.state_dict())
+                return new_head
+        # no head type found
+        raise ValueError("No head type registered for original head of type `%s`." % type(head))
+
+    @classmethod
     def register(cls, config_t:heads.HypedHeadConfig, head_t:heads.HypedAdapterHead) -> None:
         cls.HEAD_MAPPING[config_t] = head_t
 
 AutoHypedAdapterHead.register(heads.HypedAdapterClsHeadConfig, heads.HypedAdapterClsHead)
 AutoHypedAdapterHead.register(heads.HypedAdapterMlcHeadConfig, heads.HypedAdapterMlcHead)
 AutoHypedAdapterHead.register(heads.HypedAdapterTaggingHeadConfig, heads.HypedAdapterTaggingHead)
+AutoHypedAdapterHead.register(heads.HypedAdapterCausalLMHeadConfig, heads.HypedAdapterCausalLMHead)

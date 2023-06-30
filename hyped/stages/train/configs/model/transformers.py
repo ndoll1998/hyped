@@ -85,3 +85,28 @@ class TransformerModelConfig(ModelConfig):
         model.freeze_pretrained(self.freeze)
 
         return model
+
+    def load(self, ckpt:str) -> transformers.PreTrainedModel:
+
+        # load the model from the checkpoint
+        model = self.task.auto_class.from_pretrained(ckpt)
+
+        # create head config
+        h_config = self.task.head_config_class(
+            head_name=self.head_name,
+            label_column=self.label_column
+        ) if self.label_column is not None else h.head_config_class(
+            head_name=self.head_name
+        )
+        # update label space information
+        h_config.num_labels = model.config.num_labels
+        h_config.id2label = model.config.id2label
+
+        # wrap model
+        model = hyped.modeling.transformers.HypedTransformerModelWrapper(
+            model=model, h_config=h_config
+        )
+        # freeze/unfreeze pretrained weights
+        model.freeze_pretrained(self.freeze)
+
+        return model

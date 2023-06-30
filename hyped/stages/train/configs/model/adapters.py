@@ -1,3 +1,4 @@
+import os
 import hyped
 import pydantic
 import dataclasses
@@ -99,3 +100,49 @@ class AdapterTransformerModelConfig(ModelConfig):
         # return model instance
         return model
 
+    def load(self, ckpt:str) -> transformers.PreTrainedModel:
+
+        if self.freeze:
+            # only the adapter and head are saved to the directory
+            # the pretrained model has to be loaded from the pretrained ckpt
+            model = transformers.AutoAdapterModel.from_pretrained(self.pretrained_ckpt)
+            # load adapter
+            if self.adapter is not None:
+                assert self.adapter_name is not None
+                # TODO: identify adapter name from checkpoint directory structure if not set
+                model.load_adapter(os.path.join(ckpt, self.adapter_name))
+                model.active_adapters = self.adapter_name
+
+            # load all heads
+            for head_name in self.heads.keys():
+                model.load_head(os.path.join(ckpt, head_name))
+
+        else:
+            # the whole model is saved
+            model = transformers.AutoAdapterModel.from_pretrained(ckpt)
+            # activate adapter if present
+            if len(model.config.adapters.adapters) > 0:
+                adapter_name = next(iter(model.config.adapters.adapters.keys()))
+                adapter_name = self.adapter_name or adapter_name
+                model.active_adapters = adapter_name
+
+        # wrap model
+        model = hyped.modeling.adapters.HypedAdapterModelWrapper(model)
+
+        for head_name, head in model.heads.items():
+            config = self.heads[head_name]
+            # the wrapper converts all heads to hyped heads but sets
+            # extra arguments to their default value (i.e. label_column, loss_coeff, etc.)
+            head = hyped.modeling.adapters.auto.AutoHypedAdapterHead.from_head(
+                model, head, loss_coeff=config.loss_coeff, label_column=config.label_column
+            )
+            # overwrite head
+            model.add_prediction_head(head, overwrite_ok=True)
+
+        # activate all heads
+        model.active_head = list(model.heads.keys())
+
+        # freeze/unfreeze model parameters
+        model.freeze_model(self.freeze)
+
+        return model

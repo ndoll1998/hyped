@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 # hyped head configs
 from ..heads import (
@@ -20,27 +21,45 @@ from transformers.adapters.heads import (
 from typing import Any
 from dataclasses import dataclass, asdict
 
+class CreateConfigFromHeadMixin(object):
+    @classmethod
+    def from_head(cls, head:PredictionHead, **kwargs) -> HypedHeadConfig:
+        # copy head configuration and process it
+        config = head.config.copy()
+        config.pop("head_type")
+        # convert label2id to is2label
+        config['id2label'] = (
+            {i: l for l,i in config.pop('label2id').items()}
+            if config.get('label2id', None) is not None else
+            None
+        )
+        # overwrite/add entries from keyword arguments
+        config.update(kwargs)
+        config['head_name'] = config.get('head_name', head.name)
+        # create config instance
+        return cls(**config)
+
 @dataclass
-class HypedAdapterClsHeadConfig(HypedClsHeadConfig):
+class HypedAdapterClsHeadConfig(HypedClsHeadConfig, CreateConfigFromHeadMixin):
     layers:int = 2
     activation_function:str = "tanh"
     use_pooler:bool = False
     bias:bool = True
 
 @dataclass
-class HypedAdapterMlcHeadConfig(HypedMlcHeadConfig):
+class HypedAdapterMlcHeadConfig(HypedMlcHeadConfig, CreateConfigFromHeadMixin):
     layers:int = 2
     activation_function:str = "tanh"
     use_pooler:bool = False
     bias:bool = True
 
 @dataclass
-class HypedAdapterTaggingHeadConfig(HypedTaggingHeadConfig):
+class HypedAdapterTaggingHeadConfig(HypedTaggingHeadConfig, CreateConfigFromHeadMixin):
     layers:int = 2
     activation_function:str = "tanh"
 
 @dataclass
-class HypedAdapterCausalLMHeadConfig(HypedCausalLMHeadConfig):
+class HypedAdapterCausalLMHeadConfig(HypedCausalLMHeadConfig, CreateConfigFromHeadMixin):
     layers:int = 1
     activation_function:str = "tanh"
     layer_norm:bool = False

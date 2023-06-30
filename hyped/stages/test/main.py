@@ -54,7 +54,7 @@ def main(
         trainer = trainer or build_trainer(
             trainer_t=config.model.trainer_t,
             info=get_format_info(data),
-            tokenizer=config.model.build_tokenizer(),
+            tokenizer=config.model.tokenizer,
             model=model,
             args=config.trainer,
             metric_configs=config.metrics,

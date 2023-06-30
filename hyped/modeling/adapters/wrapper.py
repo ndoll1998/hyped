@@ -1,7 +1,10 @@
 import torch
+from .auto import AutoHypedAdapterHead
+from .heads import HypedAdapterHead
 from ..heads import HypedHeadConfig
 from ..wrapper import HypedModelWrapper
 from transformers.adapters.heads import (
+    PredictionHead,
     MultiHeadOutput,
     ModelWithFlexibleHeadsAdaptersMixin
 )
@@ -15,6 +18,9 @@ class HypedAdapterModelWrapper(HypedModelWrapper):
 
         # initialize wrapper
         super(HypedAdapterModelWrapper, self).__init__(model)
+        # convert prediction heads
+        for head_name, head in model.heads.items():
+            self.add_prediction_head(head, overwrite_ok=True, set_active=False)
 
     def __call__(self, *args, **kwargs):
         # apply model
@@ -34,11 +40,29 @@ class HypedAdapterModelWrapper(HypedModelWrapper):
         # return output
         return out
 
+    def add_prediction_head(
+        self,
+        head:PredictionHead,
+        overwrite_ok:bool = False,
+        set_active:bool = True
+    ) -> None:
+        self.__wrapped__.add_prediction_head(
+            head=(
+                AutoHypedAdapterHead.from_head(self, head)
+                if not isinstance(head, HypedAdapterHead) else
+                head
+            ),
+            overwrite_ok=overwrite_ok,
+            set_active=set_active
+        )
+
     @property
     def head_configs(self) -> list[HypedHeadConfig]:
+        # check if any head is active
+        if self.active_head is None:
+            raise RuntimeError("No active heads found!")
         # get active head names
         head_names = self.active_head
         head_names = [head_names] if isinstance(head_names, str) else head_names
-        # TODO: create head configs from adapter-transformers heads
         # collect heads to the active names
         return [self.heads[name].h_config for name in head_names]

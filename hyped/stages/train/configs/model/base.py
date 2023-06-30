@@ -26,6 +26,10 @@ class ModelConfig(pydantic.BaseModel, ABC):
     def build(self, info:datasets.DatasetInfo) -> transformers.PreTrainedModel:
         ...
 
+    @abstractmethod
+    def load(self, ckpt:str) -> transformers.PreTrainedModel:
+        ...
+
     @property
     def tokenizer(self) -> transformers.PreTrainedTokenizer:
         return transformers.AutoTokenizer.from_pretrained(self.pretrained_ckpt, use_fast=True)
