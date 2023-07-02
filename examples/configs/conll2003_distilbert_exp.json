@@ -2,14 +2,10 @@
     "name": "imdb-distilbert",
 
     "model": {
+	"task": "tagging",
         "pretrained_ckpt": "distilbert-base-uncased",
-
-        "heads": {
-            "ner": {
-                "head_type": "hyped-tagging-head",
-                "label_column": "labels"
-            }
-        }
+	"label_column": "labels",
+	"head_name": "ner"
     },
 
     "trainer": {

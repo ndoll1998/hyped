@@ -1,5 +1,5 @@
 {
-    "name": "pretrained-distil-gpt2",
+    "name": "pretrained-redpajama-3b",
 
     "model": {
         "task": "causal-language-modeling",

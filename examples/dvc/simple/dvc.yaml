@@ -2,38 +2,38 @@ stages:
 
   prepare:
     cmd: python -m hyped.stages.prepare
-      -c ../../cls/imdb/distilbert_data.json
-      -o ./dump/data/distilbert
+      -c ../../configs/imdb_bert_data.json
+      -o ./dump/data/bert
     params:
-      - ../../cls/imdb/distilbert_data.json:
+      - ../../configs/imdb_bert_data.json:
     outs:
-      - ./dump/data/distilbert
+      - ./dump/data/bert
 
   train:
     cmd: python -m hyped.stages.train
-      -c ../../cls/imdb/distilbert_run.json
-      -d ./dump/data/distilbert
-      -o ./dump/models/distilbert
+      -c ../../configs/imdb_bert_exp.json
+      -d ./dump/data/bert
+      -o ./dump/models/bert
     params:
-      - ../../cls/imdb/distilbert_run.json:
+      - ../../configs/imdb_bert_exp.json:
     deps:
-      - ./dump/data/distilbert
+      - ./dump/data/bert
     outs:
-      - ./dump/models/distilbert
+      - ./dump/models/bert
 
   evaluate:
     cmd: python -m hyped.stages.test
-      -c ../../cls/imdb/distilbert_run.json
-      -m ./dump/models/distilbert/best-model
-      -d ./dump/data/distilbert
-      -o ./dump/scores/distilbert
+      -c ../../configs/imdb_bert_exp.json
+      -m ./dump/models/bert/best-model
+      -d ./dump/data/bert
+      -o ./dump/scores/bert
       -s test
     params:
-      - ../../cls/imdb/distilbert_run.json:
+      - ../../configs/imdb_bert_exp.json:
     deps:
-      - ./dump/models/distilbert/best-model
-      - ./dump/data/distilbert
+      - ./dump/models/bert/best-model
+      - ./dump/data/bert
     metrics:
-      - ./dump/scores/distilbert/imdb-test.json:
+      - ./dump/scores/bert/imdb-test.json:
           cache: true
 
