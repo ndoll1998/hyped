@@ -32,7 +32,7 @@ class HypedAdapterModelWrapper(HypedModelWrapper):
             if all("loss" in out and out["loss"] is not None for out in h_outs):
                 loss_weights = torch.FloatTensor([
                     h_config.loss_coeff for h_config in self.head_configs
-                ])
+                ]).to(h_out[0]['loss'].device)
                 # compute combined loss
                 h_losses = torch.stack([out["loss"] for out in h_outs])
                 h_losses = (loss_weights.to(h_losses.device) * h_losses).sum()

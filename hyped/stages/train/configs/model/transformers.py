@@ -45,6 +45,16 @@ class TransformerModelConfig(ModelConfig):
 
     def build(self, info:datasets.DatasetInfo) -> transformers.PreTrainedModel:
 
+        # load pretrained config
+        config, kwargs = transformers.AutoConfig.from_pretrained(
+            self.pretrained_ckpt,
+            **self.kwargs,
+            return_unused_kwargs=True
+        )
+        # set the problem type, especially important for sequence classification
+        # tells the model whether to solve a single- or multi-label sequence classification task
+        config.problem_type = self.task.problem_type
+
         # create the head config
         h_config = self.task.head_config_class(
             head_name=self.head_name,
@@ -52,24 +62,15 @@ class TransformerModelConfig(ModelConfig):
         ) if self.label_column is not None else h.head_config_class(
             head_name=self.head_name
         )
+
         # prepare head config for dataset
         h_config.check_and_prepare(info.features)
-
-        # load pretrained config
-        config, kwargs = transformers.AutoConfig.from_pretrained(
-            self.pretrained_ckpt,
-            **self.kwargs,
-            return_unused_kwargs=True
-        )
 
         # update config to match head config
         if h_config.num_labels is not None:
             config.num_labels = h_config.num_labels
         if h_config.id2label is not None:
             config.id2label = h_config.id2label
-        # set the problem type, especially important for sequence classification
-        # tells the model whether to solve a single- or multi-label sequence classification task
-        config.problem_type = self.task.problem_type
 
         # load pretrained model and wrap it
         model = hyped.modeling.transformers.HypedTransformerModelWrapper(

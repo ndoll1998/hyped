@@ -3,8 +3,8 @@ from .trainer import TrainerConfig
 from .metrics import MetricsConfig
 from .model.base import ModelConfig
 
-class RunConfig(pydantic.BaseModel):
-    """Run Configuration Model"""
+class ExperimentConfig(pydantic.BaseModel):
+    """Experiment Configuration Model"""
     # run name
     name:str
     # model and trainer configuration

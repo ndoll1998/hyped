@@ -18,7 +18,7 @@ from typing_extensions import Annotated
 from hyped import modeling
 from hyped.metrics import AutoHypedMetric
 # config
-from .configs.run import RunConfig
+from .configs.exp import ExperimentConfig
 
 import warnings
 # ignore warning of _n_gpu field of TrainingArguments
@@ -146,7 +146,7 @@ def build_trainer(
     return trainer
 
 def train(
-    config:RunConfig,
+    config:ExperimentConfig,
     ds:datasets.DatasetDict,
     output_dir:str = None,
     local_rank:int = -1,
@@ -201,7 +201,7 @@ def main(
 
     # load config
     logger.info("Loading run configuration from %s" % config)
-    config = RunConfig.parse_file(config)
+    config = ExperimentConfig.parse_file(config)
 
     # run training
     splits = [datasets.Split.TRAIN, datasets.Split.VALIDATION]

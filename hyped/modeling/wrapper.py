@@ -10,7 +10,9 @@ class HypedModelWrapper(CallableObjectProxy, ABC):
     def __init__(self, model:PreTrainedModel) -> None:
         # check model type
         if not isinstance(model, PreTrainedModel):
-            raise TypeError("Model of type `%s` must inherit type `%s`" % (type(model), PreTrainedModel))
+            raise TypeError(
+                "Model of type `%s` must inherit type `%s`" % (type(model), PreTrainedModel)
+            )
         # initialize model proxy
         CallableObjectProxy.__init__(self, model)
 

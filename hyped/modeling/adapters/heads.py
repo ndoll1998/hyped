@@ -151,7 +151,7 @@ class HypedAdapterTaggingHead(HypedAdapterHead, TaggingHead):
         HypedAdapterHead.__init__(self, h_config)
 
     def get_labels(self, kwargs:dict[str, Any]) -> dict[str, Any]:
-        return {'labels': kwargs.get(self.label_column)}
+        return {'labels': kwargs.get(self.h_config.label_column)}
 
 
 class HypedAdapterCausalLMHead(HypedAdapterHead, CausalLMHead):
@@ -174,5 +174,5 @@ class HypedAdapterCausalLMHead(HypedAdapterHead, CausalLMHead):
             warnings.warn("Causal LM head got label_column='input_ids' and shift_labels=False. This specifies the trivial task of reproducing the input, NOT next word prediction.", UserWarning)
 
     def get_labels(self, kwargs:dict[str, Any]) -> dict[str, Any]:
-        return {'labels': kwargs.get(self.label_column)}
+        return {'labels': kwargs.get(self.h_config.label_column)}
 
