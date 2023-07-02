@@ -3,40 +3,40 @@ stages:
   prepare-train:
     cmd: python -m hyped.stages.prepare
       -s train
-      -c ../../cls/imdb/distilbert_data.json
+      -c ../../configs/imdb_bert_data.json
       -o ./dump/data/distilbert_train
     params:
-      - ../../cls/imdb/distilbert_data.json:
+      - ../../configs/imdb_bert_data.json:
     outs:
       - ./dump/data/distilbert_train
   
   prepare-val:
     cmd: python -m hyped.stages.prepare
       -s validation
-      -c ../../cls/imdb/distilbert_data.json
+      -c ../../configs/imdb_bert_data.json
       -o ./dump/data/distilbert_val
     params:
-      - ../../cls/imdb/distilbert_data.json:
+      - ../../configs/imdb_bert_data.json:
     outs:
       - ./dump/data/distilbert_val
 
   prepare-test:
     cmd: python -m hyped.stages.prepare
       -s test
-      -c ../../cls/imdb/distilbert_data.json
+      -c ../../configs/imdb_bert_data.json
       -o ./dump/data/distilbert_test
     params:
-      - ../../cls/imdb/distilbert_data.json:
+      - ../../configs/imdb_bert_data.json:
     outs:
       - ./dump/data/distilbert_test
   
   train:
     cmd: python -m hyped.stages.train
-      -c ../../cls/imdb/distilbert_run.json
+      -c ../../configs/imdb_bert_exp.json
       -d ./dump/data/distilbert_train ./dump/data/distilbert_val
       -o ./dump/models/distilbert_adv
     params:
-      - ../../cls/imdb/distilbert_run.json:
+      - ../../configs/imdb_bert_exp.json:
     deps:
       - ./dump/data/distilbert_train
       - ./dump/data/distilbert_val
@@ -45,13 +45,13 @@ stages:
   
   test:
     cmd: python -m hyped.stages.test
-      -c ../../cls/imdb/distilbert_run.json
+      -c ../../configs/imdb_bert_exp.json
       -m ./dump/models/distilbert_adv/best-model
       -d ./dump/data/distilbert_test
       -o ./dump/scores/distilbert_adv
       -s test
     params:
-      - ../../cls/imdb/distilbert_run.json:
+      - ../../configs/imdb_bert_exp.json:
     deps:
       - ./dump/models/distilbert_adv/best-model
       - ./dump/data/distilbert_test

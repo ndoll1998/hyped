@@ -1,11 +1,12 @@
 import torch
 from transformers import PreTrainedTokenizer
 from transformers.data import DefaultDataCollator
-from transformers.adapters.heads import (
-    PredictionHead,
-    TaggingHead,
-    MultiLabelClassificationHead,
-    CausalLMHead
+from hyped.modeling.heads import (
+    HypedHeadConfig,
+    HypedClsHeadConfig,
+    HypedMlcHeadConfig,
+    HypedTaggingHeadConfig,
+    HypedCausalLMHeadConfig
 )
 from datasets.features import Features, Sequence
 # utils
@@ -33,20 +34,20 @@ class LabelsCollator(ABC):
 
     def __init__(
         self,
-        head:PredictionHead,
+        h_config:HypedHeadConfig,
         tokenizer:PreTrainedTokenizer,
         features:Features,
         return_tensors:str ='pt'
     ) -> None:
-        self.head = head
+        self.h_config = h_config
         self.tokenizer = tokenizer
         self.features = features
         self.return_tensors = return_tensors
 
         # make sure all labels are present in features
-        if any(n not in self.features for n in self.head.get_label_names()):
+        if any(n not in self.features for n in self.h_config.label_columns):
             raise ValueError("Not all labels present in data, required %s but got %s" % (
-                list(self.head.get_label_names()), list(self.features.keys())
+                list(self.h_config.label_columns), list(self.features.keys())
             ))
 
     @abstractmethod
@@ -57,7 +58,7 @@ class DefaultLabelsCollator(DefaultDataCollator, LabelsCollator):
 
     def __init__(
         self,
-        head:list[PredictionHead],
+        h_config:HypedHeadConfig,
         tokenizer:PreTrainedTokenizer,
         features:Features,
         return_tensors:str ='pt'
@@ -66,7 +67,7 @@ class DefaultLabelsCollator(DefaultDataCollator, LabelsCollator):
         DefaultDataCollator.__init__(self, return_tensors=return_tensors)
         LabelsCollator.__init__(
             self,
-            head=head,
+            h_config=h_config,
             tokenizer=tokenizer,
             features=features,
             return_tensors=return_tensors
@@ -80,18 +81,57 @@ class DefaultLabelsCollator(DefaultDataCollator, LabelsCollator):
     def __call__(self, features:list[dict[str, Any]], enc:dict[str, Any]) -> dict[str, Any]:
         return DefaultDataCollator.__call__(self, features)
 
+class MultiLabelsCollator(LabelsCollator):
+
+    def __init__(
+        self,
+        h_config:HypedMlcHeadConfig,
+        tokenizer:PreTrainedTokenizer,
+        features:Features,
+        return_tensors:str ='pt'
+    ) -> None:
+        # initialize collator
+        super(MultiLabelsCollator, self).__init__(
+            h_config=h_config,
+            tokenizer=tokenizer,
+            features=features,
+            return_tensors=return_tensors
+        )
+
+        # get the label space size
+        assert self.h_config.num_labels is not None
+        self.num_labels = self.h_config.num_labels
+
+        if return_tensors != 'pt':
+            raise NotImplementedError("Only pytorch tensors supported yet")
+
+    def binarize(self, labels:list[list[int]]) -> torch.Tensor:
+
+        bin_labels = torch.zeros((len(labels), self.num_labels), dtype=torch.long)
+        # binarize labels
+        for i, ids in enumerate(labels):
+            bin_labels[i, ids] = 1
+
+        return bin_labels
+
+    def __call__(self, features:list[dict[str, Any]], enc:dict[str, Any]) -> dict[str, Any]:
+        return {
+            n: self.binarize([f[n] for f in features])
+            for n in self.h_config.label_columns
+        }
+
 class TaggingLabelsCollator(LabelsCollator):
 
     def __init__(
         self,
-        head:list[PredictionHead],
+        h_config:HypedTaggingHeadConfig,
         tokenizer:PreTrainedTokenizer,
         features:Features,
         return_tensors:str ='pt'
     ) -> None:
         # initialize collator
         super(TaggingLabelsCollator, self).__init__(
-            head=head,
+            h_config=h_config,
             tokenizer=tokenizer,
             features=features,
             return_tensors=return_tensors
@@ -128,97 +168,53 @@ class TaggingLabelsCollator(LabelsCollator):
                 if not is_sized(self.features[n]) else
                 torch.stack([f[n] for f in features], dim=0)
             )
-            for n in self.head.get_label_names()
+            for n in self.h_config.label_columns
         }
 
-class MultiLabelsCollator(LabelsCollator):
-
-    def __init__(
-        self,
-        head:list[PredictionHead],
-        tokenizer:PreTrainedTokenizer,
-        features:Features,
-        return_tensors:str ='pt'
-    ) -> None:
-        # initialize collator
-        super(MultiLabelsCollator, self).__init__(
-            head=head,
-            tokenizer=tokenizer,
-            features=features,
-            return_tensors=return_tensors
-        )
-
-        # get the label space size
-        assert 'num_labels' in self.head.config
-        self.num_labels = self.head.config['num_labels']
-
-        if return_tensors != 'pt':
-            raise NotImplementedError("Only pytorch tensors supported yet")
-
-    def binarize(self, labels:list[list[int]]) -> torch.Tensor:
-
-        bin_labels = torch.zeros((len(labels), self.num_labels), dtype=torch.long)
-        # binarize labels
-        for i, ids in enumerate(labels):
-            bin_labels[i, ids] = 1
-
-        return bin_labels
-
-    def __call__(self, features:list[dict[str, Any]], enc:dict[str, Any]) -> dict[str, Any]:
-        return {
-            n: self.binarize([f[n] for f in features])
-            for n in self.head.get_label_names()
-        }
 
 class CausalLMLabelsCollator(TaggingLabelsCollator):
 
     def __init__(
         self,
-        head:list[PredictionHead],
+        h_config:HypedCausalLMHeadConfig,
         tokenizer:PreTrainedTokenizer,
         features:Features,
         return_tensors:str ='pt'
     ) -> None:
+        assert isinstance(h_config, HypedCausalLMHeadConfig)
         # initialize collator
         super(CausalLMLabelsCollator, self).__init__(
-            head=head,
+            h_config=h_config,
             tokenizer=tokenizer,
             features=features,
             return_tensors=return_tensors
         )
-        # get label name
-        assert len(self.head.get_label_names()) == 1
-        self.label_name, = self.head.get_label_names()
 
     def __call__(self, features:list[dict[str, Any]], enc:dict[str, Any]) -> dict[str, Any]:
         # check if the labels are already present in the encoding
         # then it is also already present in the collation output
-        return {} if self.label_name in enc else {
-            self.label_name: self.pad(
-                [f[self.label_name] for f in features],
-                self.build_attn_mask(enc)
-            )
-        }
+        return {} if self.h_config.label_column in enc else \
+            TaggingLabelsCollator.__call__(self, features, enc)
 
 class HypedDataCollator(object):
 
     HEAD_COLLATOR_MAPPING = typedmapping[
-        type[PredictionHead],
+        type[HypedHeadConfig],
         type[LabelsCollator]
     ]()
 
     def __init__(
         self,
         tokenizer:PreTrainedTokenizer,
-        heads:list[PredictionHead],
+        h_configs:list[HypedHeadConfig],
         features:Features,
         return_tensors:str ='pt'
     ):
-        # save heads
-        self.heads = list(heads)
+        # save head configs
+        self.h_configs = list(h_configs)
 
         # set of all label feature names that are not input features
-        label_feature_names = {n for h in heads for n in h.get_label_names()}
+        label_feature_names = {n for h in self.h_configs for n in h.label_columns}
         # separate features of different type processed by different collators
         self.enc_features = {n: features[n] for n in tokenizer.model_input_names if n in features}
         self.lbl_features = {n: features[n] for n in label_feature_names if n in features}
@@ -254,9 +250,9 @@ class HypedDataCollator(object):
 
         self.lbls_collators = []
         # build all label collators
-        for head in heads:
+        for h_config in self.h_configs:
             # get the label names
-            label_names = tuple(head.get_label_names())
+            label_names = tuple(h_config.label_columns)
 
             # check if there are label conflicts, i.e. is
             # any label used by multiple heads
@@ -277,12 +273,12 @@ class HypedDataCollator(object):
             # find the correct collator type for the head
             # sort to make sure to get the closest parent head type
             key = cmp_to_key(lambda t, v: 2 * issubclass(v, t) - 1)
-            for head_t in sorted(type(self).HEAD_COLLATOR_MAPPING, key=key):
-                if isinstance(head, head_t):
+            for h_config_t in sorted(type(self).HEAD_COLLATOR_MAPPING, key=key):
+                if isinstance(h_config, h_config_t):
                     # create the collator
-                    collator_t = type(self).HEAD_COLLATOR_MAPPING[head_t]
+                    collator_t = type(self).HEAD_COLLATOR_MAPPING[h_config_t]
                     collator = collator_t(
-                        head=head,
+                        h_config=h_config,
                         tokenizer=tokenizer,
                         features=Features({n:f for n,f in features.items() if n in label_names}),
                         return_tensors=return_tensors
@@ -321,14 +317,15 @@ class HypedDataCollator(object):
     @classmethod
     def register_head_collator(
         cls,
-        head_t:type[PredictionHead],
+        h_config_t:type[HypedHeadConfig],
         collator_t:type[LabelsCollator]
     ) -> None:
-        cls.HEAD_COLLATOR_MAPPING[head_t] = collator_t
+        cls.HEAD_COLLATOR_MAPPING[h_config_t] = collator_t
 
 # register data collators
-HypedDataCollator.register_head_collator(PredictionHead, DefaultLabelsCollator)
-HypedDataCollator.register_head_collator(TaggingHead, TaggingLabelsCollator)
-HypedDataCollator.register_head_collator(MultiLabelClassificationHead, MultiLabelsCollator)
-HypedDataCollator.register_head_collator(CausalLMHead, CausalLMLabelsCollator)
+HypedDataCollator.register_head_collator(HypedHeadConfig, DefaultLabelsCollator)
+HypedDataCollator.register_head_collator(HypedClsHeadConfig, DefaultLabelsCollator)
+HypedDataCollator.register_head_collator(HypedMlcHeadConfig, MultiLabelsCollator)
+HypedDataCollator.register_head_collator(HypedTaggingHeadConfig, TaggingLabelsCollator)
+HypedDataCollator.register_head_collator(HypedCausalLMHeadConfig, CausalLMLabelsCollator)
 

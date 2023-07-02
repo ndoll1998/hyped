@@ -20,10 +20,12 @@ class HypedMetricCollection(object):
         self.label_order = label_order
 
         self.metrics = metrics
+        self.h_configs = {}
         self.processors = defaultdict(set)
 
         for metric in metrics:
-            self.processors[metric.head].add(metric.processor)
+            self.h_configs[metric.h_config.head_name] = metric.h_config
+            self.processors[metric.h_config.head_name].add(metric.processor)
 
     def compute(self, eval_pred):
         scores = {}
@@ -36,8 +38,8 @@ class HypedMetricCollection(object):
         for metric in self.metrics:
             scores.update(metric(
                 EvalPrediction(
-                    predictions=preds[metric.head.name, metric.processor],
-                    label_ids=get_labels(labels, metric.head.get_label_names())
+                    predictions=preds[metric.h_config.head_name, metric.processor],
+                    label_ids=get_labels(labels, metric.h_config.label_columns)
                 )
             ))
         # return all scores
@@ -57,10 +59,10 @@ class HypedMetricCollection(object):
         labels = dict(zip(self.label_order, labels))
         # preprocess all logits
         return {
-            (h.name, p): p(
-                logits=logits[h.name],
-                labels=get_labels(labels, h.get_label_names())
+            (h_name, p): p(
+                logits=logits[h_name],
+                labels=get_labels(labels, self.h_configs[h_name].label_columns)
             )
-            for h, ps in self.processors.items()
+            for h_name, ps in self.processors.items()
             for p in ps
         }

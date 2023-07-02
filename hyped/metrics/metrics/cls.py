@@ -1,15 +1,13 @@
 import evaluate
 from transformers import EvalPrediction
-from transformers.adapters.heads import PredictionHead
 from .base import HypedMetric, HypedMetricConfig
 from ..processors import ArgMaxLogitsProcessor
+from hyped.modeling.heads import HypedClsHeadConfig
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Literal
 
 @dataclass
-class ClassificationMetricConfig(HypedMetricConfig):
-    metric_type:Literal['cls'] = 'cls'
+class ClsMetricConfig(HypedMetricConfig):
     metrics:list[str] = field(default_factory=lambda: [
         'accuracy',
         'precision',
@@ -18,16 +16,20 @@ class ClassificationMetricConfig(HypedMetricConfig):
     ])
     average:str = 'micro'
 
-class ClassificationMetric(HypedMetric):
+class ClsMetric(HypedMetric):
 
-    def __init__(self, head:PredictionHead, config:ClassificationMetricConfig) -> None:
-        super(ClassificationMetric, self).__init__(
-            head=head,
-            config=config,
+    def __init__(
+        self,
+        h_config:HypedClsHeadConfig,
+        m_config:ClsMetricConfig
+    ) -> None:
+        super(ClsMetric, self).__init__(
+            h_config=h_config,
+            m_config=m_config,
             processor=ArgMaxLogitsProcessor()
         )
         # load all metrics
-        self.metrics = [evaluate.load(name) for name in self.config.metrics]
+        self.metrics = [evaluate.load(name) for name in self.m_config.metrics]
 
     def compute(self, eval_pred:EvalPrediction) -> dict[str, float]:
         # convert to naming expected by metrics
@@ -40,7 +42,7 @@ class ClassificationMetric(HypedMetric):
         for metric in self.metrics:
             scores.update(
                 metric.compute(**eval_pred) if metric.name == 'accuracy' else \
-                metric.compute(**eval_pred, average=self.config.average)
+                metric.compute(**eval_pred, average=self.m_config.average)
             )
         # return all scores
         return scores

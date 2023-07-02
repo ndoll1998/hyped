@@ -1,16 +1,15 @@
 import evaluate
 import numpy as np
 from transformers import EvalPrediction
-from transformers.adapters.heads import PredictionHead
 from .base import HypedMetric, HypedMetricConfig
 from ..processors import ArgMaxLogitsProcessor
+from hyped.modeling.heads import HypedTaggingHeadConfig
 from dataclasses import dataclass, field
 from functools import partial
 from typing import Literal
 
 @dataclass
 class SeqEvalMetricConfig(HypedMetricConfig):
-    metric_type:Literal['seqeval'] = 'seqeval'
     # additional arguments
     suffix:bool = False
     scheme:None|Literal["IOB1","IOB2","IOE1","IOE2","IOBES","BILOU"] = None
@@ -19,23 +18,23 @@ class SeqEvalMetricConfig(HypedMetricConfig):
 
 class SeqEvalMetric(HypedMetric):
 
-    def __init__(self, head:PredictionHead, config:SeqEvalMetricConfig) -> None:
+    def __init__(self, h_config:HypedTaggingHeadConfig, m_config:SeqEvalMetricConfig) -> None:
         super(SeqEvalMetric, self).__init__(
-            head=head,
-            config=config,
+            h_config=h_config,
+            m_config=m_config,
             processor=ArgMaxLogitsProcessor()
         )
         # load seceval metric
         self.metric = evaluate.load('seqeval')
 
         # get label mapping from head config
-        label2id = head.config.get('label2id', None)
-        if label2id is None:
-            raise ValueError("Config of head type %s has no `label2id` entry." % type(head))
-        # build label space array from mapping
-        self.label_space = np.empty(len(label2id), dtype=object)
-        for label, i in label2id.items():
-            self.label_space[i] = label
+        id2label = h_config.id2label
+        if id2label is None:
+            raise ValueError("`label2id` not set in head %s." % h_config.head_name)
+        
+        self.label_space = np.empty(h_config.num_labels+1, dtype=object)
+        for i, l in id2label.items():
+            self.label_space[i] = l
 
     def compute(self, eval_pred:EvalPrediction) -> dict[str, float]:
         # unpack predicitons and labels
@@ -50,8 +49,8 @@ class SeqEvalMetric(HypedMetric):
             predictions=np.array_split(self.label_space[preds[mask]], splits),
             references=np.array_split(self.label_space[labels[mask]], splits),
             # additional arguments
-            suffix=self.config.suffix,
-            scheme=self.config.scheme,
-            mode=self.config.mode,
-            zero_division=self.config.zero_division
+            suffix=self.m_config.suffix,
+            scheme=self.m_config.scheme,
+            mode=self.m_config.mode,
+            zero_division=self.m_config.zero_division
         )

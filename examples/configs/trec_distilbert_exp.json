@@ -6,12 +6,12 @@
 
         "heads": {
             "fine_cls": {
-                "head_type": "hyped-cls-head",
+                "head_type": "classification",
                 "label_column": "coarse_labels",
                 "loss_coeff": 0.4
             },
             "coarse_cls": {
-                "head_type": "hyped-cls-head",
+                "head_type": "classification",
                 "label_column": "fine_labels",
                 "loss_coeff": 0.6
             }

@@ -5,7 +5,7 @@ import logging
 from itertools import product
 from hyped import modeling
 from hyped.stages.train.main import (
-    RunConfig,
+    ExperimentConfig,
     get_format_info,
     build_trainer,
     load_data_split
@@ -27,7 +27,7 @@ def main(
         raise FileNotFoundError(config)
     # load config
     logger.info("Loading run configuration from %s" % config)
-    config = RunConfig.parse_file(config)
+    config = ExperimentConfig.parse_file(config)
 
     # prepare config for evaluation
     config.trainer.save_strategy = 'no'
@@ -54,7 +54,7 @@ def main(
         trainer = trainer or build_trainer(
             trainer_t=config.model.trainer_t,
             info=get_format_info(data),
-            tokenizer=config.model.build_tokenizer(),
+            tokenizer=config.model.tokenizer,
             model=model,
             args=config.trainer,
             metric_configs=config.metrics,

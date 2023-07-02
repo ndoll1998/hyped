@@ -1,9 +1,7 @@
-from .heads import *
-from .auto import HypedAutoAdapterModel
-from .wrapper import TransformerModelWrapper
-
+from . import heads
+from .wrapper import HypedModelWrapper
 from .collator import HypedDataCollator
-from .trainer import (
-    MultiHeadTrainer,
-    MultiHeadAdapterTrainer
-)
+# tranformers is a base requirement
+# the backend is always available
+from . import transformers
+# other backends have to be imported explicitly

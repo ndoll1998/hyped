@@ -1,80 +1,71 @@
 from . import metrics
-from .metrics.base import HypedMetric, HypedMetricConfig
+from .metrics.base import (
+    HypedMetric,
+    HypedMetricConfig
+)
 from .collection import HypedMetricCollection
-from transformers.adapters import heads
 from hyped.utils.typedmapping import typedmapping
+from hyped.modeling import (
+    HypedModelWrapper,
+    heads
+)
 from functools import cmp_to_key
 
-class HypedAutoMetric(object):
+class AutoHypedMetric(object):
     METRICS_MAPPING = typedmapping[
-        type[heads.PredictionHead],
+        type[heads.HypedHeadConfig],
         typedmapping
     ]()
 
     @classmethod
-    def from_head(
+    def from_head_config(
         cls,
-        head:heads.PredictionHead,
-        config:HypedMetricConfig
+        h_config:heads.HypedHeadConfig,
+        m_config:HypedMetricConfig
     ) -> HypedMetric:
         # find metrics for head
         key = cmp_to_key(lambda t, v: 2 * issubclass(v, t) - 1)
-        for head_t in sorted(cls.METRICS_MAPPING, key=key):
-            if isinstance(head, head_t):
+        for h_config_t in sorted(cls.METRICS_MAPPING, key=key):
+            if isinstance(h_config, h_config_t):
                 # find specific metric
-                metrics_mapping = cls.METRICS_MAPPING[head_t]
-                metric_t = metrics_mapping.get(type(config), None)
-                # check if metric type found
-                if metric_t is None:
-                    raise ValueError("Invalid metric type `%s`." % config.metric_type)
-                # create metric instance
-                metric = metric_t(head, config)
-                return metric
+                metrics_mapping = cls.METRICS_MAPPING[h_config_t]
+                for m_config_t in sorted(metrics_mapping, key=key):
+                    if isinstance(m_config, m_config_t):
+                        metric_t = metrics_mapping[m_config_t]
+                        return metric_t(h_config, m_config)
+
+                raise ValueError(
+                    "No metric registered for metric config type `%s` and head type `%s`." % (
+                        type(m_config), type(h_config))
+                )
         # no metric found for head
         raise ValueError("No metric registered for head of type `%s`." % type(head))
 
     @classmethod
     def from_model(
         cls,
-        model:heads.ModelWithFlexibleHeadsAdaptersMixin,
+        model:HypedModelWrapper,
         metric_configs:dict[str, list[HypedMetricConfig]],
         label_order:list[str]
     ) -> HypedMetricCollection:
         # type checking
-        if not isinstance(model, heads.ModelWithFlexibleHeadsAdaptersMixin):
-            raise ValueError("Expected model with `ModelWithFlexibleHeadsAdaptersMixin`, got %s." % type(model))
-        if model.active_head is None:
-            raise ValueError("No active head detected in model!")
+        if not isinstance(model, HypedModelWrapper):
+            raise ValueError("Expected model with `%s`, got %s." % (HypedModelWrapper, type(model)))
 
-        if isinstance(model.active_head, str):
-            # single active head
-            head = model.heads[model.active_head]
-            # build metric collection
-            return HypedMetricCollection(
-                metrics=[cls.from_head(head, config) for config in metric_configs[head.name]],
-                head_order=[model.active_head],
-                label_order=label_order
-            )
+        # build metric for each head
+        metrics = [
+            cls.from_head_config(h_config, m_config)
+            for h_config in model.head_configs
+            for m_config in metric_configs.get(h_config.head_name, [])
+        ]
 
-        elif isinstance(model.active_head, list):
-            # check if label order is given
-            if label_order is None:
-                raise ValueError("Label order is required for multi head models, got label_order=%s!" % label_order)
-            # build metric for each head
-            metrics = [
-                cls.from_head(model.heads[head_name], config)
-                for head_name in model.active_head
-                for config in metric_configs[head_name]
-            ]
-            # build metrics collection and return
-            return HypedMetricCollection(metrics, model.active_head, label_order)
-
-        raise Exception("Unexpected active head %s!" % model.active_head)
+        head_order = [h_config.head_name for h_config in model.head_configs]
+        return HypedMetricCollection(metrics, head_order, label_order)
 
     @classmethod
     def register(
         cls,
-        head_t:type[heads.PredictionHead],
+        head_t:type[heads.HypedHeadConfig],
         config_t:type[HypedMetricConfig],
         metrics_t:type[HypedMetric]
     ):
@@ -85,18 +76,18 @@ class HypedAutoMetric(object):
 
         cls.METRICS_MAPPING[head_t][config_t] = metrics_t
 
-HypedAutoMetric.register(
-    head_t=heads.ClassificationHead,
-    config_t=metrics.ClassificationMetricConfig,
-    metrics_t=metrics.ClassificationMetric
+AutoHypedMetric.register(
+    head_t=heads.HypedClsHeadConfig,
+    config_t=metrics.ClsMetricConfig,
+    metrics_t=metrics.ClsMetric
 )
-HypedAutoMetric.register(
-    head_t=heads.MultiLabelClassificationHead,
+AutoHypedMetric.register(
+    head_t=heads.HypedMlcHeadConfig,
     config_t=metrics.MlcMetricConfig,
     metrics_t=metrics.MlcMetric
 )
-HypedAutoMetric.register(
-    head_t=heads.TaggingHead,
+AutoHypedMetric.register(
+    head_t=heads.HypedTaggingHeadConfig,
     config_t=metrics.SeqEvalMetricConfig,
     metrics_t=metrics.SeqEvalMetric
 )

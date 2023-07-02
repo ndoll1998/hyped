@@ -1,8 +1,3 @@
-from .cls import ClassificationMetric, ClassificationMetricConfig
+from .cls import ClsMetricConfig, ClsMetric
 from .mlc import MlcMetricConfig, MlcMetric
 from .seqeval import SeqEvalMetricConfig, SeqEvalMetric
-
-AnyHypedMetricConfig = \
-    ClassificationMetricConfig | \
-    MlcMetricConfig | \
-    SeqEvalMetricConfig
