@@ -40,6 +40,6 @@ class AutoDataFilter(AutoClass):
 # register all processors
 AutoDataProcessor.register(processors.TokenizerProcessorConfig, processors.TokenizerProcessor)
 AutoDataProcessor.register(processors.BioLabelProcessorConfig, processors.BioLabelProcessor)
-AutoDataProcessor.register(processors.PromtingProcessorConfig, processors.PromtingProcessor)
+AutoDataProcessor.register(processors.JinjaProcessorConfig, processors.JinjaProcessor)
 # register all filters
 AutoDataFilter.register(filters.MinSeqLenFilterConfig, filters.MinSeqLenFilter)
