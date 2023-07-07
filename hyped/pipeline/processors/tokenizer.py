@@ -110,7 +110,7 @@ class TokenizerProcessor(DataProcessor):
         kwargs.pop('processor_type')
         kwargs.pop('pretrained_ckpt')
         kwargs.pop('text_column')
-        kwargs.pop('text_pair_column')
+        kwargs.pop('additional_inputs')
         kwargs.pop('return_word_ids')
         return kwargs
 
