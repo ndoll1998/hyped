@@ -33,6 +33,7 @@ class TrainerConfig(transformers.TrainingArguments):
     # overwrite some default values
     do_train:bool =True
     do_eval:bool =True
+    max_grad_norm:Optional[float] = 1.0
     evaluation_strategy:transformers.trainer_utils.IntervalStrategy ="epoch"
     save_strategy:transformers.trainer_utils.IntervalStrategy ="epoch"
     eval_accumulation_steps:Optional[int] =1
