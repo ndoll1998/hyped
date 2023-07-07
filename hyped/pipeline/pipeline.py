@@ -1,3 +1,4 @@
+import os
 import datasets
 from .auto import (
     AutoDataProcessor,
@@ -62,13 +63,14 @@ class Pipeline(object):
             raise ValueError("Expected `ds` to be a `datasets.Dataset` or `datasets.DatasetDict`, got %s" % type(ds))
 
         # apply processors
+        # TODO: support batched processing and multiprocessing
         for p in self.processors:
             assert isinstance(p, DataProcessor)
             ds = ds.map(
                 function=p,
                 with_indices=p.requires_index,
                 with_rank=p.requires_rank,
-                batched=False, # TODO: support batched processing
+                batched=False,
                 load_from_cache_file=use_cache,
                 desc=type(p).__name__
             )

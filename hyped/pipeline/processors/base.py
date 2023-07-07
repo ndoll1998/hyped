@@ -3,6 +3,7 @@ from datasets import Features
 
 from inspect import signature
 from dataclasses import dataclass
+from collections import defaultdict
 
 import numpy as np
 import pyarrow as pa
@@ -71,19 +72,20 @@ class DataProcessor(ABC):
         ...
 
     @abstractmethod
-    def process(self, example:Any) -> dict[str, np.ndarray]:
+    def process(self, example:dict[str, Any]) -> dict[str, np.ndarray]:
         ...
     @abstractmethod
-    def process(self, example:Any, rank:int) -> dict[str, np.ndarray]:
+    def process(self, example:dict[str, Any], rank:int) -> dict[str, np.ndarray]:
         ...
     @abstractmethod
-    def process(self, example:Any, index:int) -> dict[str, np.ndarray]:
+    def process(self, example:dict[str, Any], index:int) -> dict[str, np.ndarray]:
         ...
     @abstractmethod
-    def process(self, example:Any, index:int, rank:int) -> dict[str, np.ndarray]:
+    def process(self, example:dict[str, Any], index:int, rank:int) -> dict[str, np.ndarray]:
         ...
 
-    def __call__(self, example, *args, **kwargs):
+    def __call__(self, example:dict[str, Any], *args, **kwargs):
+
         # run data processor
         features = self.process(example, *args, **kwargs)
         example.update(features)

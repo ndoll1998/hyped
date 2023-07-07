@@ -1,8 +1,9 @@
 import numpy as np
 from .base import DataProcessor, DataProcessorConfig
+from inspect import signature
 from transformers import AutoTokenizer
 from datasets import Features, Sequence, Value
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, field, asdict
 from typing import Literal, Optional, Any
 
 @dataclass
@@ -10,18 +11,20 @@ class TokenizerProcessorConfig(DataProcessorConfig):
     processor_type:Literal["tokenizer"] = "tokenizer"
     # pretrained tokenizer and column to use
     pretrained_ckpt:str = "bert-base-uncased"
+    # tokenizer inputs
     text_column:str = "text"
+    additional_inputs:dict[str, str] = field(default_factory=dict)
     # tokenization arguments
-    add_special_tokens:bool =True
+    add_special_tokens:bool = True
     padding:bool | Literal[
         'max_length',
         'do_not_pad'
-    ] =False
+    ] = False
     truncation:bool | Literal[
-            'longest_first',
-            'only_first',
-            'only_second',
-            'do_not_truncate'
+        'longest_first',
+        'only_first',
+        'only_second',
+        'do_not_truncate'
     ] =False
     max_length:Optional[int] =None
     stride:int =0
@@ -56,9 +59,18 @@ class TokenizerProcessor(DataProcessor):
         # check type of input feature
         f = features[self.config.text_column]
         if self.config.is_split_into_words and not (isinstance(f, Sequence) and (f.feature == Value('string'))):
-            raise TypeError("Input feature `%s` must be sequence of strings, got %s." % (self.config.text_column, features[self.config.text_column]))
+            raise TypeError("Input feature `%s` must be sequence of strings, got %s." % (self.config.text_column, f))
         elif (not self.config.is_split_into_words) and (f != Value('string')):
-            raise TypeError("Input feature `%s` must be string, got %s." % (self.config.text_column, features[self.config.text_column]))
+            raise TypeError("Input feature `%s` must be string, got %s." % (self.config.text_column, f))
+
+        sig = signature(self.tokenizer)
+        # make sure all additional input columns are present
+        for key, column in self.config.additional_inputs.items():
+            if key not in sig.parameters.keys():
+                raise TypeError("Tokenizer got unexpected additional keyword argument `%s`" % key)
+            if column not in features:
+                raise KeyError("`%s` not present in features!" % column)
+            # TODO: compare column feature with signature of tokenizer
 
         # check for constant length
         is_constant = (self.config.max_length is not None) and \
@@ -81,6 +93,10 @@ class TokenizerProcessor(DataProcessor):
             new_features['special_tokens_mask'] = Sequence(Value(dtype='int32'), length=length)
         if self.config.return_special_tokens_mask:
             new_features['special_tokens_mask'] = Sequence(Value(dtype='int32'), length=length)
+        if self.config.return_offsets_mapping:
+            new_features['offset_mapping'] = Sequence(
+                Sequence(Value(dtype='int32'), length=2), length=length
+            )
         if self.config.return_length:
             new_features['length'] = Value(dtype='int32')
         if self.config.return_word_ids:
@@ -94,13 +110,19 @@ class TokenizerProcessor(DataProcessor):
         kwargs.pop('processor_type')
         kwargs.pop('pretrained_ckpt')
         kwargs.pop('text_column')
+        kwargs.pop('text_pair_column')
         kwargs.pop('return_word_ids')
         return kwargs
 
     def process(self, example:dict[str, Any]) -> dict[str, np.ndarray]:
+        # collect additional keyword arguments to pass to the tokenizer
+        additional_kwargs = {
+            key: example[column] for key, column in self.config.additional_inputs.items()
+        }
         # apply tokenizer
         enc = self.tokenizer(
             text=example[self.config.text_column],
+            **additional_kwargs,
             **self.tokenization_kwargs
         )
         # add word ids to encoding
