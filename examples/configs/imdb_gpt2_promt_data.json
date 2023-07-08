@@ -1,0 +1,51 @@
+{
+    "data": {
+        "dataset": "imdb",
+        "splits": {
+            "train": "train[:80%]",
+            "validation": "train[80%:]",
+            "test": "test"
+        }
+    },
+
+    "pipeline": [
+	{
+	    "processor_type": "jinja",
+	    "template": "Categorize the following text into the categories [{{ ', '.join(features.label.names) }}]: \n{{ item.text }} ; Category:",
+	    "output_column": "promt_source"
+	},
+	{
+	    "processor_type": "jinja",
+	    "template": "{{ features.label.names[item.label] }}",
+	    "output_column": "promt_target"
+	},
+        {
+            "processor_type": "tokenizer",
+            "pretrained_ckpt": "gpt2",
+            "text_column": "promt_source",
+            "additional_inputs": {
+                "text_pair": "promt_target"
+            },
+            "max_length": 256,
+            "truncation": "only_first",
+	    "add_special_tokens": true,
+	    "return_token_type_ids": true
+        },
+        {
+            "processor_type": "math",
+            "expression": "-100 * (1 - item.token_type_ids) + item.token_type_ids * item.input_ids",
+            "output_column": "labels"
+        },
+        {
+            "processor_type": "debug.log",
+            "level": "INFO",
+            "template": "{% if (index < 2) %}Source: {{ item.promt_source }}\nTarget: {{ item.promt_target }}\nLabels: {{ item.labels }}{% endif %}"
+        }
+    ],
+
+    "columns": {
+        "input_ids": "input_ids",
+        "attention_mask": "attention_mask",
+        "labels": "labels"
+    }
+}
