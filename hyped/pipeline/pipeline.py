@@ -37,6 +37,10 @@ class Pipeline(DataProcessor, typedlist[DataProcessor]):
     def new_features(self) -> datasets.Features:
         return self[-1].new_features
 
+    @property
+    def out_features(self) -> datasets.Features:
+        return self[-1].out_features
+
     def map_features(self, features:datasets.Features) -> datasets.Features:
         # map features is unused
         for p in self:

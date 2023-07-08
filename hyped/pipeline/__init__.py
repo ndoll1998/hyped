@@ -1,9 +1,3 @@
+from . import processors
+from .auto import AutoDataProcessor
 from .pipeline import Pipeline
-from .auto import (
-    AutoDataFilter,
-    AutoDataProcessor
-)
-from . import (
-    processors,
-    filters
-)

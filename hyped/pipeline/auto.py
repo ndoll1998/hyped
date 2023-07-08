@@ -1,6 +1,4 @@
-from . import filters
 from . import processors
-# base classes
 from .processors.base import DataProcessor, DataProcessorConfig
 # utils
 from hyped.utils.typedmapping import typedmapping
@@ -28,7 +26,8 @@ class AutoDataProcessor(object):
         cls.MAPPING[config_t] = processor_t
 
 # register all processors
+AutoDataProcessor.register(processors.LogProcessorConfig, processors.LogProcessor)
 AutoDataProcessor.register(processors.TokenizerProcessorConfig, processors.TokenizerProcessor)
 AutoDataProcessor.register(processors.BioLabelProcessorConfig, processors.BioLabelProcessor)
 AutoDataProcessor.register(processors.JinjaProcessorConfig, processors.JinjaProcessor)
-AutoDataProcessor.register(processors.LogProcessorConfig, processors.LogProcessor)
+AutoDataProcessor.register(processors.MathProcessorConfig, processors.MathProcessor)
