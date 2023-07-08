@@ -7,7 +7,6 @@ import logging
 # hyped
 from hyped.pipeline import Pipeline
 from hyped.pipeline.processors import AnyProcessorConfig
-from hyped.pipeline.filters import AnyFilterConfig
 # utils
 from typing_extensions import Annotated
 
@@ -84,9 +83,8 @@ def prepare_dataset(
     # create pipeline and prepare it
     pipe = Pipeline(config.pipeline)
     features = pipe.prepare(info.features)
-    # apply pipeline to datasets
+    # apply pipeline to datasets and check features
     ds = pipe.apply(ds)
-    # check features
     assert features == next(iter(ds.values())).features
 
     # rename columns
