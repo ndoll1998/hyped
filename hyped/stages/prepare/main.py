@@ -63,32 +63,14 @@ class PrepareConfig(pydantic.BaseModel):
             pydantic.Field(..., discriminator='processor_type')
         ]
     ]
-    filters:list[AnyFilterConfig]
     # columns to keep
     columns:dict[str, str]
-
-    # data filters
-    #filters:list[
-    #    Annotated[
-    #        AnyFilterConfig,
-    #        pydantic.Field(..., discriminator='filter_type')
-    #    ]
-    #]
 
 def prepare_dataset(
     ds:datasets.DatasetDict,
     config:PrepareConfig,
     max_size:int | None =None,
 ) -> datasets.DatasetDict:
-
-    # get dataset info
-    info = next(iter(ds.values())).info
-
-    # create pipeline
-    pipe = Pipeline(
-        processors=config.pipeline,
-        filters=config.filters
-    )
 
     # reduce datasets if they are too large
     for s, d in ds.items():
@@ -97,9 +79,13 @@ def prepare_dataset(
             idx = np.random.choice(len(d), max_size, replace=False)
             ds[s] = d.select(idx)
 
-    # prepare pipeline and pass datasets through
+    # get dataset info
+    info = next(iter(ds.values())).info
+    # create pipeline and prepare it
+    pipe = Pipeline(config.pipeline)
     features = pipe.prepare(info.features)
-    ds = pipe(ds)
+    # apply pipeline to datasets
+    ds = pipe.apply(ds)
     # check features
     assert features == next(iter(ds.values())).features
 

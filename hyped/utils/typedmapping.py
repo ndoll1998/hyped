@@ -1,5 +1,5 @@
 from .typedlist import check_type
-from typing import Generic, TypeVar, Any, get_args
+from typing import Generic, TypeVar, Any, get_args, get_origin
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -11,11 +11,22 @@ class typedmapping(Generic[K, V], dict):
 
     @property
     def _K(self) -> type:
+        # handle subclassing of typedlist
+        for type_ in type(self).__orig_bases__:
+            if get_origin(type_) is typedmapping:
+                return get_args(type_)[0]
+        # direct instance of typedlist
         return get_args(self.__orig_class__)[0]
 
     @property
     def _V(self) -> type:
+        # handle subclassing of typedlist
+        for type_ in type(self).__orig_bases__:
+            if get_origin(type_) is typedmapping:
+                return get_args(type_)[1]
+        # direct instance of typedlist
         return get_args(self.__orig_class__)[1]
+
 
     def handle_key_type_conflict(self, key:Any) -> K:
         return key

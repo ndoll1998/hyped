@@ -31,9 +31,9 @@ class JinjaProcessor(DataProcessor):
     def map_features(self, features:Features) -> Features:
         return Features({self.config.output_column: Value(dtype="string")})
 
-    def process(self, example:dict[str, Any]) -> dict[str, Any]:
+    def process(self, example:dict[str, Any], index:int, rank:int) -> dict[str, Any]:
         return {
             self.config.output_column: self.template.render(
-                item=example, features=self.in_features
+                item=example, features=self.in_features, index=index, rank=rank
             )
         }

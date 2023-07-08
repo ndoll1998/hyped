@@ -41,5 +41,6 @@ class AutoDataFilter(AutoClass):
 AutoDataProcessor.register(processors.TokenizerProcessorConfig, processors.TokenizerProcessor)
 AutoDataProcessor.register(processors.BioLabelProcessorConfig, processors.BioLabelProcessor)
 AutoDataProcessor.register(processors.JinjaProcessorConfig, processors.JinjaProcessor)
+AutoDataProcessor.register(processors.LogProcessorConfig, processors.LogProcessor)
 # register all filters
 AutoDataFilter.register(filters.MinSeqLenFilterConfig, filters.MinSeqLenFilter)

@@ -19,6 +19,12 @@ class typedlist(Generic[T], list):
 
     @property
     def _T(self) -> type:
+        # handle subclassing of typedlist
+        # TODO: this only works if the class is a direct subclass of typedlist
+        for type_ in type(self).__orig_bases__:
+            if get_origin(type_) is typedlist:
+                return get_args(type_)[0]
+        # direct instance of typedlist
         return get_args(self.__orig_class__)[0]
 
     def handle_type_conflict(self, val:Any) -> T:

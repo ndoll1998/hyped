@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from collections import defaultdict
 
 import numpy as np
-import pyarrow as pa
 from typing import Any, Literal
 
 @dataclass
@@ -17,9 +16,13 @@ class DataProcessor(ABC):
     """Abstract Data Processor"""
 
     def __init__(self, config:DataProcessorConfig) -> None:
-        self.config = config
+        self._config = config
         self._in_features:Features = None
         self._new_features:Features = None
+
+    @property
+    def config(self) -> DataProcessorConfig:
+        return self._config
 
     @property
     def is_prepared(self) -> bool:
@@ -59,6 +62,10 @@ class DataProcessor(ABC):
         return self.out_features
 
     @property
+    def is_batched(self) -> bool:
+        return 'examples' in signature(self.process).parameters
+
+    @property
     def requires_rank(self) -> bool:
         return 'rank' in signature(self.process).parameters
 
@@ -72,28 +79,57 @@ class DataProcessor(ABC):
         ...
 
     @abstractmethod
-    def process(self, example:dict[str, Any]) -> dict[str, np.ndarray]:
+    def process(self, example:dict[str, Any]) -> dict[str, Any]:
         ...
     @abstractmethod
-    def process(self, example:dict[str, Any], rank:int) -> dict[str, np.ndarray]:
+    def process(self, example:dict[str, Any], rank:int) -> dict[str, Any]:
         ...
     @abstractmethod
-    def process(self, example:dict[str, Any], index:int) -> dict[str, np.ndarray]:
+    def process(self, example:dict[str, Any], index:int) -> dict[str, Any]:
         ...
     @abstractmethod
-    def process(self, example:dict[str, Any], index:int, rank:int) -> dict[str, np.ndarray]:
+    def process(self, example:dict[str, Any], index:int, rank:int) -> dict[str, Any]:
+        ...
+    @abstractmethod
+    def process(self, examples:dict[str, list[Any]]) -> dict[str, list[Any]]:
+        ...
+    @abstractmethod
+    def process(self, examples:dict[str, list[Any]], rank:int) -> dict[str, list[Any]]:
+        ...
+    @abstractmethod
+    def process(self, examples:dict[str, list[Any]], index:int) -> dict[str, list[Any]]:
+        ...
+    @abstractmethod
+    def process(self, examples:dict[str, list[Any]], index:int, rank:int) -> dict[str, list[Any]]:
         ...
 
-    def __call__(self, example:dict[str, Any], *args, **kwargs):
+    def __call__(
+        self, examples:dict[str, list[Any]], index:None|list[int] = None, rank:None|int = None
+    ) -> dict[str, list[Any]]:
 
-        # run data processor
-        features = self.process(example, *args, **kwargs)
-        example.update(features)
-        # TODO: only necessary for non-batched data processors
-        for k, f in example.items():
-            example[k] = [f]
-        # convert to py-arrow table with correct schema
-        return pa.table(
-            data=dict(example),
-            schema=self.out_features.arrow_schema
-        )
+        if self.is_batched:
+            # data processor expects batch of examples
+            kwargs = (
+                ({'rank': rank} if self.requires_rank else {}) |
+                ({'index': index} if self.requires_index else {})
+            )
+            return self.process(examples, **kwargs)
+
+        processed_examples = defaultdict(list)
+        # get the batch size
+        n = len(next(iter(examples.values())))
+        # apply processor to each item in the batch seperately
+        for i in range(n):
+            # extract single example from batch
+            example = {k: v[i] for k, v in examples.items()}
+            # build additional keyword arguments
+            kwargs = (
+                ({'rank': rank} if self.requires_rank else {}) |
+                ({'index': index[i]} if self.requires_index else {})
+            )
+            # collect all processed examples
+            for k, v in self.process(example, **kwargs).items():
+                processed_examples[k].append(v)
+
+        # merge and return
+        return processed_examples | examples

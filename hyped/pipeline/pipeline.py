@@ -1,90 +1,94 @@
 import os
 import datasets
-from .auto import (
-    AutoDataProcessor,
-    AutoDataFilter
+import pyarrow as pa
+from .auto import AutoDataProcessor
+from .processors.base import (
+    DataProcessor,
+    DataProcessorConfig
 )
-from .processors.base import DataProcessor, DataProcessorConfig
-from .filters.base import DataFilter, DataFilterConfig
 # utils
-from typing import TypeVar
 from hyped.utils.typedlist import typedlist
+from typing import Any
 
-T = TypeVar("T")
+class Pipeline(DataProcessor, typedlist[DataProcessor]):
 
-class DataProcessorList(typedlist[T]):
-
-    def handle_type_conflict(self, config:DataProcessorConfig) -> T:
+    def handle_type_conflict(self, config:DataProcessorConfig) -> DataProcessor:
         # try to create a processor instance from the config
         return AutoDataProcessor.from_config(config)
-
-class DataFilterList(typedlist[T]):
-
-    def handle_type_conflict(self, config:DataFilterConfig) -> T:
-        # try to create a processor instance from the config
-        return AutoDataFilter.from_config(config)
-
-class Pipeline(object):
 
     def __init__(
         self,
         processors:list[DataProcessor|DataProcessorConfig] =[],
-        filters:list[DataFilter|DataFilterConfig] =[]
     ) -> None:
-        # initialize processor and filter lists
-        self.processors = DataProcessorList[DataProcessor]()
-        self.filters = DataFilterList[DataFilter]()
-        # add processors and filters
-        self.processors.extend(processors)
-        self.filters.extend(filters)
+        DataProcessor.__init__(self, None)
+        # initialize processor list and add all processors
+        typedlist.__init__(self)
+        self.extend(processors)
+
+    @property
+    def config(self) -> list[DataProcessorConfig]:
+        return [p.config for p in self]
 
     @property
     def in_features(self) -> datasets.Features:
-        return self.processors[0].in_features
+        return self[0].in_features
 
     @property
-    def out_features(self) -> datasets.Features:
-        return self.processors[-1].out_features
+    def new_features(self) -> datasets.Features:
+        return self[-1].new_features
+
+    def map_features(self, features:datasets.Features) -> datasets.Features:
+        # map features is unused
+        for p in self:
+            features = p.map_features(features)
+        return features
 
     def prepare(self, features:datasets.Features) -> datasets.Features:
         # prepare all processors
-        for p in self.processors:
-            assert isinstance(p, DataProcessor)
+        for p in self:
             features = p.prepare(features)
-        # prepare pipeline
         return features
 
-    def __call__(self,
+    def process(
+        self, examples:dict[str, list[Any]], index:list[int], rank:int
+    ) -> dict[str, list[Any]]:
+        # apply each processor in pipeline
+        for p in self:
+            kwargs = (
+                ({'index': index} if p.requires_index else {}) |
+                ({'rank': rank} if p.requires_rank else {})
+            )
+            examples = p(examples, **kwargs)
+        return examples
+
+    def __call__(self, examples:dict[str, list[Any]], index:list[int], rank:int):
+        # process examples
+        processed_examples = self.process(examples, index, rank)
+        # convert to py-arrow table with correct schema
+        return pa.table(
+            data=dict(processed_examples),
+            schema=self.out_features.arrow_schema
+        )
+
+    def apply(self,
         ds:datasets.Dataset|datasets.DatasetDict,
-        use_cache:bool =False
+        batch_size:int = 512,
+        num_proc:None|int = None,
+        use_cache:bool = False,
+        desc:None|str = "Preprocess"
     ) -> datasets.Dataset|datasets.DatasetDict:
         # check input type
         if not isinstance(ds, (datasets.Dataset, datasets.DatasetDict)):
             raise ValueError("Expected `ds` to be a `datasets.Dataset` or `datasets.DatasetDict`, got %s" % type(ds))
 
-        # apply processors
-        # TODO: support batched processing and multiprocessing
-        for p in self.processors:
-            assert isinstance(p, DataProcessor)
-            ds = ds.map(
-                function=p,
-                with_indices=p.requires_index,
-                with_rank=p.requires_rank,
-                batched=False,
-                load_from_cache_file=use_cache,
-                desc=type(p).__name__
-            )
-
-        # apply filters
-        for f in self.filters:
-            assert isinstance(f, DataFilter)
-            ds = ds.filter(
-                function=f,
-                with_indices=f.requires_index,
-                batched=False, # TODO
-                load_from_cache_file=use_cache,
-                desc=type(f).__name__
-            )
-
-        # return processes dataset
-        return ds
+        # apply pipeline
+        return ds.map(
+            function=self,
+            with_indices=self.requires_index,
+            with_rank=self.requires_rank,
+            batched=True,
+            batch_size=batch_size,
+            # num_proc=num_proc or os.cpu_count(),
+            load_from_cache_file=use_cache,
+            desc=desc
+        )
