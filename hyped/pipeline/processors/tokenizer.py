@@ -50,6 +50,9 @@ class TokenizerProcessor(DataProcessor):
             use_fast=True,
             add_prefix_space=True
         )
+        # fallback to eos as padding token
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def map_features(self, features:Features) -> Features:
 
