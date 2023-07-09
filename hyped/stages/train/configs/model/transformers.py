@@ -34,7 +34,7 @@ class Task(Enum):
         return {
             type(self).CLASSIFICATION:              "single_label_classification",
             type(self).MULTI_LABEL_CLASSIFICATION:  "multi_label_classification",
-        }.get(self, self.value)
+        }.get(self, None) # return None for other tasks
 
 class TransformerModelConfig(ModelConfig):
     backend:Literal['transformers'] = 'transformers'
@@ -51,8 +51,9 @@ class TransformerModelConfig(ModelConfig):
             **self.kwargs,
             return_unused_kwargs=True
         )
-        # set the problem type, especially important for sequence classification
-        # tells the model whether to solve a single- or multi-label sequence classification task
+        # set the problem type, important for sequence classification as this argument
+        # indicates a single- or multi-label sequence classification task
+        # for other tasks this is set to None (see Task.problem_type)
         config.problem_type = self.task.problem_type
 
         # create the head config
