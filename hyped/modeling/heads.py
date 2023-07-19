@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datasets import Features, ClassLabel, Sequence
+from datasets import Features, ClassLabel, Sequence, Value
 from dataclasses import dataclass, field
 from typing import Any
 import warnings
@@ -99,7 +99,11 @@ class HypedCausalLMHeadConfig(HypedClsHeadConfig):
 
         # otherwise the feature must be a sequence of class labels
         # allowing to extract the label space from it
-        if not (isinstance(feature, Sequence) and isinstance(feature.feature, ClassLabel)):
-            raise ValueError("Expected label feature for causal LM to be a `Sequence` of `ClassLabel`, got %s." % str(feature))
-        # return label space
-        return feature.feature.names
+        if not (
+            isinstance(feature, Sequence) and
+            isinstance(feature.feature, (ClassLabel, Value))
+        ):
+            raise ValueError("Expected label feature for causal LM to be a `Sequence` of `ClassLabel` or `Value(dtype=int32)`, got %s." % str(feature))
+        # return label space from class label if given or assume
+        # the column is already encoded similar to the edge case above
+        return feature.feature.names if isinstance(feature.feature, ClassLabel) else None
