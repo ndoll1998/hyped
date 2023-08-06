@@ -63,6 +63,12 @@ class Pipeline(DataProcessor, typedlist[DataProcessor]):
                 ({'rank': rank} if p.requires_rank else {})
             )
             examples = p(examples, **kwargs)
+
+            n = len(next(iter(examples.values())))
+            # re-index if needed
+            if self.requires_index and (n != len(index)):
+                index = list(range(n))
+
         return examples
 
     def __call__(self, examples:dict[str, list[Any]], index:list[int], rank:int):

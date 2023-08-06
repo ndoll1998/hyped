@@ -113,7 +113,7 @@ class DataProcessor(ABC):
                 ({'rank': rank} if self.requires_rank else {}) |
                 ({'index': index} if self.requires_index else {})
             )
-            return self.process(examples, **kwargs)
+            return examples | self.process(examples, **kwargs)
 
         processed_examples = defaultdict(list)
         # get the batch size
@@ -132,4 +132,4 @@ class DataProcessor(ABC):
                 processed_examples[k].append(v)
 
         # merge and return
-        return processed_examples | examples
+        return examples | processed_examples

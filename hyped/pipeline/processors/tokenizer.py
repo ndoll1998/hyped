@@ -104,6 +104,10 @@ class TokenizerProcessor(DataProcessor):
             new_features['length'] = Value(dtype='int32')
         if self.config.return_word_ids:
             new_features['word_ids'] = Sequence(Value(dtype='int32'), length=length)
+
+        # special-cases
+        if 'boxes' in self.config.additional_inputs:
+            new_features['bbox'] = Sequence(Sequence(Value(dtype='int32'), length=4), length=length)
         # return updated features
         return new_features
 

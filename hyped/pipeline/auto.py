@@ -31,3 +31,4 @@ AutoDataProcessor.register(processors.TokenizerProcessorConfig, processors.Token
 AutoDataProcessor.register(processors.BioLabelProcessorConfig, processors.BioLabelProcessor)
 AutoDataProcessor.register(processors.JinjaProcessorConfig, processors.JinjaProcessor)
 AutoDataProcessor.register(processors.MathProcessorConfig, processors.MathProcessor)
+AutoDataProcessor.register(processors.ChunkProcessorConfig, processors.ChunkProcessor)
