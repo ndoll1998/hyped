@@ -15,9 +15,10 @@ from itertools import chain, product
 from typing import Any, Optional, Literal
 from typing_extensions import Annotated
 # hyped
-from . import modeling
-from .metrics import HypedAutoMetric
-from .metrics.metrics import AnyHypedMetricConfig
+from hyped import modeling
+from hyped.metrics import AutoHypedMetric
+# config
+from .configs.exp import ExperimentConfig
 
 import warnings
 # ignore warning of _n_gpu field of TrainingArguments
@@ -30,296 +31,6 @@ warnings.filterwarnings(
 
 # TODO: log more stuff
 logger = logging.getLogger(__name__)
-
-class TransformerModelConfig(pydantic.BaseModel):
-    """Transformer Model Configuration Model"""
-    library:Literal['transformers'] = 'transformers'
-    # task and head name
-    task:str
-    head_name:str
-    label_column:str = "labels"
-    # base model
-    pretrained_ckpt:str
-    kwargs:dict ={}
-
-    @pydantic.validator('pretrained_ckpt', pre=True)
-    def _check_pretrained_ckpt(cls, value):
-        try:
-            # check if model is valid by loading config
-            transformers.AutoConfig.from_pretrained(value)
-        except OSError as e:
-            # handle model invalid
-            raise ValueError("Unkown pretrained checkpoint: %s" % value) from e
-
-        return value
-
-    @property
-    def problem_type(self) -> str:
-        problem_type_lookup = {
-            "sequence-classification": "single_label_classification",
-            "multi-label-classification": "multi_label_classification",
-            "sequence-tagging": "token_classification",
-            "causal-language-modeling": "causal-language-modeling"
-        }
-        # check if task is valid
-        if self.task not in problem_type_lookup:
-            raise ValueError("Invalid task `%s`, must be one of %s" % (value, list(problem_type_lookup.keys())))
-        # return problem type for task
-        return problem_type_lookup[self.task]
-
-    @property
-    def auto_class(self) -> type:
-        auto_class_lookup = {
-            "sequence-classification": transformers.AutoModelForSequenceClassification,
-            "multi-label-classification": transformers.AutoModelForSequenceClassification,
-            "sequence-tagging": transformers.AutoModelForTokenClassification,
-            "causal-language-modeling": transformers.AutoModelForCausalLM
-        }
-        # check if task is valid
-        if self.task not in auto_class_lookup:
-            raise ValueError("Invalid task `%s`, must be one of %s" % (value, list(auto_class_lookup.keys())))
-        # return problem type for task
-        return auto_class_lookup[self.task]
-
-    @property
-    def head_config_class(self) -> type:
-        head_config_lookup = {
-            "sequence-classification": modeling.heads.HypedClsHeadConfig,
-            "multi-label-classification": modeling.heads.HypedMlcHeadConfig,
-            "sequence-tagging": modeling.heads.HypedTaggingHeadConfig,
-            "causal-language-modeling": modeling.heads.HypedCausalLMHeadConfig
-        }
-        # check if task is valid
-        if self.task not in head_config_lookup:
-            raise ValueError("Invalid task `%s`, must be one of %s" % (value, list(head_config_lookup.keys())))
-        # return problem type for task
-        return head_config_lookup[self.task]
-
-    def build(self, info:datasets.DatasetInfo) -> transformers.PreTrainedModel:
-
-        # load pretrained config
-        config, kwargs = transformers.AutoConfig.from_pretrained(self.pretrained_ckpt, **self.kwargs, return_unused_kwargs=True)
-
-        # create a head config with the correct labels
-        # only used for generating the label space
-        head_config = self.head_config_class(label_column=self.label_column)
-        head_config.check_and_prepare(info.features)
-        # update num labels and label2id mapping
-        if head_config.num_labels is not None:
-            config.num_labels = head_config.num_labels
-        if head_config.id2label is not None:
-            config.id2label = head_config.id2label
-        # set the problem type, especially important for sequence classification
-        # tells the model whether to solve a single- or multi-label sequence classification task
-        config.problem_type = self.problem_type
-
-        # load pretrained model and wrap it
-        model = self.auto_class.from_pretrained(self.pretrained_ckpt, config=config, **kwargs)
-        model = modeling.TransformerModelWrapper(
-            model,
-            head_name=self.head_name,
-            head_config=head_config
-        )
-        # return wrapped model instance
-        return model
-
-    def build_tokenizer(self) -> transformers.PreTrainedTokenizer:
-        return transformers.AutoTokenizer.from_pretrained(self.pretrained_ckpt, use_fast=True)
-
-    @property
-    def trainer_t(self) -> type[transformers.Trainer]:
-        # use the default transformers trainer
-        return transformers.Trainer
-
-class AdapterTransformerModelConfig(pydantic.BaseModel):
-    """Adapter Transformer Model Configuration Model"""
-    library:Literal['adapter-transformers'] = 'adapter-transformers'
-    # base model
-    pretrained_ckpt:str
-    kwargs:dict ={}
-    # adapter setup
-    adapter_name:None|str = None # defaults to dataset name
-    adapter:None|transformers.adapters.AdapterArguments = None
-    # prediction heads
-    heads:dict[
-        str,
-        Annotated[
-            modeling.heads.AnyHypedHeadConfig,
-            pydantic.Field(..., discriminator='head_type')
-        ]
-    ]
-
-    def check_and_prepare(self, features:datasets.Features) -> None:
-        [hconfig.check_and_prepare(features) for hconfig in self.heads.values()]
-
-    def build(self, info:datasets.DatasetInfo) -> transformers.PreTrainedModel:
-        # set default adapter name and prepare model for data
-        self.adapter_name = self.adapter_name or info.builder_name
-        self.check_and_prepare(info.features)
-
-        # load pretrained configuration and wrap for adapter model
-        config, kwargs = transformers.AutoConfig.from_pretrained(self.pretrained_ckpt, **self.kwargs, return_unused_kwargs=True)
-        config = transformers.adapters.wrappers.configuration.wrap_config(config)
-        # add prediction head configs
-        config.prediction_heads = {hname: dataclasses.asdict(hconfig) for hname, hconfig in self.heads.items()}
-
-        # build the model
-        model = modeling.HypedAutoAdapterModel.from_pretrained(
-            self.pretrained_ckpt,
-            config=config,
-            **kwargs
-        )
-        # activate all heads
-        model.active_head = list(model.heads.keys())
-        # set up adapter
-        if self.adapter is not None:
-            # check if name is set
-            if self.adapter_name is None:
-                raise ValueError("`adapter_name` in model configuration not set!")
-            # set up adapter
-            transformers.adapters.training.setup_adapter_training(
-                model=model,
-                adapter_args=dataclasses.replace(
-                    self.adapter,
-                    train_adapter=True
-                ),
-                adapter_name=self.adapter_name
-            )
-
-            # unfreeze model parameters when not only 
-            # training adapter weights 
-            if not self.adapter.train_adapter:
-                model.freeze_model(False)
-
-        # return model instance
-        return model
-
-    def build_tokenizer(self) -> transformers.PreTrainedTokenizer:
-        return transformers.AutoTokenizer.from_pretrained(self.pretrained_ckpt, use_fast=True)
-
-    @property
-    def trainer_t(self) -> type[transformers.Trainer]:
-        use_adapter_trainer = (self.adapter is not None) and self.adapter.train_adapter
-        return modeling.MultiHeadAdapterTrainer if use_adapter_trainer else \
-            modeling.MultiHeadTrainer
-
-    @pydantic.validator('pretrained_ckpt', pre=True)
-    def _check_pretrained_ckpt(cls, value):
-        try:
-            # check if model is valid by loading config
-            transformers.AutoConfig.from_pretrained(value)
-        except OSError as e:
-            # handle model invalid
-            raise ValueError("Unkown pretrained checkpoint: %s" % value) from e
-
-        return value
-
-@pydantic.dataclasses.dataclass
-@dataclasses.dataclass
-class TrainerConfig(transformers.TrainingArguments):
-    """ Trainer Configuration """
-    # passed fromi run config and needed for output directory
-    name:str =None
-    # create default for output directory
-    run_name:str ="{name}-{timestamp}"
-    output_dir:str ="output/{name}-{timestamp}"
-    overwrite_output_dir:bool =True
-    # early stopping setup
-    early_stopping_patience:Optional[int] =1
-    early_stopping_threshold:Optional[float] =0.0
-    # checkpointing
-    load_best_model_at_end:bool =True
-    metric_for_best_model:str ='eval_loss'
-    greater_is_better:bool =False
-    # overwrite some default values
-    do_train:bool =True
-    do_eval:bool =True
-    evaluation_strategy:transformers.trainer_utils.IntervalStrategy ="epoch"
-    save_strategy:transformers.trainer_utils.IntervalStrategy ="epoch"
-    eval_accumulation_steps:Optional[int] =1
-    save_total_limit:Optional[int] =3
-    label_names:list[str] =dataclasses.field(default_factory=lambda: ['labels'])
-    report_to:Optional[list[str]] =dataclasses.field(default_factory=list)
-    log_level:Optional[str] ='warning'
-    # fields with incomplete types in Training Arguments
-    # set type to avoid error in pydantic validation
-    debug:str|list[transformers.debug_utils.DebugOption]               =""
-    sharded_ddp:str|list[transformers.trainer_utils.ShardedDDPOption]  =""
-    fsdp:str|list[transformers.trainer_utils.FSDPOption]               =""
-    fsdp_config:Optional[str|dict]                                     =None
-    deepspeed:Optional[str|dict]                                       =None
-    # don't do that because we use args and kwargs in the
-    # model's forward function which confuses the trainer
-    remove_unused_columns:bool =False
-
-    # use pytorch implementation of AdamW optimizer
-    # to avoid deprecation warning
-    optim="adamw_torch"
-
-    @pydantic.root_validator()
-    def _format_output_directory(cls, values):
-        # get timestamp
-        timestamp=datetime.now().isoformat()
-        # format all values depending on output directory
-        return values | {
-            'output_dir': values.get('output_dir').format(
-                name=values.get('name'),
-                timestamp=datetime.now().isoformat()
-            ),
-            'logging_dir': values.get('logging_dir').format(
-                name=values.get('name'),
-                timestamp=datetime.now().isoformat()
-            ),
-            'run_name': values.get('run_name').format(
-                name=values.get('name'),
-                timestamp=datetime.now().isoformat()
-            ),
-        }
-
-class RunConfig(pydantic.BaseModel):
-    """Run Configuration Model"""
-    # run name
-    name:str
-    # model and trainer configuration
-    model:TransformerModelConfig|AdapterTransformerModelConfig = pydantic.Field(..., discriminator='library')
-    trainer:TrainerConfig
-    metrics:dict[
-        str,
-        list[
-            Annotated[
-                AnyHypedMetricConfig,
-                pydantic.Field(..., discriminator='metric_type')
-            ]
-        ]
-    ]
-
-    @pydantic.validator('model', pre=True)
-    def _infer_model_library(cls, value):
-        if 'library' not in value:
-
-            if ('heads' in value) and ('task' in value):
-                raise ValueError("Could not infer library from model config, both `heads` and `task` field specified!")
-
-            if 'heads' in value:
-                # if heads are present then this is an adapter model
-                value['library'] = "adapter-transformers"
-
-            elif 'task' in value:
-                # if task is specified then this is a pure transformer model
-                value['library'] = "transformers"
-
-            else:
-                raise ValueError("Could not infer library from model config, neither `heads` nor `task` field specified!")
-
-        return value
-
-    @pydantic.validator('trainer', pre=True)
-    def _pass_name_to_trainer_config(cls, v, values):
-        assert 'name' in values
-        if isinstance(v, pydantic.BaseModel):
-            return v.copy(update={'name': values.get('name')})
-        elif isinstance(v, dict):
-            return v | {'name': values.get('name')}
 
 def get_format_info(data:datasets.Dataset) -> datasets.Features:
     return dataclasses.replace(
@@ -383,15 +94,14 @@ def build_trainer(
     trainer_t:type[transformers.Trainer],
     info:datasets.DatasetInfo,
     tokenizer:transformers.PreTrainedTokenizer,
-    model:transformers.PreTrainedModel,
+    model:hyped.modeling.HypedModelWrapper,
     args:transformers.TrainingArguments,
     metric_configs:dict[str, AnyHypedMetricConfig],
     local_rank:int =-1
 ) -> transformers.Trainer:
     """Create trainer instance ensuring correct interfacing between trainer and metrics"""
-
     # create fixed order over label names for all model heads
-    label_names = chain.from_iterable(h.get_label_names() for h in model.heads.values())
+    label_names = chain.from_iterable(h_config.label_columns for h_config in model.head_configs)
     label_names = list(set(list(label_names)))
     # set label names order in arguments
     args.label_names = label_names
@@ -399,7 +109,7 @@ def build_trainer(
     args.local_rank = local_rank
 
     # create metrics
-    metrics = HypedAutoMetric.from_model(
+    metrics = AutoHypedMetric.from_model(
         model=model,
         metric_configs=metric_configs,
         label_order=args.label_names
@@ -408,7 +118,7 @@ def build_trainer(
     # create data collator
     collator = modeling.HypedDataCollator(
         tokenizer=tokenizer,
-        heads=model.heads.values(),
+        h_configs=model.head_configs,
         features=info.features
     )
 
@@ -436,7 +146,7 @@ def build_trainer(
     return trainer
 
 def train(
-    config:RunConfig,
+    config:ExperimentConfig,
     ds:datasets.DatasetDict,
     output_dir:str = None,
     local_rank:int = -1,
@@ -460,7 +170,7 @@ def train(
     trainer = build_trainer(
         trainer_t=config.model.trainer_t,
         info=info,
-        tokenizer=config.model.build_tokenizer(),
+        tokenizer=config.model.tokenizer,
         model=config.model.build(info),
         args=config.trainer,
         metric_configs=config.metrics,
@@ -469,6 +179,10 @@ def train(
     # set datasets
     trainer.train_dataset = ds[datasets.Split.TRAIN]
     trainer.eval_dataset = ds[datasets.Split.VALIDATION]
+
+    # log number of trainable paramters
+    num_trainable_params = sum(p.numel() for p in trainer.model.parameters() if p.requires_grad)
+    logger.info("Number of trainable parameters: %i" % num_trainable_params)
 
     # run trainer
     trainer.train()
@@ -487,7 +201,7 @@ def main(
 
     # load config
     logger.info("Loading run configuration from %s" % config)
-    config = RunConfig.parse_file(config)
+    config = ExperimentConfig.parse_file(config)
 
     # run training
     splits = [datasets.Split.TRAIN, datasets.Split.VALIDATION]

@@ -5,9 +5,8 @@ import numpy as np
 import pydantic
 import logging
 # hyped
-from .pipeline import Pipeline
-from .processors import AnyProcessorConfig
-from .filters import AnyFilterConfig
+from hyped.pipeline import Pipeline
+from hyped.pipeline.processors import AnyProcessorConfig
 # utils
 from typing_extensions import Annotated
 
@@ -17,11 +16,7 @@ logger = logging.getLogger(__name__)
 class DataConfig(pydantic.BaseModel):
     """Data Configuration Model"""
     dataset:str
-    splits:dict[str, str] = {
-        datasets.Split.TRAIN: datasets.Split.TRAIN,
-        datasets.Split.VALIDATION: datasets.Split.VALIDATION,
-        datasets.Split.TEST: datasets.Split.TEST
-    }
+    splits:None|dict[str, str] = None
     kwargs:dict = {}
 
     @pydantic.root_validator(pre=False)
@@ -63,32 +58,14 @@ class PrepareConfig(pydantic.BaseModel):
             pydantic.Field(..., discriminator='processor_type')
         ]
     ]
-    filters:list[AnyFilterConfig]
     # columns to keep
     columns:dict[str, str]
-
-    # data filters
-    #filters:list[
-    #    Annotated[
-    #        AnyFilterConfig,
-    #        pydantic.Field(..., discriminator='filter_type')
-    #    ]
-    #]
 
 def prepare_dataset(
     ds:datasets.DatasetDict,
     config:PrepareConfig,
     max_size:int | None =None,
 ) -> datasets.DatasetDict:
-
-    # get dataset info
-    info = next(iter(ds.values())).info
-
-    # create pipeline
-    pipe = Pipeline(
-        processors=config.pipeline,
-        filters=config.filters
-    )
 
     # reduce datasets if they are too large
     for s, d in ds.items():
@@ -97,10 +74,13 @@ def prepare_dataset(
             idx = np.random.choice(len(d), max_size, replace=False)
             ds[s] = d.select(idx)
 
-    # prepare pipeline and pass datasets through
+    # get dataset info
+    info = next(iter(ds.values())).info
+    # create pipeline and prepare it
+    pipe = Pipeline(config.pipeline)
     features = pipe.prepare(info.features)
-    ds = pipe(ds)
-    # check features
+    # apply pipeline to datasets and check features
+    ds = pipe.apply(ds)
     assert features == next(iter(ds.values())).features
 
     # rename columns
@@ -142,12 +122,13 @@ def main(
     logger.info("Loading data configuration from %s" % config)
     config = PrepareConfig.parse_file(config)
 
-    # overwrite splits
+    # validate splits
     for split in splits:
         if split not in config.data.splits:
             raise ValueError("Splits `%s` not specified in configuration %s." % (split, config))
-    # only keep splits that are named in arguments
+
     if len(splits) > 0:
+        # only keep splits that are named in arguments
         config.data.splits = {s: config.data.splits[s] for s in splits}
 
     # load dataset splits
@@ -157,6 +138,7 @@ def main(
         split=config.data.splits,
         **config.data.kwargs
     )
+    logger.info(ds)
     # prepare dataset
     logger.info("Preparing dataset splits")
     ds = prepare_dataset(ds, config, max_size=max_size)

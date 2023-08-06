@@ -11,11 +11,11 @@ stages:
 
   train:
     cmd: deepspeed --num_gpus=2 --no_python hyped train
-      -c ./run.json
+      -c ./exp.json
       -d ./dump/data/bookcorpus
       -o ./dump/model/
     params:
-      - ./run.json:
+      - ./exp.json:
     deps:
       - ./dump/data/bookcorpus
     outs:

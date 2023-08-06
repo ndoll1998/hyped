@@ -1,4 +1,24 @@
+import sys
 from setuptools import setup, find_packages
+
+def get_requirements():
+
+    static_requirements = [
+        'datasets>=2.12.0',
+        'evaluate>=0.4.0',
+        'torch>=2.0.0',
+        'wrapt>=1.15.0',
+        'pydantic>=1.10.7'
+    ]
+
+    if not any('adapters' in v for v in sys.argv):
+        # add transformers requirements
+        return static_requirements + [
+            'transformers>=4.30.1',
+            'accelerate>=0.20.3'
+        ]
+
+    return static_requirements
 
 setup(
     name="hyped",
@@ -16,13 +36,10 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3.10"
     ],
-    install_requires=[
-        'adapter-transformers>=3.2.1',
-        'datasets>=2.12.0',
-        'evaluate>=0.4.0',
-        'torch>=2.0.0',
-        'pydantic>=1.10.7'
-    ],
+    install_requires=get_requirements(),
+    extras_require={
+        'adapters': ['adapter-transformers>=3.2.1']
+    },
     entry_points={
         "console_scripts": [
             'hyped = hyped.cli:main'
