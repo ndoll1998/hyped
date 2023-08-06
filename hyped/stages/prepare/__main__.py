@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 parser = ArgumentParser("prepare", description="Prepare dataset for training")
 parser.add_argument("-c", "--config", type=str, required=True, help="Path to run configuration file in .json format")
 parser.add_argument("-n", "--max-size", type=int, default=None, help="Maximum number of data points per split")
-parser.add_argument("-s", "--splits", type=str, nargs='*', default=[], help="Subset of data splits to prepare")
+parser.add_argument("-s", "--splits", type=str, nargs='+', default=[], help="Subset of data splits to prepare")
 parser.add_argument("-o", "--out-dir", type=str, required=True, help="Path to store prepared dataset in")
 
 # parse arguments and run function

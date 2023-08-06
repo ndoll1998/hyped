@@ -16,11 +16,7 @@ logger = logging.getLogger(__name__)
 class DataConfig(pydantic.BaseModel):
     """Data Configuration Model"""
     dataset:str
-    splits:dict[str, str] = {
-        datasets.Split.TRAIN: datasets.Split.TRAIN,
-        datasets.Split.VALIDATION: datasets.Split.VALIDATION,
-        datasets.Split.TEST: datasets.Split.TEST
-    }
+    splits:None|dict[str, str] = None
     kwargs:dict = {}
 
     @pydantic.root_validator(pre=False)
@@ -126,12 +122,13 @@ def main(
     logger.info("Loading data configuration from %s" % config)
     config = PrepareConfig.parse_file(config)
 
-    # overwrite splits
+    # validate splits
     for split in splits:
         if split not in config.data.splits:
             raise ValueError("Splits `%s` not specified in configuration %s." % (split, config))
-    # only keep splits that are named in arguments
+
     if len(splits) > 0:
+        # only keep splits that are named in arguments
         config.data.splits = {s: config.data.splits[s] for s in splits}
 
     # load dataset splits
@@ -141,6 +138,7 @@ def main(
         split=config.data.splits,
         **config.data.kwargs
     )
+    logger.info(ds)
     # prepare dataset
     logger.info("Preparing dataset splits")
     ds = prepare_dataset(ds, config, max_size=max_size)
