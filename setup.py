@@ -38,7 +38,8 @@ setup(
     ],
     install_requires=get_requirements(),
     extras_require={
-        'adapters': ['adapter-transformers>=3.2.1']
+        'adapters': ['adapter-transformers>=3.2.1'],
+        'peft': ['peft>=0.4.0']
     },
     entry_points={
         "console_scripts": [

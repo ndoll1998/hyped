@@ -15,33 +15,23 @@ class ExperimentConfig(pydantic.BaseModel):
     @pydantic.validator('model', pre=True)
     def _parse_model_config(cls, value):
 
-        # try to infer library from model configuration
-        if 'backend' not in value:
-
-            if ('heads' in value) and ('task' in value):
-                raise ValueError("Could not infer library from model config, both `heads` and `task` field specified!")
-
-            if 'heads' in value:
-                # if heads are present then this is an adapter model
-                value['backend'] = "adapter-transformers"
-
-            elif 'task' in value:
-                # if task is specified then this is a pure transformer model
-                value['backend'] = "transformers"
-
-            else:
-                raise ValueError("Could not infer library from model config, neither `heads` nor `task` field specified!")
+        # default backend is transformers
+        value['backend'] = value.get('backend', 'transformers')
 
         # must have backend specification at this point
         assert 'backend' in value
 
         if value['backend'] == 'transformers':
-            from .model.transformers import TransformerModelConfig
+            from .model.transformers_config import TransformerModelConfig
             return TransformerModelConfig(**value)
 
         if value['backend'] == 'adapter-transformers':
-            from .model.adapters import AdapterTransformerModelConfig
+            from .model.adapters_config import AdapterTransformerModelConfig
             return AdapterTransformerModelConfig(**value)
+
+        if value['backend'] == 'peft':
+            from .model.peft_config import PeftModelConfig
+            return PeftModelConfig(**value)
 
         raise ValueError("Invalid backend %s" % value['backend'])
 
