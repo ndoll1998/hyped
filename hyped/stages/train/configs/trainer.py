@@ -56,22 +56,22 @@ class TrainerConfig(transformers.TrainingArguments):
     # to avoid deprecation warning
     optim="adamw_torch"
 
-    @pydantic.root_validator()
+    @pydantic.model_validator(mode='after')
     def _format_output_directory(cls, values):
         # get timestamp
         timestamp=datetime.now().isoformat()
         # format all values depending on output directory
-        return values | {
-            'output_dir': values.get('output_dir').format(
-                name=values.get('name'),
-                timestamp=datetime.now().isoformat()
-            ),
-            'logging_dir': values.get('logging_dir').format(
-                name=values.get('name'),
-                timestamp=datetime.now().isoformat()
-            ),
-            'run_name': values.get('run_name').format(
-                name=values.get('name'),
-                timestamp=datetime.now().isoformat()
-            ),
-        }
+        values.output_dir = values.output_dir.format(
+            name=values.name,
+            timestamp=timestamp
+        )
+        values.logging_dir = values.logging_dir.format(
+            name=values.name,
+            timestamp=timestamp
+        )
+        values.run_name = values.run_name.format(
+            name=values.name,
+            timestamp=timestamp
+        )
+        # return model with formatted values
+        return values

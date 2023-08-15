@@ -11,7 +11,7 @@ class ModelConfig(pydantic.BaseModel, ABC):
     kwargs:dict ={}
     freeze:bool =False
 
-    @pydantic.validator('pretrained_ckpt', pre=True)
+    @pydantic.field_validator('pretrained_ckpt', mode='before')
     def _check_pretrained_ckpt(cls, value):
         try:
             # check if model is valid by loading config

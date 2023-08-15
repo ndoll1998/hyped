@@ -49,7 +49,7 @@ class PeftModelConfig(TransformerModelConfig):
         pydantic.Field(..., discriminator='peft_type')
     ]
 
-    @pydantic.root_validator(pre=True)
+    @pydantic.model_validator(mode='before')
     def _infer_peft_task_type_from_model(cls, values):
         task = values['task']
         conf = values['peft_config']

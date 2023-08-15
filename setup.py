@@ -8,7 +8,7 @@ def get_requirements():
         'evaluate>=0.4.0',
         'torch>=2.0.0',
         'wrapt>=1.15.0',
-        'pydantic>=1.10.7'
+        'pydantic>=2.0.0'
     ]
 
     if not any('adapters' in v for v in sys.argv):

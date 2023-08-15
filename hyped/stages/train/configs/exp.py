@@ -12,7 +12,7 @@ class ExperimentConfig(pydantic.BaseModel):
     trainer:TrainerConfig
     metrics:MetricsConfig
 
-    @pydantic.validator('model', pre=True)
+    @pydantic.field_validator('model', mode='before')
     def _parse_model_config(cls, value):
 
         # default backend is transformers
@@ -35,10 +35,8 @@ class ExperimentConfig(pydantic.BaseModel):
 
         raise ValueError("Invalid backend %s" % value['backend'])
 
-    @pydantic.validator('trainer', pre=True)
-    def _pass_name_to_trainer_config(cls, v, values):
-        assert 'name' in values
-        if isinstance(v, pydantic.BaseModel):
-            return v.copy(update={'name': values.get('name')})
-        elif isinstance(v, dict):
-            return v | {'name': values.get('name')}
+    @pydantic.model_validator(mode='before')
+    def _pass_name_to_trainer_config(cls, values):
+        return values | {
+            'trainer': values['trainer'] | {'name': values.get('name')}
+        }
