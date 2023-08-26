@@ -17,7 +17,6 @@ class MlcMetricConfig(hyped.metrics.metrics.MlcMetricConfig):
 class SeqEvalMetricConfig(hyped.metrics.metrics.SeqEvalMetricConfig):
     metric_type:Literal["seqeval"] = "seqeval"
 
-
 MetricsConfig = dict[
     str,
     list[

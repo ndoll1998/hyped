@@ -19,7 +19,7 @@ class DataConfig(pydantic.BaseModel):
     splits:None|dict[str, str] = None
     kwargs:dict = {}
 
-    @pydantic.root_validator(pre=False)
+    @pydantic.model_validator(mode='before')
     def _check_dataset(cls, v):
 
         if v.get('dataset', None) is None:
@@ -32,7 +32,7 @@ class DataConfig(pydantic.BaseModel):
             # raise exception if dataset builder cannot be found
             raise ValueError("Dataset not found: %s" % v) from e
 
-    @pydantic.validator('kwargs')
+    @pydantic.field_validator('kwargs')
     def _prepare_kwargs(cls, v):
         if 'data_files' in v:
             data_files = v['data_files']

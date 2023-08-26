@@ -54,7 +54,7 @@ class AdapterTransformerModelConfig(ModelConfig):
     def check_and_prepare(self, features:datasets.Features) -> None:
         [hconfig.check_and_prepare(features) for hconfig in self.heads.values()]
 
-    @pydantic.validator('heads', pre=True)
+    @pydantic.field_validator('heads', mode='before')
     def _pass_head_name_to_config(cls, v):
         assert isinstance(v, dict)
         # add head name entry to corresponding head configuration
