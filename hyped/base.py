@@ -1,7 +1,9 @@
+from __future__ import annotations
+import json
 from abc import ABC, ABCMeta
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from types import MappingProxyType
-from typing import ClassVar
+from typing import Literal, Any
 
 
 class __TypeRegisterMeta(ABCMeta):
@@ -30,7 +32,7 @@ class TypeRegister(ABC, metaclass=__TypeRegisterMeta):
         t (ClassVar[str]): type identifier
     """
 
-    t: ClassVar[str] = "base"
+    t: Literal["base"] = "base"
 
     @classmethod
     @property
@@ -74,7 +76,7 @@ class TypeRegister(ABC, metaclass=__TypeRegisterMeta):
         if t not in cls.hash_register:
             raise ValueError(
                 "Type id '%s' not registered, registered type ids: %s"
-                % (t, ", ".join(cls.hash_register.keys()))
+                % (t, ", ".join(cls.type_ids))
             )
         # get type corresponding to id
         return cls.get_type_by_hash(cls.hash_register[t])
@@ -93,7 +95,7 @@ class TypeRegister(ABC, metaclass=__TypeRegisterMeta):
         if h not in cls.type_register:
             raise TypeError(
                 "No type found matching hash %s, registered types: %s"
-                % (str(h), ", ".join(list(map(str, cls.type_register.values()))))
+                % (str(h), ", ".join(list(map(str, cls.types))))
             )
         # get type corresponding to hash
         return cls.type_register[h]
@@ -101,4 +103,48 @@ class TypeRegister(ABC, metaclass=__TypeRegisterMeta):
 
 @dataclass
 class BaseConfig(TypeRegister):
-    ...
+    t: Literal["base.config"] = "base.config"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert configuration object to dictionary"""
+        return asdict(self) | {"__type_hash__": hash(type(self))}
+
+    @classmethod
+    def from_dict(cls, dct: dict[str, Any]) -> BaseConfig:
+        if "__type_hash__" in dct:
+            # create a copy to avoid removing entries from the original
+            # pop hash from dict as its meta data and not a valid field
+            dct = dct.copy()
+            h = dct.pop("__type_hash__")
+            # get type from registry
+            T = cls.get_type_by_hash(h)
+
+        elif "t" in dct:
+            # similar to hash above, pop type id from dict as its
+            # a class variable and not a field of the config
+            dct = dct.copy()
+            t = dct.pop("t")
+            # get type from type id
+            T = cls.get_type_by_t(t)
+
+        else:
+            # fallback to class on which the function is called
+            T = cls
+
+        # create instance
+        return T(**dct)
+
+    def serialize(self, **kwargs) -> str:
+        """Serialize config object into json format
+
+        Arguments:
+            **kwargs: arguments forwarded to `json.dumps`
+
+        Returns:
+            serialized_config (str): the serialized configuration string
+        """
+        return json.dumps(self.to_dict(), **kwargs)
+
+    @classmethod
+    def deserialize(cls, serialized: str) -> BaseConfig:
+        return cls.from_dict(json.loads(serialized))
