@@ -1,24 +1,40 @@
 import json
 from dataclasses import dataclass
-from hyped.base import TypeRegister, BaseConfig
+from hyped.base import TypeRegistry, BaseConfig
+from copy import deepcopy
+import pytest
 
 
-class TestTypeRegister:
+@pytest.fixture(autouse=True)
+def _reset_register():
+    # get registry state before test execution
+    global_hash_register = type(TypeRegistry)._global_hash_register.copy()
+    global_type_register = type(TypeRegistry)._global_type_register.copy()
+    hash_tree = deepcopy(type(TypeRegistry)._hash_tree)
+
+    # execute test
+    yield
+
+    # recover registry state
+    type(TypeRegistry)._global_hash_register = global_hash_register
+    type(TypeRegistry)._global_type_register = global_type_register
+    type(TypeRegistry)._hash_tree = hash_tree
+
+
+class TestTypeRegistry:
     def test_registers(self):
-        types = set(TypeRegister.types)
-        type_ids = set(TypeRegister.type_ids)
+        types = set(TypeRegistry.types)
+        type_ids = set(TypeRegistry.type_ids)
 
-        class A(TypeRegister):
+        class A(TypeRegistry):
             t = "A"
 
         # check simple case
-        new_types = set(TypeRegister.types) - types
-        new_type_ids = set(TypeRegister.type_ids) - type_ids
-        assert {A} == new_types
-        assert {"A"} == new_type_ids
+        assert {A} == set(TypeRegistry.types) - types
+        assert {"A"} == set(TypeRegistry.type_ids) - type_ids
 
         # set up complex case
-        class B(TypeRegister):
+        class B(TypeRegistry):
             t = "B"
 
         class C(B):
@@ -28,48 +44,74 @@ class TestTypeRegister:
             t = "D"
 
         # check complex case
-        new_types = set(TypeRegister.types) - types
-        new_type_ids = set(TypeRegister.type_ids) - type_ids
-        assert {A, B, C, D} == new_types
-        assert {"A", "B", "C", "D"} == new_type_ids
+        assert {A, B, C, D} == set(TypeRegistry.types) - types
+        assert {"A", "B", "C", "D"} == set(TypeRegistry.type_ids) - type_ids
 
         # test overwriting registered type ids
         class C1(D):
             t = "C"
 
         # should have a new type but the type id is overwritten
-        new_types = set(TypeRegister.types) - types
-        new_type_ids = set(TypeRegister.type_ids) - type_ids
-        assert {A, B, C, D, C1} == new_types
-        assert {"A", "B", "C", "D"} == new_type_ids
+        assert {A, B, C, D, C1} == set(TypeRegistry.types) - types
+        assert {"A", "B", "C", "D"} == set(TypeRegistry.type_ids) - type_ids
+
+    def test_subtype_registers(self):
+        types = set(TypeRegistry.types)
+        type_ids = set(TypeRegistry.type_ids)
+
+        class A(TypeRegistry):
+            t = "A"
+
+        class B(A):
+            t = "B"
+
+        class C(A):
+            t = "C"
+
+        class D(B):
+            t = "D"
+
+        class D2(C):
+            t = "D"
+
+        # check types
+        assert {A, B, C, D, D2} == set(TypeRegistry.types) - types
+        assert {A, B, C, D, D2} == set(A.types)
+        assert {B, D} == set(B.types)
+        assert {C, D2} == set(C.types)
+        # check type ids
+        assert {"A", "B", "C", "D"} == set(TypeRegistry.type_ids) - type_ids
+        assert {"A", "B", "C", "D"} == set(A.type_ids)
+        assert {"B", "D"} == set(B.type_ids)
+        assert {"C", "D"} == set(C.type_ids)
 
     def test_get_type_by_hash(self):
-        class A(TypeRegister):
+        class A(TypeRegistry):
             t = "A"
 
-        class B(TypeRegister):
+        class B(TypeRegistry):
             t = "B"
 
         class C(B):
             t = "C"
 
-        assert A == TypeRegister.get_type_by_hash(hash(A))
-        assert B == TypeRegister.get_type_by_hash(hash(B))
-        assert C == TypeRegister.get_type_by_hash(hash(C))
+        assert A == TypeRegistry.get_type_by_hash(hash(A))
+        assert B == TypeRegistry.get_type_by_hash(hash(B))
+        assert C == TypeRegistry.get_type_by_hash(hash(C))
 
     def test_get_type_by_t(self):
-        class A(TypeRegister):
+        class A(TypeRegistry):
             t = "A"
 
-        class B(TypeRegister):
+        class B(TypeRegistry):
             t = "B"
 
         class C(B):
             t = "C"
 
-        assert A == TypeRegister.get_type_by_t(A.t)
-        assert B == TypeRegister.get_type_by_t(B.t)
-        assert C == TypeRegister.get_type_by_t(C.t)
+        assert A == TypeRegistry.get_type_by_t(A.t)
+        assert B == TypeRegistry.get_type_by_t(B.t)
+        assert C == TypeRegistry.get_type_by_t(C.t)
 
 
 class TestBaseConfig:

@@ -6,25 +6,66 @@ from types import MappingProxyType
 from typing import Literal, Any
 
 
-class __TypeRegisterMeta(ABCMeta):
-    _hash_register = dict()  # maps type-ids to type-hashes
-    _type_register = dict()  # maps type-hashes to types
+class __TypeRegistryMeta(ABCMeta):
+    _global_hash_register = dict()  # maps type-id to type-hash
+    _global_type_register = dict()  # maps type-hash to type
 
-    def register_type(cls, T):
+    _hash_tree = dict()  # maps type-hash to parent type-hashes
+
+    def register_type(cls, T, bases):
         h = hash(T)
-        cls._hash_register[T.t] = h
-        cls._type_register[h] = T
+        # update registries
+        cls._global_hash_register[T.t] = h
+        cls._global_type_register[h] = T
+        # add type hash to all base nodes of the type
+        for b in map(hash, bases):
+            if b in cls._hash_tree:
+                cls._hash_tree[b].add(h)
+        # add node for type in hash tree
+        cls._hash_tree[h] = set()
+
+    def hash_tree_bfs(cls, root):
+        # breadth-first search through hash tree
+        seen, nodes = set(), [root]
+        while len(nodes) > 0:
+            node = nodes.pop()
+            seen.add(node)
+            # update node list
+            new_nodes = cls._hash_tree.get(node, set()) - seen
+            nodes.extend(new_nodes)
+            # yield current node
+            yield node
+
+    @property
+    def hash_register(cls):
+        # build inverted hash register mapping hash to type-id
+        inv_hash_register = {
+            h: t for t, h in cls._global_hash_register.items()
+        }
+        # build up-to-date sub-tree hash register
+        subtree = list(cls.hash_tree_bfs(root=hash(cls)))
+        return {cls._global_type_register[h].t: h for h in subtree} | {
+            inv_hash_register[h]: h
+            for h in filter(inv_hash_register.__contains__, subtree)
+        }
+
+    @property
+    def type_register(cls):
+        return {
+            h: cls._global_type_register[h]
+            for h in cls.hash_tree_bfs(root=hash(cls))
+        }
 
     def __new__(cls, name, bases, attrs) -> None:
         # create new type and register it
         T = super().__new__(cls, name, bases, attrs)
-        cls.register_type(cls, T)
+        cls.register_type(cls, T, bases)
         # return new type
         return T
 
 
-class TypeRegister(ABC, metaclass=__TypeRegisterMeta):
-    """Type Register Base Class
+class TypeRegistry(ABC, metaclass=__TypeRegistryMeta):
+    """Type Registry Base Class
 
     Tracks all types that inherit from a class.
 
@@ -40,7 +81,7 @@ class TypeRegister(ABC, metaclass=__TypeRegisterMeta):
         """Immutable hash register mapping type id to the
         corresponding type hash
         """
-        return MappingProxyType(cls._hash_register)
+        return MappingProxyType(cls.hash_register)
 
     @classmethod
     @property
@@ -48,7 +89,7 @@ class TypeRegister(ABC, metaclass=__TypeRegisterMeta):
         """Immutable type register mapping type hash to the
         corresponding type
         """
-        return MappingProxyType(cls._type_register)
+        return MappingProxyType(cls.type_register)
 
     @classmethod
     @property
@@ -102,7 +143,7 @@ class TypeRegister(ABC, metaclass=__TypeRegisterMeta):
 
 
 @dataclass
-class BaseConfig(TypeRegister):
+class BaseConfig(TypeRegistry):
     t: Literal["base.config"] = "base.config"
 
     def to_dict(self) -> dict[str, Any]:
