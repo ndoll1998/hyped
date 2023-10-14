@@ -39,9 +39,7 @@ class __TypeRegistryMeta(ABCMeta):
     @property
     def hash_register(cls):
         # build inverted hash register mapping hash to type-id
-        inv_hash_register = {
-            h: t for t, h in cls._global_hash_register.items()
-        }
+        inv_hash_register = {h: t for t, h in cls._global_hash_register.items()}
         # build up-to-date sub-tree hash register
         subtree = list(cls.hash_tree_bfs(root=hash(cls)))
         return {cls._global_type_register[h].t: h for h in subtree} | {
@@ -52,8 +50,7 @@ class __TypeRegistryMeta(ABCMeta):
     @property
     def type_register(cls):
         return {
-            h: cls._global_type_register[h]
-            for h in cls.hash_tree_bfs(root=hash(cls))
+            h: cls._global_type_register[h] for h in cls.hash_tree_bfs(root=hash(cls))
         }
 
     def __new__(cls, name, bases, attrs) -> None:
@@ -152,6 +149,20 @@ class BaseConfig(TypeRegistry):
 
     @classmethod
     def from_dict(cls, dct: dict[str, Any]) -> BaseConfig:
+        """Convert dict to configuration object of appropriate type
+
+        The type is inferred by the following prioritization:
+
+        1. based on the `__type_hash__` if present in the dictionary
+        2. based on the type identifier `t` if present in the dictionary
+        3. use the root class, i.e. the class on which the function is called
+
+        Arguments:
+            dct (dict[str, Any]): dictionary to be converted
+
+        Returns:
+            config (BaseConfig): the constructed configuration object
+        """
         if "__type_hash__" in dct:
             # create a copy to avoid removing entries from the original
             # pop hash from dict as its meta data and not a valid field
@@ -188,4 +199,18 @@ class BaseConfig(TypeRegistry):
 
     @classmethod
     def deserialize(cls, serialized: str) -> BaseConfig:
+        """Deserialize a json string into a configuration object of appropriate type
+
+        The type is inferred by the following prioritization:
+
+        1. based on the `__type_hash__` if present in the json string
+        2. based on the type identifier `t` if present in the json string
+        3. use the root class, i.e. the class on which the function is called
+
+        Arguments:
+            serialized (str): the serialized string in json format
+
+        Returns:
+            config (BaseConfig): the constructed configuration object
+        """
         return cls.from_dict(json.loads(serialized))
