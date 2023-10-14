@@ -4,9 +4,10 @@ from .registry import (
     RootedTypeRegistryView,
     default_registry,
 )
-from typing import Generic, TypeVar, get_args
+from .generic import solve_typevar
+from typing import Generic, TypeVar
 
-T = TypeVar("T")
+T = TypeVar("T", bound=Registrable)
 
 
 class BaseAutoClass(Generic[T]):
@@ -24,9 +25,7 @@ class BaseAutoClass(Generic[T]):
     def type_registry(cls) -> RootedTypeRegistryView:
         """Type registry of base type"""
         # resolve generic type
-        # TODO: this assumes that the auto-class directly and only
-        # inherits from the `BaseAutoClass`
-        t = get_args(cls.__orig_bases__[0])[0]
+        t = solve_typevar(cls, T)
         # check type
         if not issubclass(t, Registrable):
             raise TypeError(
