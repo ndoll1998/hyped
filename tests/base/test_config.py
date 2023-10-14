@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass
-from hyped.base.config import BaseConfig
+from hyped.base.config import BaseConfig, AutoConfig
 from hyped.base.registry import default_registry
 from copy import deepcopy
 import pytest
@@ -42,14 +42,14 @@ class TestBaseConfig:
         b_dict = b.to_dict()
 
         # test reconstruction from type hash
-        assert a == BaseConfig.from_dict(a_dict)
-        assert b == BaseConfig.from_dict(b_dict)
+        assert a == AutoConfig.from_dict(a_dict)
+        assert b == AutoConfig.from_dict(b_dict)
 
         # test reconstruction from type identifier
         a_dict.pop("__type_hash__")
         b_dict.pop("__type_hash__")
-        assert a == BaseConfig.from_dict(a_dict)
-        assert b == BaseConfig.from_dict(b_dict)
+        assert a == AutoConfig.from_dict(a_dict)
+        assert b == AutoConfig.from_dict(b_dict)
 
         # test reconstruction by explicit class
         a_dict.pop("t")
@@ -72,12 +72,12 @@ class TestBaseConfig:
         a = A(x="x", y="y")
         b = B(x="a", y="b", z="c")
         # convert to dictionaties
-        a_json = a.serialize()
-        b_json = b.serialize()
+        a_json = a.to_json()
+        b_json = b.to_json()
 
         # test reconstruction from type hash
-        assert a == BaseConfig.deserialize(a_json)
-        assert b == BaseConfig.deserialize(b_json)
+        assert a == AutoConfig.from_json(a_json)
+        assert b == AutoConfig.from_json(b_json)
 
         # test reconstruction from type identifier
         a_dict = json.loads(a_json)
@@ -86,13 +86,13 @@ class TestBaseConfig:
         b_dict.pop("__type_hash__")
         a_json = json.dumps(a_dict)
         b_json = json.dumps(b_dict)
-        assert a == BaseConfig.deserialize(a_json)
-        assert b == BaseConfig.deserialize(b_json)
+        assert a == AutoConfig.from_json(a_json)
+        assert b == AutoConfig.from_json(b_json)
 
         # test reconstruction by explicit class
         a_dict.pop("t")
         b_dict.pop("t")
         a_json = json.dumps(a_dict)
         b_json = json.dumps(b_dict)
-        assert a == A.from_dict(a_dict)
-        assert b == B.from_dict(b_dict)
+        assert a == A.from_json(a_json)
+        assert b == B.from_json(b_json)
