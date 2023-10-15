@@ -14,7 +14,7 @@ class BaseConfig(RegisterTypes):
 
     def to_dict(self) -> dict[str, Any]:
         """Convert configuration object to dictionary"""
-        return asdict(self) | {"__type_hash__": hash(type(self))}
+        return asdict(self) | {"__type_hash__": type(self).type_hash}
 
     def to_json(self, **kwargs) -> str:
         """Serialize config object into json format
@@ -45,7 +45,7 @@ class BaseConfig(RegisterTypes):
         t = dct.pop("t", None)
 
         # make sure hashes match up
-        if (h is not None) and (h != hash(cls)):
+        if (h is not None) and (h != cls.type_hash):
             raise ValueError(
                 "Type hash in dict doesn't match type hash of config"
             )

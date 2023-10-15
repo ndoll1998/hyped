@@ -103,9 +103,9 @@ class TestTypeRegistry:
         class C(B):
             t = "C"
 
-        assert A == RegisterTypes.type_registry.get_type_by_hash(hash(A))
-        assert B == RegisterTypes.type_registry.get_type_by_hash(hash(B))
-        assert C == RegisterTypes.type_registry.get_type_by_hash(hash(C))
+        assert A == RegisterTypes.type_registry.get_type_by_hash(A.type_hash)
+        assert B == RegisterTypes.type_registry.get_type_by_hash(B.type_hash)
+        assert C == RegisterTypes.type_registry.get_type_by_hash(C.type_hash)
 
     def test_get_type_by_t(self):
         class A(RegisterTypes):
