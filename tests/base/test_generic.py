@@ -21,6 +21,14 @@ class TestResolveTypeVar:
         assert _get_typevar_index(C, U) == 1
         assert _get_typevar_index(C, V) == 2
 
+    def test_solve_typevar_unset(self):
+        T = TypeVar("T")
+
+        class A(Generic[T]):
+            pass
+
+        assert solve_typevar(A, T) is None
+
     def test_solve_typevar_easy(self):
         T = TypeVar("T")
 

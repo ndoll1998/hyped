@@ -1,14 +1,16 @@
 from __future__ import annotations
 import json
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, asdict
-from typing import Literal, Any
+from typing import Literal, Any, TypeVar, Generic
 from .registry import RegisterTypes
+from .generic import solve_typevar
 from .auto import BaseAutoClass
 
 
 @dataclass
 class BaseConfig(RegisterTypes):
-    t: Literal["base.config"] = "base.config"
+    t: Literal["hyped.base.config.config"] = "hyped.base.config.config"
 
     def to_dict(self) -> dict[str, Any]:
         """Convert configuration object to dictionary"""
@@ -97,8 +99,9 @@ class AutoConfig(BaseAutoClass[BaseConfig]):
             T = cls.type_registry.get_type_by_t(t)
 
         else:
-            # fallback to class on which the function is called
-            T = cls
+            raise TypeError(
+                "Unable to resolve type of config: `%s`" % str(dct)
+            )
 
         # create instance
         return T.from_dict(dct)
@@ -121,3 +124,66 @@ class AutoConfig(BaseAutoClass[BaseConfig]):
             config (BaseConfig): the constructed configuration object
         """
         return cls.from_dict(json.loads(serialized))
+
+
+U = TypeVar("U", bound=BaseConfig)
+
+
+class BaseConfigurable(Generic[U], RegisterTypes, ABC):
+    """Base class for configurable types
+
+    Configurable types define a `from_config` classmethod.
+    Sub-types must implement this function.
+    """
+
+    @classmethod
+    @property
+    def config_type(cls) -> type[BaseConfig]:
+        """Get the configuration typeof the configurable"""
+        # get config class
+        t = solve_typevar(cls, U)
+        # check type
+        if (t is not None) and not issubclass(t, BaseConfig):
+            raise TypeError(
+                "Configurable config type `%s` doesn't inherit from `%s`"
+                % (str(t), str(BaseConfig))
+            )
+        return t or BaseConfig
+
+    @classmethod
+    @property
+    def t(cls) -> str:
+        """Type identifier used in type registry. Identifier is build
+        from configuration type identifier by appending `.impl`.
+        """
+        # specify registry type identifier based on config type identifier
+        return "%s.impl" % cls.config_type.t
+
+    @classmethod
+    @abstractmethod
+    def from_config(self, config: U) -> BaseConfigurable:
+        """Abstract construction method, must be implemented by sub-types
+
+        Arguments:
+            config (T): configuration to construct the instance from
+
+        Returns:
+            inst (Configurable): instance
+        """
+        ...
+
+
+V = TypeVar("V", bound=BaseConfigurable)
+
+
+class BaseAutoConfigurable(BaseAutoClass[V]):
+    """Base Auto Class for configurable types"""
+
+    @classmethod
+    def from_config(cls, config: BaseConfig) -> V:
+        # build type identifier of configurable corresponding
+        # to the config
+        t = "%s.impl" % config.t
+        T = cls.type_registry.get_type_by_t(t)
+        # create instance
+        return T.from_config(config)

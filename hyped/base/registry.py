@@ -10,7 +10,7 @@ class Registrable(ABC):
         t (str): type identifier
     """
 
-    t: ClassVar[str] = "registrable"
+    t: ClassVar[str] = "hyped.base.register.registrable"
 
 
 class TypeRegistry(object):
@@ -210,7 +210,9 @@ class register_types(ABCMeta):
 
 
 class RegisterTypes(Registrable, metaclass=register_types):
-    """Base class that automatically registers sub-types to a type registry"""
+    """Base class that automatically registers sub-types to the
+    default type registry
+    """
 
     @classmethod
     @property

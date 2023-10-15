@@ -2,6 +2,9 @@ from typing import _GenericAlias, Generic, TypeVar, get_origin, get_args
 
 
 def _get_typevar_index(t: type, T: TypeVar) -> None | int:
+    # trivial case
+    if not hasattr(t, "__orig_bases__"):
+        return None
     # search for typevar in base types
     for b in t.__orig_bases__:
         if isinstance(b, _GenericAlias):

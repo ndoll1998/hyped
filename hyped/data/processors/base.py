@@ -1,9 +1,9 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from datasets import Features
 from dataclasses import dataclass
 from collections import defaultdict
-from hyped.base.config import BaseConfig
-from hyped.base.registry import RegisterTypes
+from hyped.base.config import BaseConfig, BaseConfigurable
 from typing import Literal, Any
 
 
@@ -14,7 +14,7 @@ class DataProcessorConfig(BaseConfig):
     t: Literal["hyped.data.processor.base"] = "hyped.data.processor.base"
 
 
-class DataProcessor(RegisterTypes, ABC):
+class DataProcessor(BaseConfigurable, ABC):
     """Abstract Base Data Processor
 
     Provides basic functionality of a data-processor. Sub-types need to
@@ -23,6 +23,10 @@ class DataProcessor(RegisterTypes, ABC):
     Arguments:
         config (DataProcessorConfig): data processor configuration
     """
+
+    @classmethod
+    def from_config(cls, config: DataProcessorConfig) -> DataProcessor:
+        return cls(config)
 
     def __init__(self, config: DataProcessorConfig) -> None:
         self._config = config
