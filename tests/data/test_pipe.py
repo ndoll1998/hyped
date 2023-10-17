@@ -1,89 +1,105 @@
-from datasets import Features, Value
+import datasets
 from hyped.data.pipe import DataPipe
 from tests.data.processors.test_base import (
     ConstantDataProcessor,
     ConstantDataProcessorConfig,
 )
+import pytest
+
+
+@pytest.fixture
+def sample_data_pipe():
+    # create data processor configs
+    c1 = ConstantDataProcessorConfig(name="A", value="1")
+    c2 = ConstantDataProcessorConfig(name="B", value="2")
+    c3 = ConstantDataProcessorConfig(name="C", value="3")
+    # create data processors
+    p1 = ConstantDataProcessor(c1)
+    p2 = ConstantDataProcessor(c2)
+    p3 = ConstantDataProcessor(c3)
+    # create data pipe
+    return DataPipe([p1, p2, p3])
 
 
 class TestDataPipe:
-    def test_preparation_logic(self):
-        # create data processor configs
-        c1 = ConstantDataProcessorConfig(name="A", value="1")
-        c2 = ConstantDataProcessorConfig(name="B", value="2")
-        c3 = ConstantDataProcessorConfig(name="C", value="3")
-        # create data processors
-        p1 = ConstantDataProcessor(c1)
-        p2 = ConstantDataProcessor(c2)
-        p3 = ConstantDataProcessor(c3)
-        # create data pipe
-        p = DataPipe([p1, p2, p3])
-        assert not p.is_prepared
+    def test_preparation_logic(self, sample_data_pipe):
+        assert not sample_data_pipe.is_prepared
 
         # create different input features
-        x = Features({"X": Value("int32")})
-        y = Features({"Y": Value("int32")})
+        x = datasets.Features({"X": datasets.Value("int32")})
+        y = datasets.Features({"Y": datasets.Value("int32")})
 
         # prepare pipeline with X
-        p.prepare(x)
-        assert p.is_prepared
+        sample_data_pipe.prepare(x)
+        assert sample_data_pipe.is_prepared
 
+        # get processor from pipe
+        p2 = sample_data_pipe[1]
         # prepare any processor with Y
         # this should break the feature pipe
         p2.prepare(y)
         assert p2.is_prepared
-        assert not p.is_prepared
+        assert not sample_data_pipe.is_prepared
 
         # preparing the pipe again should fix the issue
-        p.prepare(x)
-        assert p.is_prepared
+        sample_data_pipe.prepare(x)
+        assert sample_data_pipe.is_prepared
 
-    def test_feature_management(self):
-        # create data processor configs
-        c1 = ConstantDataProcessorConfig(name="A", value="1")
-        c2 = ConstantDataProcessorConfig(name="B", value="2")
-        c3 = ConstantDataProcessorConfig(name="C", value="3")
-        # create data processors
-        p1 = ConstantDataProcessor(c1)
-        p2 = ConstantDataProcessor(c2)
-        p3 = ConstantDataProcessor(c3)
-        # create data pipe
-        p = DataPipe([p1, p2, p3])
+    def test_feature_management(self, sample_data_pipe):
         # create input and expected output features
-        x = Features({"X": Value("int32")})
-        y = Features({k: Value("string") for k in "ABC"})
+        x = datasets.Features({"X": datasets.Value("int32")})
+        y = datasets.Features({k: datasets.Value("string") for k in "ABC"})
 
         # prepare pipe
-        p.prepare(x)
+        sample_data_pipe.prepare(x)
         # check features
-        assert p.is_prepared
-        assert p.in_features == x
-        assert p.new_features == y
-        assert p.out_features == Features(x | y)
+        assert sample_data_pipe.is_prepared
+        assert sample_data_pipe.in_features == x
+        assert sample_data_pipe.new_features == y
+        assert sample_data_pipe.out_features == datasets.Features(x | y)
 
-    def test_batch_processing(self):
-        # create data processor configs
-        c1 = ConstantDataProcessorConfig(name="A", value="1")
-        c2 = ConstantDataProcessorConfig(name="B", value="2")
-        c3 = ConstantDataProcessorConfig(name="C", value="3")
-        # create data processors
-        p1 = ConstantDataProcessor(c1)
-        p2 = ConstantDataProcessor(c2)
-        p3 = ConstantDataProcessor(c3)
-        # create data pipe
-        p = DataPipe([p1, p2, p3])
-
+    def test_batch_processing(self, sample_data_pipe):
         # create input batch and corresponding features
-        x = Features({"X": Value("int32")})
+        x = datasets.Features({"X": datasets.Value("int32")})
         batch = {"X": ["example %i" % i for i in range(10)]}
         # apply pipe
-        p.prepare(x)
-        batch = p.batch_process(batch, index=list(range(10)), rank=0)
+        sample_data_pipe.prepare(x)
+        batch = sample_data_pipe.batch_process(
+            batch, index=list(range(10)), rank=0
+        )
         # check processor output
         assert all(k in batch for k in "XABC")
         assert all(x == ("example %i" % i) for i, x in enumerate(batch["X"]))
         assert all(a == "1" for a in batch["A"])
         assert all(a == "2" for a in batch["B"])
         assert all(a == "3" for a in batch["C"])
-        # prepare pipeline with X
-        p.prepare(x)
+
+    def test_apply_to_dataset(self, sample_data_pipe):
+        # create sample dataset
+        ds = datasets.Dataset.from_dict(
+            {"X": ["example %i" % i for i in range(100)]}
+        )
+        # apply
+        ds = sample_data_pipe.apply(ds, batch_size=10)
+        # check processor output
+        assert all(k in ds.features for k in "XABC")
+        assert all(x == ("example %i" % i) for i, x in enumerate(ds["X"]))
+        assert all(a == "1" for a in ds["A"])
+        assert all(a == "2" for a in ds["B"])
+        assert all(a == "3" for a in ds["C"])
+
+    def test_apply_to_dataset_dict(self, sample_data_pipe):
+        # create sample dataset
+        ds = datasets.Dataset.from_dict(
+            {"X": ["example %i" % i for i in range(100)]}
+        )
+        ds = datasets.DatasetDict({"train": ds})
+        # apply
+        ds = sample_data_pipe.apply(ds, batch_size=10)
+        ds = ds["train"]
+        # check processor output
+        assert all(k in ds.features for k in "XABC")
+        assert all(x == ("example %i" % i) for i, x in enumerate(ds["X"]))
+        assert all(a == "1" for a in ds["A"])
+        assert all(a == "2" for a in ds["B"])
+        assert all(a == "3" for a in ds["C"])

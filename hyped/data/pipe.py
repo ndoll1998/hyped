@@ -104,3 +104,34 @@ class DataPipe(list):
             examples = p.batch_process(examples, index, rank)
         # return final output
         return examples
+
+    def apply(
+        self, data: datasets.Dataset | datasets.DatasetDict, **kwargs
+    ) -> datasets.Dataset | datasets.DatasetDict:
+        """Apply the data pipe to a dataset
+
+        Arguments:
+            data (datasets.Dataset|datasets.DatasetDict): source dataset(s)
+            **kwargs (dict[str, Any]):
+                arguments forwarded to datasets `.map` function
+
+        Returns:
+            out (datasets.Dataset|datasets.DatasetDict): processed dataset(s)
+        """
+        # prepare for the dataset
+        if isinstance(data, datasets.Dataset):
+            self.prepare(data.features)
+        elif isinstance(data, datasets.DatasetDict):
+            self.prepare(next(iter(data.values())).features)
+        else:
+            raise ValueError(
+                "Expected a `datasets.Dataset` or `datasets.DatasetDict`, "
+                "got %s" % type(data)
+            )
+
+        # required settings
+        kwargs["batched"] = True
+        kwargs["with_indices"] = True
+        kwargs["with_rank"] = True
+        # apply data pipe
+        return data.map(self.batch_process, **kwargs)
