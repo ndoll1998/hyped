@@ -14,7 +14,8 @@ class BaseDataProcessorConfig(BaseConfig):
     t: Literal["hyped.data.processor.base"] = "hyped.data.processor.base"
 
 
-T = TypeVar('T', bound=BaseDataProcessorConfig)
+T = TypeVar("T", bound=BaseDataProcessorConfig)
+
 
 class BaseDataProcessor(BaseConfigurable[T], ABC):
     """Abstract Base Data Processor
@@ -27,7 +28,7 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
     """
 
     @classmethod
-    def from_config(cls, config: BaseDataProcessorConfig) -> DataProcessor:
+    def from_config(cls, config: BaseDataProcessorConfig) -> BaseDataProcessor:
         return cls(config)
 
     def __init__(self, config: BaseDataProcessorConfig) -> None:
@@ -134,8 +135,8 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
         out = defaultdict(list)
         # process each example one-by-one
         for j, i in enumerate(index):
-            example = {k: v[j] for k, v in examples}
-            for k, v in self.process(example, index=i, rank=rank):
+            example = {k: v[j] for k, v in examples.items()}
+            for k, v in self.process(example, index=i, rank=rank).items():
                 out[k].append(v)
         # update examples
         return examples | out
