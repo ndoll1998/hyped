@@ -1,4 +1,4 @@
-from hyped.data.processors.base import DataProcessorConfig, DataProcessor
+from hyped.data.processors.base import BaseDataProcessorConfig, BaseDataProcessor
 from datasets import Features, Value
 
 
@@ -6,7 +6,7 @@ class TestDataProcessor:
     def test_feature_management(self):
         y = Features({"A": Value("int32"), "B": Value("int32")})
 
-        class DummyDataProcessor(DataProcessor):
+        class DummyDataProcessor(BaseDataProcessor):
             def process(self, *args, **kwargs):
                 pass
 
@@ -14,7 +14,7 @@ class TestDataProcessor:
                 return y
 
         # create processor instance
-        p = DummyDataProcessor(DataProcessorConfig())
+        p = DummyDataProcessor(BaseDataProcessorConfig())
         assert not p.is_prepared
 
         # easy case

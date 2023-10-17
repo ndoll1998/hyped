@@ -8,39 +8,39 @@ from typing import Literal, Any, TypeVar
 
 
 @dataclass
-class DataProcessorConfig(BaseConfig):
+class BaseDataProcessorConfig(BaseConfig):
     """Base Data Processor Config"""
 
     t: Literal["hyped.data.processor.base"] = "hyped.data.processor.base"
 
 
-T = TypeVar('T', bound=DataProcessorConfig)
+T = TypeVar('T', bound=BaseDataProcessorConfig)
 
-class DataProcessor(BaseConfigurable[T], ABC):
+class BaseDataProcessor(BaseConfigurable[T], ABC):
     """Abstract Base Data Processor
 
     Provides basic functionality of a data-processor. Sub-types need to
     specify the `process` and `map_features` function.
 
     Arguments:
-        config (DataProcessorConfig): data processor configuration
+        config (BaseDataProcessorConfig): data processor configuration
     """
 
     @classmethod
-    def from_config(cls, config: DataProcessorConfig) -> DataProcessor:
+    def from_config(cls, config: BaseDataProcessorConfig) -> DataProcessor:
         return cls(config)
 
-    def __init__(self, config: DataProcessorConfig) -> None:
+    def __init__(self, config: BaseDataProcessorConfig) -> None:
         self._config = config
         self._in_features: Features = None
         self._new_features: Features = None
 
     @property
-    def config(self) -> DataProcessorConfig:
+    def config(self) -> BaseDataProcessorConfig:
         """Get the processor configuration
 
         Returns:
-            config (DataProcessorConfig): config
+            config (BaseDataProcessorConfig): config
         """
         return self._config
 

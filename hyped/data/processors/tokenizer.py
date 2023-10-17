@@ -1,5 +1,5 @@
 import numpy as np
-from .base import DataProcessor, DataProcessorConfig
+from .base import BaseDataProcessor, BaseDataProcessorConfig
 from inspect import signature
 from transformers import AutoTokenizer
 from datasets import Features, Sequence, Value
@@ -8,7 +8,7 @@ from typing import Literal, Optional, Any
 
 
 @dataclass
-class TokenizerProcessorConfig(DataProcessorConfig):
+class TokenizerProcessorConfig(BaseDataProcessorConfig):
     """Tokenizer Processor Config
 
     Specify the tokenization arguments of a transformer tokenizer.
@@ -67,7 +67,7 @@ class TokenizerProcessorConfig(DataProcessorConfig):
     return_word_ids: bool = False
 
 
-class TokenizerProcessor(DataProcessor[TokenizerProcessorConfig]):
+class TokenizerProcessor(BaseDataProcessor[TokenizerProcessorConfig]):
     """Tokenizer Data Processor
 
     Data Processor applying a transformer tokenizer.
