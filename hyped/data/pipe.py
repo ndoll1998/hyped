@@ -1,4 +1,5 @@
 import datasets
+import pyarrow as pa
 from .processors.base import BaseDataProcessor
 from typing import Any
 
@@ -105,6 +106,15 @@ class DataPipe(list):
         # return final output
         return examples
 
+    def _batch_process_to_pyarrow(
+        self, examples: dict[str, list[Any]], index: list[int], rank: int
+    ) -> pa.Table:
+        # convert to pyarrow table with correct schema
+        return pa.table(
+            data=dict(self.batch_process(examples, index, rank)),
+            schema=self.out_features.arrow_schema
+        )
+
     def apply(
         self, data: datasets.Dataset | datasets.DatasetDict, **kwargs
     ) -> datasets.Dataset | datasets.DatasetDict:
@@ -134,4 +144,4 @@ class DataPipe(list):
         kwargs["with_indices"] = True
         kwargs["with_rank"] = True
         # apply data pipe
-        return data.map(self.batch_process, **kwargs)
+        return data.map(self._batch_process_to_pyarrow, **kwargs)

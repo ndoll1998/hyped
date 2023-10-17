@@ -87,6 +87,8 @@ class TestDataPipe:
         assert all(a == "1" for a in ds["A"])
         assert all(a == "2" for a in ds["B"])
         assert all(a == "3" for a in ds["C"])
+        # check features
+        assert sample_data_pipe.out_features == ds.features
 
     def test_apply_to_dataset_dict(self, sample_data_pipe):
         # create sample dataset
@@ -103,3 +105,5 @@ class TestDataPipe:
         assert all(a == "1" for a in ds["A"])
         assert all(a == "2" for a in ds["B"])
         assert all(a == "3" for a in ds["C"])
+        # check features
+        assert sample_data_pipe.out_features == ds.features
