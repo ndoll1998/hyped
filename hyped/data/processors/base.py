@@ -4,7 +4,7 @@ from datasets import Features
 from dataclasses import dataclass
 from collections import defaultdict
 from hyped.base.config import BaseConfig, BaseConfigurable
-from typing import Literal, Any
+from typing import Literal, Any, TypeVar
 
 
 @dataclass
@@ -14,7 +14,9 @@ class DataProcessorConfig(BaseConfig):
     t: Literal["hyped.data.processor.base"] = "hyped.data.processor.base"
 
 
-class DataProcessor(BaseConfigurable, ABC):
+T = TypeVar('T', bound=DataProcessorConfig)
+
+class DataProcessor(BaseConfigurable[T], ABC):
     """Abstract Base Data Processor
 
     Provides basic functionality of a data-processor. Sub-types need to

@@ -67,7 +67,7 @@ class TokenizerProcessorConfig(DataProcessorConfig):
     return_word_ids: bool = False
 
 
-class TokenizerProcessor(DataProcessor):
+class TokenizerProcessor(DataProcessor[TokenizerProcessorConfig]):
     """Tokenizer Data Processor
 
     Data Processor applying a transformer tokenizer.
