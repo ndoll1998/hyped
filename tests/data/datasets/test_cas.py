@@ -21,6 +21,16 @@ def build_typesystem(path):
     typesystem.create_feature(
         domainType=entity, name="entityType", rangeType=TYPE_NAME_STRING
     )
+    # add bi-relation entity
+    relation = typesystem.create_type(
+        name="cassis.Relation", supertypeName="uima.cas.TOP"
+    )
+    typesystem.create_feature(
+        domainType=relation, name="source", rangeType=entity
+    )
+    typesystem.create_feature(
+        domainType=relation, name="target", rangeType=entity
+    )
     # save typesystem
     typesystem.to_xml(os.path.join(path, "typesystem.test.xml"))
 
@@ -31,17 +41,17 @@ def build_examples(path):
         typesystem = cassis.load_typesystem(f)
     # get annotation types
     Entity = typesystem.get_type("cassis.Entity")
+    Relation = typesystem.get_type("cassis.Relation")
     Label = typesystem.get_type("cassis.Label")
     # create cas object
     cas = cassis.Cas(typesystem=typesystem)
     cas.sofa_string = "U.N. official Ekeus heads for Baghdad."
+    # create entities
+    org = Entity(begin=0, end=4, entityType="ORG")
+    loc = Entity(begin=30, end=37, entityType="LOC")
     # add annotations
     cas.add_all(
-        [
-            Entity(begin=0, end=4, entityType="ORG"),
-            Entity(begin=30, end=37, entityType="LOC"),
-            Label(label="Document"),
-        ]
+        [org, loc, Relation(source=org, target=loc), Label(label="Document")]
     )
     # save in json and xmi format
     cas.to_json(os.path.join(path, "cas.test.json"))
@@ -63,20 +73,26 @@ class TestCasDataset:
             "hyped.data.datasets.cas",
             typesystem=os.path.join(tmpdir, "typesystem.test.xml"),
             data_files={"train": os.path.join(tmpdir, "cas.test.*")},
+            cache_dir=os.path.join(tmpdir, "cache"),
         )
 
         # check dataset length
         assert len(ds["train"]) == 2
-        # check dataset features
-        assert "text" in ds["train"].features
+        # check features
+        assert "sofa" in ds["train"].features
+        # label features
+        assert "cassis.Label:label" in ds["train"].features
+        # entity features
         assert "cassis.Entity:begin" in ds["train"].features
         assert "cassis.Entity:end" in ds["train"].features
         assert "cassis.Entity:entityType" in ds["train"].features
-        assert "cassis.Label:label" in ds["train"].features
+        # relation features
+        assert "cassis.Relation:source" in ds["train"].features
+        assert "cassis.Relation:target" in ds["train"].features
 
         # check annotations
         for example in ds["train"]:
-            text = example["text"]
+            text = example["sofa"]
             # test label annotation
             assert example["cassis.Label:label"] == ["Document"]
             # test entity annotation features
@@ -87,7 +103,7 @@ class TestCasDataset:
                 example["cassis.Entity:end"]
             )
 
-            # test annotation content
+            # test entity content
             for eType, begin, end in zip(
                 example["cassis.Entity:entityType"],
                 example["cassis.Entity:begin"],
@@ -100,6 +116,14 @@ class TestCasDataset:
                 if eType == "LOC":
                     assert text[begin:end] == "Baghdad"
 
+            # test relation content
+            for src, tgt in zip(
+                example["cassis.Relation:source"],
+                example["cassis.Relation:target"],
+            ):
+                assert example["cassis.Entity:entityType"][src] == "ORG"
+                assert example["cassis.Entity:entityType"][tgt] == "LOC"
+
     def test_load_specific_types_only(self, tmpdir):
         # load dataset
         ds = datasets.load_dataset(
@@ -107,14 +131,32 @@ class TestCasDataset:
             typesystem=os.path.join(tmpdir, "typesystem.test.xml"),
             data_files={"train": os.path.join(tmpdir, "cas.test.*")},
             annotation_types=["cassis.Label"],
+            cache_dir=os.path.join(tmpdir, "cache"),
         )
 
         # check dataset length
         assert len(ds["train"]) == 2
-        assert "text" in ds["train"].features
+        assert "sofa" in ds["train"].features
         # label should be included
         assert "cassis.Label:label" in ds["train"].features
         # entity should be excluded
         assert "cassis.Entity:begin" not in ds["train"].features
         assert "cassis.Entity:end" not in ds["train"].features
         assert "cassis.Entity:entityType" not in ds["train"].features
+        # relation should be excluded
+        assert "cassis.Relation:source" not in ds["train"].features
+        assert "cassis.Relation:target" not in ds["train"].features
+
+    def test_error_on_required_type(self, tmpdir):
+        with pytest.raises(RuntimeError):
+            # load dataset
+            datasets.load_dataset(
+                "hyped.data.datasets.cas",
+                typesystem=os.path.join(tmpdir, "typesystem.test.xml"),
+                data_files={"train": os.path.join(tmpdir, "cas.test.*")},
+                annotation_types=[
+                    "cassis.Label",
+                    "cassis.Relation",  # relation require entities
+                ],
+                cache_dir=os.path.join(tmpdir, "cache"),
+            )

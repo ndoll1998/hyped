@@ -89,29 +89,50 @@ def _worker(fpath: str) -> dict:
         else:
             cas = cassis.load_cas_from_xmi(f, typesystem=proc.typesystem)
 
+    annotation_types = list(
+        _get_types_from_typesystem(
+            proc.typesystem, proc.config.annotation_types
+        )
+    )
+    # collect all annotations and create a fixed ordering over
+    # the annotations of each type
+    annotations = {
+        annotation_type.name: list(cas.select(annotation_type))
+        for annotation_type in annotation_types
+    }
+
     # create features dictionary
     # use default dict to avoid key-errors for features that are
     # present in the typesystem but not used in the specific cas
     features = defaultdict(list)
-    features["text"] = cas.sofa_string
+    features["sofa"] = cas.sofa_string
 
     # extract annotation features
-    for annotation_type in _get_types_from_typesystem(
-        proc.typesystem, proc.config.annotation_types
-    ):
+    for annotation_type in annotation_types:
         # get all features of interest for the annotation type
-        feature_types = [
+        primitive_feature_types = [
             f
             for f in annotation_type.all_features
             if proc.typesystem.is_primitive(f.rangeType)
         ]
+        nested_feature_types = [
+            f
+            for f in annotation_type.all_features
+            if f.rangeType in annotation_types
+        ]
 
         # iterate over all annotations of the current type
         for annotation in cas.select(annotation_type):
-            # add features to dict
-            for feature_type in feature_types:
+            # add primitive features to dict
+            for feature_type in primitive_feature_types:
                 key = "%s:%s" % (annotation_type.name, feature_type.name)
                 features[key].append(annotation.get(feature_type.name))
+            # add nested features to dict
+            for feature_type in nested_feature_types:
+                key = "%s:%s" % (annotation_type.name, feature_type.name)
+                features[key] = annotations[feature_type.rangeType.name].index(
+                    annotation.get(feature_type.name)
+                )
 
     return features
 
@@ -158,20 +179,56 @@ class CasDataset(datasets.GeneratorBasedBuilder):
         with open(self.config.typesystem, "rb") as f:
             typesystem = cassis.load_typesystem(f)
 
+        # get all requested types
+        all_types = typesystem.get_types()
+        req_types = list(
+            _get_types_from_typesystem(
+                typesystem, self.config.annotation_types
+            )
+        )
+
+        all_type_names = {_type.name for _type in all_types}
+        req_type_names = {_type.name for _type in req_types}
+
+        # check if all required types are present
+        for t in req_types:
+            for f in t.all_features:
+                # check if the feature refers to other annotations
+                if (f.rangeType.name in all_type_names) and (
+                    f.rangeType.name not in req_type_names
+                ):
+                    raise RuntimeError(
+                        "Annotation type `%s` requires type `%s`"
+                        % (t.name, f.rangeType.name)
+                    )
+
+        primitive_features = {
+            # all primitive features of all requested types
+            "%s:%s"
+            % (t.name, f.name): datasets.Sequence(
+                _PRIMITIVE_TYPE_MAP[f.rangeType.name]
+            )
+            for t in _get_types_from_typesystem(
+                typesystem, self.config.annotation_types
+            )
+            for f in t.all_features
+            if typesystem.is_primitive(f.rangeType)
+        }
+
+        nested_features = {
+            # all nested features that point to other annotations
+            "%s:%s"
+            % (t.name, f.name): datasets.Sequence(datasets.Value("int32"))
+            for t in req_types
+            for f in t.all_features
+            if f.rangeType.name in req_type_names
+        }
+
         # extract features from typesystem
         return datasets.Features(
-            {"text": datasets.Value("string")}
-            | {
-                "%s:%s"
-                % (t.name, f.name): datasets.Sequence(
-                    _PRIMITIVE_TYPE_MAP[f.rangeType.name]
-                )
-                for t in _get_types_from_typesystem(
-                    typesystem, self.config.annotation_types
-                )
-                for f in t.all_features
-                if typesystem.is_primitive(f.rangeType)
-            }
+            {"sofa": datasets.Value("string")}
+            | primitive_features
+            | nested_features
         )
 
     def _info(self):
