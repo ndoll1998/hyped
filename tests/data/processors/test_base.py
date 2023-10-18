@@ -27,7 +27,7 @@ class ConstantDataProcessor(BaseDataProcessor[ConstantDataProcessorConfig]):
         return {self.config.name: datasets.Value("string")}
 
     def process(self, example, *args, **kwargs):
-        return example | {self.config.name: self.config.value}
+        return {self.config.name: self.config.value}
 
 
 @dataclass
@@ -53,7 +53,7 @@ class ConstantGeneratorDataProcessor(ConstantDataProcessor):
 
 
 class TestDataProcessor:
-    def test_feature_management(self):
+    def test_feature_management_keep_input(self):
         y = Features({"A": Value("string")})
 
         # create processor instance
@@ -77,7 +77,33 @@ class TestDataProcessor:
         assert p.new_features == y
         assert p.out_features == Features(x | y)
 
-    def test_batch_processing(self):
+    def test_feature_management_loose_input(self):
+        y = Features({"A": Value("string")})
+
+        # create processor instance
+        c = ConstantDataProcessorConfig(
+            name="A", value="B", keep_input_features=False
+        )
+        p = ConstantDataProcessor(c)
+        assert not p.is_prepared
+
+        # easy case
+        x = Features({"X": Value("int32")})
+        p.prepare(x)
+        assert p.is_prepared
+        assert p.in_features == x
+        assert p.new_features == y
+        assert p.out_features == y
+
+        # conflict between input and new features
+        x = Features({"A": Value("int32")})
+        p.prepare(x)
+        assert p.is_prepared
+        assert p.in_features == x
+        assert p.new_features == y
+        assert p.out_features == y
+
+    def test_batch_processing_keep_inputs(self):
         c = ConstantDataProcessorConfig(name="A", value="B")
         p = ConstantDataProcessor(c)
 
@@ -89,6 +115,21 @@ class TestDataProcessor:
         # check processor output
         assert ("X" in batch) and ("A" in batch)
         assert all(x == ("example %i" % i) for i, x in enumerate(batch["X"]))
+        assert all(a == "B" for a in batch["A"])
+
+    def test_batch_processing_loose_inputs(self):
+        c = ConstantDataProcessorConfig(
+            name="A", value="B", keep_input_features=False
+        )
+        p = ConstantDataProcessor(c)
+
+        p.prepare(Features({"X": Value("int32")}))
+        # create batch of examples and pass through processor
+        batch = {"X": ["example %i" % i for i in range(10)]}
+        batch = p.batch_process(batch, index=range(10), rank=0)
+
+        # check processor output
+        assert ("X" not in batch) and ("A" in batch)
         assert all(a == "B" for a in batch["A"])
 
     def test_generator_processor(self):

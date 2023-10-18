@@ -10,9 +10,17 @@ from typing import Literal, Any, TypeVar, Generator
 
 @dataclass
 class BaseDataProcessorConfig(BaseConfig):
-    """Base Data Processor Config"""
+    """Base Data Processor Config
+
+    Attributes:
+        keep_input_features (bool):
+            whether to pipe input features to output or only output
+            features generted by the data processor
+    """
 
     t: Literal["hyped.data.processor.base"] = "hyped.data.processor.base"
+    # attributes
+    keep_input_features: bool = True
 
 
 T = TypeVar("T", bound=BaseDataProcessorConfig)
@@ -118,7 +126,10 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
         Returns:
             features (Features): complete output dataset features
         """
-        return Features(self.in_features | self.new_features)
+        if self.config.keep_input_features:
+            return Features(self.in_features | self.new_features)
+        else:
+            return self.new_features
 
     def batch_process(
         self, examples: dict[str, list[Any]], index: list[int], rank: int
@@ -133,25 +144,36 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
         Returns:
             out (dict[str, list[Any]]): processed examples
         """
+
+        def write_to_out(x, y, keep_x):
+            for k, v in (y | x).items():
+                out[k].append(v)
+
         out = defaultdict(list)
         # process each example one-by-one
         for j, i in enumerate(index):
             x = {k: v[j] for k, v in examples.items()}
             y = self.process(x, index=i, rank=rank)
-            # handle output types
-            # note that here the outputs are mixed with the inputs
+
+            # handle output types to to end up with
+            # an iterable over outputs
             if isinstance(y, GeneratorType):
-                for d in y:
-                    for k, v in (d | x).items():
-                        out[k].append(v)
+                pass
             elif isinstance(y, dict):
-                for k, v in (y | x).items():
-                    out[k].append(v)
+                y = (y,)
             else:
                 raise ValueError(
                     "Expected output of `DataProcessor.process` to be dict of "
                     "generator of dicts, got %s" % str(y)
                 )
+
+            for d in y:
+                # merge output with input features if asked for
+                d = (d | x) if self.config.keep_input_features else d
+                # write all features to output dictionary
+                for k, v in d.items():
+                    out[k].append(v)
+
         # return output examples
         return out
 

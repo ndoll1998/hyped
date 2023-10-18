@@ -8,7 +8,7 @@ from typing import Literal, Optional, Any
 
 
 @dataclass
-class TokenizerProcessorConfig(BaseDataProcessorConfig):
+class TokenizerConfig(BaseDataProcessorConfig):
     """Tokenizer Processor Config
 
     Specify the tokenization arguments of a transformer tokenizer.
@@ -67,17 +67,17 @@ class TokenizerProcessorConfig(BaseDataProcessorConfig):
     return_word_ids: bool = False
 
 
-class TokenizerProcessor(BaseDataProcessor[TokenizerProcessorConfig]):
+class Tokenizer(BaseDataProcessor[TokenizerConfig]):
     """Tokenizer Data Processor
 
     Data Processor applying a transformer tokenizer.
 
     Arguments:
-        config (TokenizerProcessorConfig): processor configuration
+        config (TokenizerConfig): processor configuration
     """
 
-    def __init__(self, config: TokenizerProcessorConfig) -> None:
-        super(TokenizerProcessor, self).__init__(config=config)
+    def __init__(self, config: TokenizerConfig) -> None:
+        super(Tokenizer, self).__init__(config=config)
         # load tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
             config.pretrained_ckpt, use_fast=True, add_prefix_space=True
@@ -180,6 +180,7 @@ class TokenizerProcessor(BaseDataProcessor[TokenizerProcessorConfig]):
     def tokenization_kwargs(self) -> dict:
         kwargs = asdict(self.config)
         kwargs.pop("t")
+        kwargs.pop("keep_input_features")
         kwargs.pop("pretrained_ckpt")
         kwargs.pop("text_column")
         kwargs.pop("additional_inputs")
@@ -205,4 +206,4 @@ class TokenizerProcessor(BaseDataProcessor[TokenizerProcessorConfig]):
             enc["word_ids"] = [
                 (i if i is not None else -1) for i in enc.word_ids()
             ]
-        return enc
+        return dict(enc)

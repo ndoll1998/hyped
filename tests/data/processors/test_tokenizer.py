@@ -1,15 +1,15 @@
 from transformers import AutoTokenizer
 from hyped.data.processors.tokenizer import (
-    TokenizerProcessorConfig,
-    TokenizerProcessor,
+    TokenizerConfig,
+    Tokenizer,
 )
 
 
-class TestTokenizerProcessor:
+class TestTokenizer:
     def test_tokenization(self):
         example = "This is a test sentence."
         # create tokenizer processor and tokenizer instance
-        p = TokenizerProcessor(TokenizerProcessorConfig())
+        p = Tokenizer(TokenizerConfig())
         tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
         # apply processor
         out = p.process(example={"text": example}, index=0, rank=0)
