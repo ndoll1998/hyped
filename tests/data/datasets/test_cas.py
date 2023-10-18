@@ -96,11 +96,17 @@ class TestCasDataset:
             # test label annotation
             assert example["cassis.Label:label"] == ["Document"]
             # test entity annotation features
+            assert len(example["cassis.Entity:entityType"]) == 2
             assert len(example["cassis.Entity:entityType"]) == len(
                 example["cassis.Entity:begin"]
             )
             assert len(example["cassis.Entity:entityType"]) == len(
                 example["cassis.Entity:end"]
+            )
+            # test relation annotation features
+            assert len(example["cassis.Relation:source"]) == 1
+            assert len(example["cassis.Relation:source"]) == len(
+                example["cassis.Relation:target"]
             )
 
             # test entity content

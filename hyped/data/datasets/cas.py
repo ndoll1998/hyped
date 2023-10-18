@@ -2,11 +2,14 @@ from __future__ import annotations
 import os
 import cassis
 import datasets
+import logging
 import multiprocessing as mp
 from itertools import chain
 from dataclasses import dataclass
 from collections import defaultdict
-from typing import Iterator
+from typing import Iterator, Any
+
+logger = logging.getLogger(__name__)
 
 _PRIMITIVE_TYPE_MAP = {
     "uima.cas.Boolean": datasets.Value("bool"),
@@ -61,20 +64,20 @@ def _init_process(config: CasDatasetConfig) -> None:
         proc.typesystem = cassis.load_typesystem(f)
 
 
-def _worker(fpath: str) -> dict:
+def _worker(fpath: str) -> None | dict[str, Any]:
     """Worker process loading a cas object from the given file and convert
     it into a dictionary
 
     This function assumes that the executing process executed `_init_process`
     beforehand to have access to the config (`mp.current_process().config`)
-    and typesystem (`mp.current_process().typesystem`)
+    and typesystem (`mp.current_process().typesystem`).
 
     Arguments:
         fpath (str):
             path to the file containing a valid cas in .xmi or .json format
 
     Returns:
-        features (dict):
+        features (None|dict[str, Any]):
             the feature dictionary with features matching the dataset
             `features` attribute (see `CasDataset.features`)
     """
@@ -82,12 +85,17 @@ def _worker(fpath: str) -> dict:
     # the dataset configuration and typesystem
     proc = mp.current_process()
 
-    with open(fpath, "rb") as f:
-        # load cas from different formats, fallback to xmi by default
-        if fpath.endswith(".json"):
-            cas = cassis.load_cas_from_json(f, typesystem=proc.typesystem)
-        else:
-            cas = cassis.load_cas_from_xmi(f, typesystem=proc.typesystem)
+    try:
+        with open(fpath, "rb") as f:
+            # load cas from different formats, fallback to xmi by default
+            if fpath.endswith(".json"):
+                cas = cassis.load_cas_from_json(f, typesystem=proc.typesystem)
+            else:
+                cas = cassis.load_cas_from_xmi(f, typesystem=proc.typesystem)
+    except Exception as e:
+        # log error
+        logger.error(e)
+        return None
 
     annotation_types = list(
         _get_types_from_typesystem(
@@ -97,9 +105,14 @@ def _worker(fpath: str) -> dict:
     # collect all annotations and create a fixed ordering over
     # the annotations of each type
     annotations = {
-        annotation_type.name: list(cas.select(annotation_type))
+        annotation_type.name: [a.xmiID for a in cas.select(annotation_type)]
         for annotation_type in annotation_types
     }
+    # check ids
+    assert all(
+        xmi_id is not None
+        for xmi_id in chain.from_iterable(annotations.values())
+    )
 
     # create features dictionary
     # use default dict to avoid key-errors for features that are
@@ -118,7 +131,7 @@ def _worker(fpath: str) -> dict:
         nested_feature_types = [
             f
             for f in annotation_type.all_features
-            if f.rangeType in annotation_types
+            if f.rangeType.name in annotations.keys()
         ]
 
         # iterate over all annotations of the current type
@@ -130,8 +143,10 @@ def _worker(fpath: str) -> dict:
             # add nested features to dict
             for feature_type in nested_feature_types:
                 key = "%s:%s" % (annotation_type.name, feature_type.name)
-                features[key] = annotations[feature_type.rangeType.name].index(
-                    annotation.get(feature_type.name)
+                features[key].append(
+                    annotations[feature_type.rangeType.name].index(
+                        annotation.get(feature_type.name).xmiID
+                    )
                 )
 
     return features
@@ -284,4 +299,9 @@ class CasDataset(datasets.GeneratorBasedBuilder):
             num_processes, initializer=_init_process, initargs=(self.config,)
         ) as pool:
             # process all files
-            yield from enumerate(pool.map(_worker, chain.from_iterable(files)))
+            yield from enumerate(
+                filter(
+                    lambda x: x is not None,
+                    pool.map(_worker, chain.from_iterable(files)),
+                )
+            )
