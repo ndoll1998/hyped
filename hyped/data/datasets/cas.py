@@ -163,7 +163,7 @@ class CasDatasetConfig(datasets.BuilderConfig):
         typesystem (str): path to a file containing the cas typesystem to use
         num_processes (int):
             the number of processes to spawn for processing cas objects
-        annotation_type (None|list[str]):
+        annotation_types (None|list[str]):
             the set of annotation types to extract from the cas objects.
             Defaults to all types present in the typesystem.
     """
@@ -302,6 +302,6 @@ class CasDataset(datasets.GeneratorBasedBuilder):
             yield from enumerate(
                 filter(
                     lambda x: x is not None,
-                    pool.map(_worker, chain.from_iterable(files)),
+                    pool.imap_unordered(_worker, chain.from_iterable(files)),
                 )
             )
