@@ -4,7 +4,8 @@ from datasets import Features
 from dataclasses import dataclass
 from collections import defaultdict
 from hyped.base.config import BaseConfig, BaseConfigurable
-from typing import Literal, Any, TypeVar
+from types import GeneratorType
+from typing import Literal, Any, TypeVar, Generator
 
 
 @dataclass
@@ -135,16 +136,28 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
         out = defaultdict(list)
         # process each example one-by-one
         for j, i in enumerate(index):
-            example = {k: v[j] for k, v in examples.items()}
-            for k, v in self.process(example, index=i, rank=rank).items():
-                out[k].append(v)
+            x = {k: v[j] for k, v in examples.items()}
+            y = self.process(x, index=i, rank=rank)
+            # handle output types
+            if isinstance(y, GeneratorType):
+                for d in y:
+                    for k, v in d.items():
+                        out[k].append(v)
+            elif isinstance(y, dict):
+                for k, v in y.items():
+                    out[k].append(v)
+            else:
+                raise ValueError(
+                    "Expected output of `DataProcessor.process` to be dict of "
+                    "generator of dicts, got %s" % str(y)
+                )
         # update examples
         return examples | out
 
     @abstractmethod
     def process(
         self, example: dict[str, Any], index: int, rank: int
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | Generator[dict[str, Any], None, None]:
         """Abstract process method. Needs to be overwritten in sub-classes.
 
         Arguments:
