@@ -139,20 +139,21 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
             x = {k: v[j] for k, v in examples.items()}
             y = self.process(x, index=i, rank=rank)
             # handle output types
+            # note that here the outputs are mixed with the inputs
             if isinstance(y, GeneratorType):
                 for d in y:
-                    for k, v in d.items():
+                    for k, v in (d | x).items():
                         out[k].append(v)
             elif isinstance(y, dict):
-                for k, v in y.items():
+                for k, v in (y | x).items():
                     out[k].append(v)
             else:
                 raise ValueError(
                     "Expected output of `DataProcessor.process` to be dict of "
                     "generator of dicts, got %s" % str(y)
                 )
-        # update examples
-        return examples | out
+        # return output examples
+        return out
 
     @abstractmethod
     def process(
@@ -160,13 +161,19 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
     ) -> dict[str, Any] | Generator[dict[str, Any], None, None]:
         """Abstract process method. Needs to be overwritten in sub-classes.
 
+        The function can either return the output example directly, or it can
+        be a generator yielding a number of generated examples. This is handy
+        for data augmentation or filtering tasks. An example is filtered out
+        when the generator is empty. (i.e. `yield from []`).
+
         Arguments:
             example (dict[str, Any]): example to process
             index (int): dataset index of the example
             rank (int): execution process rank
 
         Returns:
-            out (dict[str, Any]): processed example
+            out (dict[str, Any]|Generator[dict[str, Any], None, None]):
+                processed example or generator over examples
         """
         ...
 

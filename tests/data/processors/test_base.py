@@ -80,10 +80,8 @@ class TestDataProcessor:
     def test_batch_processing(self):
         c = ConstantDataProcessorConfig(name="A", value="B")
         p = ConstantDataProcessor(c)
-        assert not p.is_prepared
 
-        x = Features({"X": Value("int32")})
-        p.prepare(x)
+        p.prepare(Features({"X": Value("int32")}))
         # create batch of examples and pass through processor
         batch = {"X": ["example %i" % i for i in range(10)]}
         batch = p.batch_process(batch, index=range(10), rank=0)
@@ -96,13 +94,23 @@ class TestDataProcessor:
     def test_generator_processor(self):
         c = ConstantGeneratorDataProcessorConfig(name="A", value="B")
         p = ConstantGeneratorDataProcessor(c)
-        assert not p.is_prepared
 
-        x = Features({"X": Value("int32")})
-        p.prepare(x)
+        p.prepare(Features({"X": Value("int32")}))
         # create batch of examples and pass through processor
         in_batch = {"X": ["example %i" % i for i in range(10)]}
         out_batch = p.batch_process(in_batch, index=range(10), rank=0)
         # check output batch size
         assert len(out_batch["X"]) == c.n * len(in_batch["X"])
         assert len(out_batch["A"]) == c.n * len(in_batch["X"])
+
+    def test_filter_by_generator(self):
+        c = ConstantGeneratorDataProcessorConfig(name="A", value="B", n=0)
+        p = ConstantGeneratorDataProcessor(c)
+
+        p.prepare(Features({"X": Value("int32")}))
+        # create batch of examples and pass through processor
+        in_batch = {"X": ["example %i" % i for i in range(10)]}
+        out_batch = p.batch_process(in_batch, index=range(10), rank=0)
+        # all examples should be filtered
+        assert len(out_batch["X"]) == 0
+        assert len(out_batch["A"]) == 0

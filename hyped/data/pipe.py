@@ -111,8 +111,8 @@ class DataPipe(list):
     ) -> pa.Table:
         # convert to pyarrow table with correct schema
         return pa.table(
-            data=dict(self.batch_process(examples, index, rank)),
-            schema=self.out_features.arrow_schema
+            data=self.batch_process(examples, index, rank),
+            schema=self.out_features.arrow_schema,
         )
 
     def apply(
