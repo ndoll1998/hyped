@@ -107,7 +107,7 @@ class TestDataProcessor:
         c = ConstantDataProcessorConfig(name="A", value="B")
         p = ConstantDataProcessor(c)
 
-        p.prepare(Features({"X": Value("int32")}))
+        p.prepare(Features({"X": Value("string")}))
         # create batch of examples and pass through processor
         batch = {"X": ["example %i" % i for i in range(10)]}
         batch = p.batch_process(batch, index=range(10), rank=0)
@@ -123,7 +123,7 @@ class TestDataProcessor:
         )
         p = ConstantDataProcessor(c)
 
-        p.prepare(Features({"X": Value("int32")}))
+        p.prepare(Features({"X": Value("string")}))
         # create batch of examples and pass through processor
         batch = {"X": ["example %i" % i for i in range(10)]}
         batch = p.batch_process(batch, index=range(10), rank=0)
@@ -132,23 +132,38 @@ class TestDataProcessor:
         assert ("X" not in batch) and ("A" in batch)
         assert all(a == "B" for a in batch["A"])
 
+    def test_overwrite_feature(self):
+        c = ConstantDataProcessorConfig(name="X", value="B")
+        p = ConstantDataProcessor(c)
+
+        p.prepare(Features({"X": Value("string")}))
+        # create batch of examples and pass through processor
+        batch = {"X": ["example %i" % i for i in range(10)]}
+        batch = p.batch_process(batch, index=range(10), rank=0)
+        # make sure content is overwritten
+        assert all(x == "B" for x in batch["X"])
+
     def test_generator_processor(self):
         c = ConstantGeneratorDataProcessorConfig(name="A", value="B")
         p = ConstantGeneratorDataProcessor(c)
 
-        p.prepare(Features({"X": Value("int32")}))
+        p.prepare(Features({"X": Value("string")}))
         # create batch of examples and pass through processor
         in_batch = {"X": ["example %i" % i for i in range(10)]}
-        out_batch = p.batch_process(in_batch, index=range(10), rank=0)
+        out_batch, index = p.batch_process(in_batch, index=range(10), rank=0, return_index=True)
         # check output batch size
         assert len(out_batch["X"]) == c.n * len(in_batch["X"])
         assert len(out_batch["A"]) == c.n * len(in_batch["X"])
+        # check index
+        for j, (i, x) in enumerate(zip(index, out_batch["X"])):
+            assert i == j // 3
+            assert x == "example %i" % i
 
     def test_filter_by_generator(self):
         c = ConstantGeneratorDataProcessorConfig(name="A", value="B", n=0)
         p = ConstantGeneratorDataProcessor(c)
 
-        p.prepare(Features({"X": Value("int32")}))
+        p.prepare(Features({"X": Value("string")}))
         # create batch of examples and pass through processor
         in_batch = {"X": ["example %i" % i for i in range(10)]}
         out_batch = p.batch_process(in_batch, index=range(10), rank=0)

@@ -132,17 +132,20 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
             return self.new_features
 
     def batch_process(
-        self, examples: dict[str, list[Any]], index: list[int], rank: int
-    ) -> dict[str, list[Any]]:
+        self, examples: dict[str, list[Any]], index: list[int], rank: int, return_index: bool = False
+    ) -> dict[str, list[Any]]|tuple[dict[str, list[Any]], list[int]]:
         """Process a batch of examples
 
         Arguments:
             examples (dict[str, list[Any]]): batch of examples to process
             index (list[int]): dataset indices of the examples
             rank (int): execution process rank
+            return_index (bool):
+                whether to return the source index for each output example
 
         Returns:
-            out (dict[str, list[Any]]): processed examples
+            out (dict[str, list[Any]]|tuple[dict[str, list[Any]], list[int]]):
+                processed examples and source indices when asked for
         """
 
         def write_to_out(x, y, keep_x):
@@ -150,6 +153,7 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
                 out[k].append(v)
 
         out = defaultdict(list)
+        out_index = []
         # process each example one-by-one
         for j, i in enumerate(index):
             x = {k: v[j] for k, v in examples.items()}
@@ -169,13 +173,15 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
 
             for d in y:
                 # merge output with input features if asked for
-                d = (d | x) if self.config.keep_input_features else d
+                d = (x | d) if self.config.keep_input_features else d
                 # write all features to output dictionary
                 for k, v in d.items():
                     out[k].append(v)
+                # add index to out index array
+                out_index.append(i)
 
         # return output examples
-        return out
+        return (out, out_index) if return_index else out
 
     @abstractmethod
     def process(

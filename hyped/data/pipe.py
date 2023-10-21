@@ -102,7 +102,7 @@ class DataPipe(list):
             )
         # apply each processor
         for p in self:
-            examples = p.batch_process(examples, index, rank)
+            examples, index = p.batch_process(examples, index, rank, return_index=True)
         # return final output
         return examples
 
