@@ -6,7 +6,10 @@ from datasets import Features, Sequence
 from dataclasses import dataclass
 from typing import Literal, Any
 
-FeatureMappingT = str | list["FeatureMappingT"] | dict[str, "FeatureMappingT"]
+FeatureKey = str | tuple[str]
+FeatureMappingT = (
+    FeatureKey | list["FeatureMappingT"] | dict[str, "FeatureMappingT"]
+)
 
 
 @dataclass
@@ -22,10 +25,13 @@ class FormatFeaturesConfig(BaseDataProcessorConfig):
         mapping (dict[str, FeatureMappingT]):
             feature mapping describing the formatted target features,
             Leafs of the (nested) mapping must be valid feature names
-            of existing dataset features
+            of existing dataset features or paths (i.e. tuple of strings)
+            in case of nested features.
     """
 
-    t: Literal["hyped.data.processors.helpers.format"]
+    t: Literal[
+        "hyped.data.processors.helpers.format"
+    ] = "hyped.data.processors.helpers.format"
 
     mapping: dict[str, FeatureMappingT] = None
 
@@ -37,7 +43,7 @@ class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):
     mapping in the config.
 
     Arguments:
-        config (FormatConfig): formatting configuration
+        config (FormatFeaturesConfig): formatting configuration
     """
 
     def map_features(self, features: Features) -> Features:
@@ -52,16 +58,77 @@ class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):
                 mapping specified in the config
         """
 
+        def _resolve_feature_from_path(path, _features):
+            for i, key in enumerate(path):
+                if isinstance(key, int):
+                    # check feature type
+                    if not isinstance(_features, (Sequence, list)):
+                        raise TypeError(
+                            "Expected feature type at path `%s` to be a "
+                            "`Sequence` (or `list`), got %s"
+                            % (str(path[:i]), _features)
+                        )
+                    # check key
+                    if (_features.length >= 0) and (key >= _features.length):
+                        raise IndexError(
+                            "Index `%i` out of bounds for sequence of "
+                            "length `%i` of feature at path %s"
+                            % (key, _features.length, str(path[:i]))
+                        )
+                    # get feature type at index
+                    _features = (
+                        _features.feature
+                        if isinstance(_features, Sequence)
+                        else _features[0]
+                    )
+
+                elif isinstance(key, str):
+                    # check feature type
+                    if not isinstance(_features, (Features, dict)):
+                        raise TypeError(
+                            "Expected feature type at path `%s` to be a "
+                            "mapping (i.e. `Features` or `dict`), got %s"
+                            % (str(path[:i]), _features)
+                        )
+                    # check key
+                    if key not in _features.keys():
+                        raise KeyError(
+                            "Key `%s` not present in feature mapping at "
+                            "path `%s`, valid keys are %s"
+                            % (key, str(path[:i]), list(_features.keys()))
+                        )
+                    # get feature type at key
+                    _features = _features[key]
+
+                else:
+                    # unexpected key type in path
+                    raise TypeError(
+                        "Unexpected key type in path, valid types are `str` "
+                        "or `int`, got %s" % key
+                    )
+
+            return _features
+
         def _map_features(mapping):
             if isinstance(mapping, str):
                 if mapping not in features:
-                    raise ValueError(
+                    raise KeyError(
                         "Feature `%s` not present in input features, "
                         "valid feature names are %s"
                         % (mapping, str(list(features.keys())))
                     )
 
                 return features[mapping]
+
+            if isinstance(mapping, tuple):
+                # check path
+                if len(mapping) == 0:
+                    raise ValueError(
+                        "Found empty path (i.e. tuple of length 0) in "
+                        "feature mapping"
+                    )
+                # resolve
+                return _resolve_feature_from_path(mapping, features)
 
             if isinstance(mapping, list):
                 new_features = list(map(_map_features, mapping))
@@ -100,9 +167,20 @@ class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):
             out (dict[str, Any]): formatted example
         """
 
+        def _resolve_value_from_path(path, _example):
+            # follow path
+            for key in path:
+                # works for both sequences and mappings
+                _example = _example[key]
+
+            return _example
+
         def _map_example(mapping):
             if isinstance(mapping, str):
                 return example[mapping]
+
+            if isinstance(mapping, tuple):
+                return _resolve_value_from_path(mapping, example)
 
             if isinstance(mapping, list):
                 return list(map(_map_example, mapping))
