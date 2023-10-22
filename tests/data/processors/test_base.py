@@ -150,7 +150,9 @@ class TestDataProcessor:
         p.prepare(Features({"X": Value("string")}))
         # create batch of examples and pass through processor
         in_batch = {"X": ["example %i" % i for i in range(10)]}
-        out_batch, index = p.batch_process(in_batch, index=range(10), rank=0, return_index=True)
+        out_batch, index = p.batch_process(
+            in_batch, index=range(10), rank=0, return_index=True
+        )
         # check output batch size
         assert len(out_batch["X"]) == c.n * len(in_batch["X"])
         assert len(out_batch["A"]) == c.n * len(in_batch["X"])
