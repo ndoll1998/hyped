@@ -47,10 +47,10 @@ class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):
     """
 
     def map_features(self, features: Features) -> Features:
-        """Apply formatting to given features.
+        """Apply formatting to given features
 
         Arguments:
-            in (Features): input dataset features
+            features (Features): input dataset features
 
         Returns:
             out (Features):

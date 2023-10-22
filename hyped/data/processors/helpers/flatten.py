@@ -50,6 +50,14 @@ class FlattenFeatures(FormatFeatures):
         )
 
     def map_features(self, features: Features) -> Features:
+        """Flatten dataset feature mapping
+
+        Arguments:
+            features (Features): input dataset features
+
+        Returns:
+            out (Features): flattened feature mapping
+        """
         # overwriting feature mapping in config
         if self.config.mapping is not None:
             warnings.warn(

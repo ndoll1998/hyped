@@ -220,7 +220,7 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
         output of the `process` function.
 
         Arguments:
-            in (Features): input dataset features
+            features (Features): input dataset features
 
         Returns:
             out (Features):
