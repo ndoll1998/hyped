@@ -1,4 +1,4 @@
-from hyped.data.processors.helpers.format import (
+from hyped.data.processors.features.format import (
     FormatFeaturesConfig,
     FormatFeatures,
 )

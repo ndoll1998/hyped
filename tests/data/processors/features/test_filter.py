@@ -1,4 +1,4 @@
-from hyped.data.processors.helpers.filter import (
+from hyped.data.processors.features.filter import (
     FilterFeatures,
     FilterFeaturesConfig,
 )

@@ -1,4 +1,4 @@
-from hyped.data.processors.helpers.format import (
+from hyped.data.processors.features.format import (
     FormatFeatures,
     FormatFeaturesConfig,
 )
@@ -14,6 +14,8 @@ class FlattenFeaturesConfig(FormatFeaturesConfig):
 
     Similar to formatting features (see `hyped.data.processors.helpers.format`)
     but flattens nested features
+    
+    Type Identifier: `hyped.data.processors.features.flatten`
 
     Attributes:
         to_flatten (None | list[str]):
@@ -23,8 +25,8 @@ class FlattenFeaturesConfig(FormatFeaturesConfig):
     """
 
     t: Literal[
-        "hyped.data.processors.helpers.flatten"
-    ] = "hyped.data.processors.helpers.flatten"
+        "hyped.data.processors.features.flatten"
+    ] = "hyped.data.processors.features.flatten"
 
     to_flatten: None | list[str] = None
     delimiter: str = ":"

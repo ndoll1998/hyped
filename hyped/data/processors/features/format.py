@@ -19,7 +19,7 @@ class FormatFeaturesConfig(BaseDataProcessorConfig):
     Re-Formats Features of the dataset according to the
     specified mapping.
 
-    Type Identifier: `hyped.data.processors.helpers.format`
+    Type Identifier: `hyped.data.processors.features.format`
 
     Attributes:
         mapping (dict[str, FeatureMappingT]):
@@ -30,8 +30,8 @@ class FormatFeaturesConfig(BaseDataProcessorConfig):
     """
 
     t: Literal[
-        "hyped.data.processors.helpers.format"
-    ] = "hyped.data.processors.helpers.format"
+        "hyped.data.processors.features.format"
+    ] = "hyped.data.processors.features.format"
 
     mapping: dict[str, FeatureMappingT] = None
 

@@ -1,4 +1,4 @@
-from hyped.data.processors.helpers.flatten import (
+from hyped.data.processors.features.flatten import (
     FlattenFeatures,
     FlattenFeaturesConfig,
 )

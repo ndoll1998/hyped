@@ -13,6 +13,8 @@ class FilterFeaturesConfig(BaseDataProcessorConfig):
 
     Removes dataset features based on the specified filters,
     i.e. the list of features to keep or remove.
+    
+    Type Identifier: `hyped.data.processors.features.format`
 
     Attributes:
         keep (None | str | list[str]): features to keep
@@ -20,8 +22,8 @@ class FilterFeaturesConfig(BaseDataProcessorConfig):
     """
 
     t: Literal[
-        "hyped.data.processors.helpers.filter"
-    ] = "hyped.data.processors.helpers.filter"
+        "hyped.data.processors.features.filter"
+    ] = "hyped.data.processors.features.filter"
     # don't keep input features
     keep_input_features: bool = False
     # feature keys to keep or remove
