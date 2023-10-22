@@ -136,10 +136,14 @@ class BaseConfigurable(Generic[U], RegisterTypes, ABC):
     Sub-types must implement this function.
     """
 
+    CONFIG_TYPE: None | type[BaseConfig] = None
+
     @classmethod
     @property
-    def config_type(cls) -> type[BaseConfig]:
-        """Get the configuration typeof the configurable"""
+    def generic_config_type(cls) -> type[BaseConfig]:
+        """Get the generic configuration type of the configurable specified
+        by the type variable `U`
+        """
         # get config class
         t = solve_typevar(cls, U)
         # check type
@@ -149,6 +153,31 @@ class BaseConfigurable(Generic[U], RegisterTypes, ABC):
                 % (str(t), str(BaseConfig))
             )
         return t or BaseConfig
+
+    @classmethod
+    @property
+    def config_type(cls) -> type[BaseConfig]:
+        """Get the (final) configuration type of the configurable
+
+        The final configuration type is specified by the `CONFIG_TYPE`
+        class attribute. Falls back to the generic config type if the
+        class attribute is not specified. Also checks that the concrete
+        configuration type is valid, i.e. inherits the generic configuration
+        type.
+        """
+        generic_t = cls.generic_config_type
+        # concrete config type must inherit generic config type
+        if (cls.CONFIG_TYPE is not None) and not issubclass(
+            cls.CONFIG_TYPE, generic_t
+        ):
+            raise TypeError(
+                "Concrete config type `%s` specified by `CONFIG_TYPE` must "
+                "inherit from generic config type `%s`"
+                % (cls.CONFIG_TYPE, generic_t)
+            )
+        # return final config type and fallback to generic
+        # type if not specified
+        return cls.CONFIG_TYPE or generic_t
 
     @classmethod
     @property

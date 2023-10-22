@@ -127,17 +127,55 @@ class TestBaseConfigurable:
         class bConfig(BaseConfig):
             t: str = "b.config"
 
+        @dataclass
+        class cConfig(bConfig):
+            t: str = "c.config"
+
+        @dataclass
+        class dConfig(bConfig):
+            t: str = "d.config"
+
         class A(Configurable[aConfig]):
             pass
 
         class B(Configurable[bConfig]):
             pass
 
+        class C(B):
+            CONFIG_TYPE = cConfig
+
+        class D(C):
+            CONFIG_TYPE = dConfig
+
+        # check config types
         assert A.config_type == aConfig
         assert B.config_type == bConfig
-
+        assert C.config_type == cConfig
+        assert D.config_type == dConfig
+        # check type identifiers
         assert A.t.startswith(aConfig.t)
         assert B.t.startswith(bConfig.t)
+        assert C.t.startswith(cConfig.t)
+        assert D.t.startswith(dConfig.t)
+
+    def test_config_type_error(self):
+        @dataclass
+        class aConfig(BaseConfig):
+            t: str = "a.config"
+
+        @dataclass
+        class bConfig(BaseConfig):
+            t: str = "b.config"
+
+        class A(Configurable[aConfig]):
+            pass
+
+        # should raise type-error because config doesn't
+        # inherit generic configuration set in supertype
+        with pytest.raises(TypeError):
+
+            class B(A):
+                CONFIG_TYPE = bConfig
 
     def test_auto_from_config(self):
         @dataclass
