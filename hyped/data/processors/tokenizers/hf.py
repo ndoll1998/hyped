@@ -59,9 +59,10 @@ class HuggingFaceTokenizerConfig(BaseDataProcessorConfig):
         max_length (None | str):
             the maximum length to be used by the truncation and padding
             strategy.
-        stride (None | int):
+        stride (int):
             overflowing tokens will have overlap of this value with the
-            truncated sequence
+            truncated sequence. Defaults to zero, effectively deactivating
+            striding.
         is_split_into_words (bool):
             whether the text inputs are already pre-tokenized into words.
             Defaults to false.
@@ -102,7 +103,7 @@ class HuggingFaceTokenizerConfig(BaseDataProcessorConfig):
     padding: bool | str | PaddingStrategy = False
     truncation: bool | str | TruncationStrategy = False
     max_length: None | int = None
-    stride: None | int = None
+    stride: int = 0
     is_split_into_words: bool = False
     pad_to_multiple_of: None | int = None
     # output features
