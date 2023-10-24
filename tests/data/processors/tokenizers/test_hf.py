@@ -5,7 +5,6 @@ from hyped.data.processors.tokenizers.hf import (
 )
 from transformers import AutoTokenizer
 from datasets import Features, Sequence, Value
-from contextlib import nullcontext
 from collections import defaultdict
 from functools import partial
 import pytest
@@ -185,8 +184,15 @@ class TestHuggingFaceTokenizerPreparationErrors(BaseTestDataProcessor):
         self, text_features, is_split_into_words, expected_err_on_prepare
     ):
         # build valid keyword arguments
-        f = lambda k: ("tok_%s" if is_split_into_words else "%s") % k
-        kwargs = dict(zip(text_features, map(f, text_features)))
+        kwargs = dict(
+            zip(
+                text_features,
+                map(
+                    lambda k: ("tok_%s" if is_split_into_words else "%s") % k,
+                    text_features,
+                ),
+            )
+        )
         # add invalid key to kwargs
         if expected_err_on_prepare is KeyError:
             kwargs[text_features[-1]] = "INVALID_KEY"

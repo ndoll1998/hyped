@@ -13,7 +13,7 @@ class FilterFeaturesConfig(BaseDataProcessorConfig):
 
     Removes dataset features based on the specified filters,
     i.e. the list of features to keep or remove.
-    
+
     Type Identifier: `hyped.data.processors.features.format`
 
     Attributes:
@@ -48,47 +48,43 @@ class FilterFeatures(BaseDataProcessor[FilterFeaturesConfig]):
             out (Features): filtered dataset features
         """
 
+        keep = self.config.keep
+        remove = self.config.remove
+
         # check configuration
-        if (self.config.keep is None) and (self.config.remove is None):
+        if (keep is None) and (remove is None):
             raise ValueError(
                 "No filters specified, please specify either the `keep` "
                 "or `remove` filters in the configuration"
             )
 
-        if (self.config.keep is not None) and (self.config.remove is not None):
+        if (keep is not None) and (remove is not None):
             raise ValueError(
                 "Please specify either the `keep` or the `remove` filter "
                 "but not both"
             )
 
-        if self.config.keep is not None:
-            self.config.keep = (
-                [self.config.keep]
-                if isinstance(self.config.keep, str)
-                else self.config.keep
-            )
-        if self.config.remove is not None:
-            self.config.remove = (
-                [self.config.remove]
-                if isinstance(self.config.remove, str)
-                else self.config.remove
-            )
+        if keep is not None:
+            keep = [keep] if isinstance(keep, str) else keep
+
+        if remove is not None:
+            remove = [remove] if isinstance(remove, str) else remove
 
         # make sure all features are present
-        for k in self.config.keep or self.config.remove:
+        for k in keep if keep is not None else remove:
             if k not in features:
                 raise KeyError(
                     "Key `%s` not present in feature mapping, valid "
                     "keys are %s" % (k, list(features.keys()))
                 )
 
-        if self.config.keep is not None:
+        if keep is not None:
             # collect features
-            return Features({k: features[k] for k in self.config.keep})
+            return Features({k: features[k] for k in keep})
 
-        if self.config.remove is not None:
+        if remove is not None:
             # remove features
-            remove = set(self.config.remove)
+            remove = set(remove)
             return Features(
                 {k: v for k, v in features.items() if k not in remove}
             )

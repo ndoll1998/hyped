@@ -1,6 +1,7 @@
 import datasets
 import pyarrow as pa
 from .processors.base import BaseDataProcessor
+from hyped.utils.arrow import convert_features_to_arrow_schema
 from typing import Any
 
 
@@ -114,7 +115,7 @@ class DataPipe(list):
         # convert to pyarrow table with correct schema
         return pa.table(
             data=self.batch_process(examples, index, rank),
-            schema=self.out_features.arrow_schema,
+            schema=convert_features_to_arrow_schema(self.out_features),
         )
 
     def apply(

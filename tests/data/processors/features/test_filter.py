@@ -1,3 +1,4 @@
+from tests.data.processors.base import BaseTestDataProcessor
 from hyped.data.processors.features.filter import (
     FilterFeatures,
     FilterFeaturesConfig,
@@ -6,17 +7,9 @@ from datasets import Features, Sequence, Value
 import pytest
 
 
-class TestFilterFeatures:
+class BaseTestFilterFeatures(BaseTestDataProcessor):
     @pytest.fixture()
-    def batch(self):
-        return {
-            "X": list(range(0, 12)),
-            "Y": [[i + 1, i + 2, i + 3] for i in range(0, 12)],
-            "A": [{"x": 2 * i, "y": [3 * i, 4 * i]} for i in range(0, 12)],
-        }
-
-    @pytest.fixture()
-    def features(self):
+    def in_features(self):
         return Features(
             {
                 "X": Value("int32"),
@@ -28,116 +21,134 @@ class TestFilterFeatures:
             }
         )
 
-    def test_keep_features(self, batch, features):
-        # create processor
-        p = FilterFeatures(FilterFeaturesConfig(keep=["Y", "A"]))
+    @pytest.fixture()
+    def batch(self):
+        return {
+            "X": list(range(0, 12)),
+            "Y": [[i + 1, i + 2, i + 3] for i in range(0, 12)],
+            "A": [{"x": 2 * i, "y": [3 * i, 4 * i]} for i in range(0, 12)],
+        }
 
-        # prepare and check features
-        p.prepare(features)
-        assert p.new_features == p.out_features
-        assert p.new_features == Features(
-            {
-                "Y": Sequence(Value("int32"), length=3),
-                "A": {
-                    "x": Value("int32"),
-                    "y": Sequence(Value("int32"), length=2),
-                },
-            }
-        )
-        # apply and check output
-        out_batch = p.process(batch, index=range(12), rank=0)
-        assert "X" not in out_batch
-        assert out_batch["Y"] == batch["Y"]
-        assert out_batch["A"] == batch["A"]
 
-    def test_remove_features(self, batch, features):
-        # create processor
-        p = FilterFeatures(FilterFeaturesConfig(remove=["X"]))
+class TestKeepFeatures(BaseTestFilterFeatures):
+    @pytest.fixture(
+        params=[
+            [],
+            ["X"],
+            ["Y"],
+            ["A"],
+            ["X", "Y"],
+            ["X", "A"],
+            ["A", "Y"],
+            ["X", "Y", "A"],
+        ]
+    )
+    def processor(self, request):
+        return FilterFeatures(FilterFeaturesConfig(keep=request.param))
 
-        # prepare and check features
-        p.prepare(features)
-        assert p.new_features == p.out_features
-        assert p.new_features == Features(
-            {
-                "Y": Sequence(Value("int32"), length=3),
-                "A": {
-                    "x": Value("int32"),
-                    "y": Sequence(Value("int32"), length=2),
-                },
-            }
-        )
-        # apply and check output
-        out_batch = p.process(batch, index=range(12), rank=0)
-        assert "X" not in out_batch
-        assert out_batch["Y"] == batch["Y"]
-        assert out_batch["A"] == batch["A"]
+    @pytest.fixture
+    def expected_out_features(self, processor, in_features):
+        features = Features()
 
-    def test_keep_single_feature(self, batch, features):
-        # create processor
-        p = FilterFeatures(FilterFeaturesConfig(keep="Y"))
+        if "X" in processor.config.keep:
+            features["X"] = in_features["X"]
 
-        # prepare and check features
-        p.prepare(features)
-        assert p.new_features == p.out_features
-        assert p.new_features == Features(
-            {
-                "Y": Sequence(Value("int32"), length=3),
-            }
-        )
-        # apply and check output
-        out_batch = p.process(batch, index=range(12), rank=0)
-        assert "X" not in out_batch
-        assert "A" not in out_batch
-        assert out_batch["Y"] == batch["Y"]
+        if "Y" in processor.config.keep:
+            features["Y"] = in_features["Y"]
 
-    def test_remove_single_features(self, batch, features):
-        # create processor
-        p = FilterFeatures(FilterFeaturesConfig(remove="X"))
+        if "A" in processor.config.keep:
+            features["A"] = in_features["A"]
 
-        # prepare and check features
-        p.prepare(features)
-        assert p.new_features == p.out_features
-        assert p.new_features == Features(
-            {
-                "Y": Sequence(Value("int32"), length=3),
-                "A": {
-                    "x": Value("int32"),
-                    "y": Sequence(Value("int32"), length=2),
-                },
-            }
-        )
-        # apply and check output
-        out_batch = p.process(batch, index=range(12), rank=0)
-        assert "X" not in out_batch
-        assert out_batch["Y"] == batch["Y"]
-        assert out_batch["A"] == batch["A"]
+        return features
 
-    def test_error_on_invalid_key(self, features):
-        # create processor
-        p = FilterFeatures(FilterFeaturesConfig(keep="INVALID_KEY"))
+    @pytest.fixture
+    def expected_out_batch(self, batch, processor):
+        out_batch = {}
 
-        # should raise key error as keep key is invalid
-        with pytest.raises(KeyError):
-            p.prepare(features)
+        if "X" in processor.config.keep:
+            out_batch["X"] = batch["X"]
 
-        # create processor
-        p = FilterFeatures(FilterFeaturesConfig(remove="INVALID_KEY"))
+        if "Y" in processor.config.keep:
+            out_batch["Y"] = batch["Y"]
 
-        # should raise key error as remove key is invalid
-        with pytest.raises(KeyError):
-            p.prepare(features)
+        if "A" in processor.config.keep:
+            out_batch["A"] = batch["A"]
 
-    def test_error_on_invalid_configuration(self, features):
-        # create processor
-        p = FilterFeatures(FilterFeaturesConfig())
+        return out_batch
 
-        # should raise value error as no filter is specified
-        with pytest.raises(ValueError):
-            p.prepare(features)
 
-        # create processor
-        p = FilterFeatures(FilterFeaturesConfig(keep="A", remove="X"))
+class TestRemoveFeatures(BaseTestFilterFeatures):
+    @pytest.fixture(
+        params=[
+            [],
+            ["X"],
+            ["Y"],
+            ["A"],
+            ["X", "Y"],
+            ["X", "A"],
+            ["A", "Y"],
+            ["X", "Y", "A"],
+        ]
+    )
+    def processor(self, request):
+        return FilterFeatures(FilterFeaturesConfig(remove=request.param))
 
-        # should raise key error as both filters are specified
-        with pytest.raises(ValueError):
-            p.prepare(features)
+    @pytest.fixture
+    def expected_out_features(self, processor, in_features):
+        features = Features()
+
+        if "X" not in processor.config.remove:
+            features["X"] = in_features["X"]
+
+        if "Y" not in processor.config.remove:
+            features["Y"] = in_features["Y"]
+
+        if "A" not in processor.config.remove:
+            features["A"] = in_features["A"]
+
+        return features
+
+    @pytest.fixture
+    def expected_out_batch(self, batch, processor):
+        out_batch = {}
+
+        if "X" not in processor.config.remove:
+            out_batch["X"] = batch["X"]
+
+        if "Y" not in processor.config.remove:
+            out_batch["Y"] = batch["Y"]
+
+        if "A" not in processor.config.remove:
+            out_batch["A"] = batch["A"]
+
+        return out_batch
+
+
+class TestErrorOnInvalidKey(BaseTestFilterFeatures):
+    @pytest.fixture(
+        params=[
+            FilterFeaturesConfig(keep=["INVALID_KEY"]),
+            FilterFeaturesConfig(remove=["INVALID_KEY"]),
+        ]
+    )
+    def processor(self, request):
+        return FilterFeatures(request.param)
+
+    @pytest.fixture
+    def expected_err_on_prepare(self):
+        return KeyError
+
+
+class TestErrorOnInvalidConfig(BaseTestFilterFeatures):
+    @pytest.fixture(
+        params=[
+            FilterFeaturesConfig(),
+            FilterFeaturesConfig(keep=["X"], remove=["Y"]),
+        ]
+    )
+    def processor(self, request):
+        return FilterFeatures(request.param)
+
+    @pytest.fixture
+    def expected_err_on_prepare(self):
+        return ValueError

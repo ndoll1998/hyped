@@ -14,7 +14,7 @@ class FlattenFeaturesConfig(FormatFeaturesConfig):
 
     Similar to formatting features (see `hyped.data.processors.helpers.format`)
     but flattens nested features
-    
+
     Type Identifier: `hyped.data.processors.features.flatten`
 
     Attributes:
@@ -22,6 +22,9 @@ class FlattenFeaturesConfig(FormatFeaturesConfig):
             dataset features to flatten. By default flattens all features
             present in the source feature mapping
         delimiter (str): delimiter used to join nested keys, defaults to ':'
+        max_seq_length_to_unpack (int):
+            upper threshold of length to unpack sequences. If the sequence
+            length exceeds this threshold, the sequence will not be unpacked
     """
 
     t: Literal[
@@ -30,6 +33,7 @@ class FlattenFeaturesConfig(FormatFeaturesConfig):
 
     to_flatten: None | list[str] = None
     delimiter: str = ":"
+    max_seq_length_to_unpack: int = 8
 
 
 class FlattenFeatures(FormatFeatures):
@@ -87,7 +91,9 @@ class FlattenFeatures(FormatFeatures):
                 ]
 
             # only unpack sequences of fixed length
-            if isinstance(_features, Sequence) and (_features.length > 0):
+            if isinstance(_features, Sequence) and (
+                0 < _features.length < self.config.max_seq_length_to_unpack
+            ):
                 # add to flat feature mapping
                 return [
                     (i,) + path
@@ -99,7 +105,11 @@ class FlattenFeatures(FormatFeatures):
             return [tuple()]
 
         # get features to flatten
-        to_flatten = self.config.to_flatten or list(features.keys())
+        to_flatten = (
+            self.config.to_flatten
+            if self.config.to_flatten is not None
+            else list(features.keys())
+        )
         to_flatten = {k: features[k] for k in to_flatten}
         # build feature mapping
         paths = _build_feature_paths(to_flatten)
