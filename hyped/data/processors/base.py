@@ -157,10 +157,6 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
                 processed examples and source indices when asked for
         """
 
-        def write_to_out(x, y, keep_x):
-            for k, v in (y | x).items():
-                out[k].append(v)
-
         out = defaultdict(list)
         out_index = []
         # process each example one-by-one
