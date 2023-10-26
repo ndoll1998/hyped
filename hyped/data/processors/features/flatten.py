@@ -2,6 +2,7 @@ from hyped.data.processors.features.format import (
     FormatFeatures,
     FormatFeaturesConfig,
 )
+from hyped.utils.feature_checks import raise_feature_exists
 from datasets import Features, Sequence
 from dataclasses import dataclass
 from typing import Literal
@@ -74,12 +75,7 @@ class FlattenFeatures(FormatFeatures):
         # make sure all features are present
         if self.config.to_flatten is not None:
             for k in self.config.to_flatten:
-                if k not in features:
-                    raise KeyError(
-                        "Feature `%s` not present in input features, "
-                        "valid feature names are %s"
-                        % (k, str(list(features.keys())))
-                    )
+                raise_feature_exists(k, features)
 
         def _build_feature_paths(_features):
             if isinstance(_features, (dict, Features)):

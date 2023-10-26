@@ -4,10 +4,12 @@ from hyped.data.processors.base import (
     BaseDataProcessorConfig,
 )
 from hyped.utils.feature_checks import (
-    check_feature_exists,
-    check_feature_is_sequence,
+    INDEX_TYPES,
+    raise_feature_exists,
+    raise_feature_is_sequence,
+    raise_features_align,
 )
-from datasets import Features, Value
+from datasets import Features
 from dataclasses import dataclass
 from typing import Literal, Any
 
@@ -96,32 +98,26 @@ class LocalToGlobalOffsets(BaseDataProcessor):
             out (Features): global offset features
         """
         # make sure local offsets features exist
-        check_feature_exists(self.config.local_offsets_begin, features)
-        check_feature_exists(self.config.local_offsets_end, features)
+        raise_feature_exists(self.config.local_offsets_begin, features)
+        raise_feature_exists(self.config.local_offsets_end, features)
         # and are of the correct type
-        check_feature_is_sequence(
+        raise_feature_is_sequence(
             self.config.local_offsets_begin,
             features[self.config.local_offsets_begin],
-            Value("int32"),
+            INDEX_TYPES,
         )
-        check_feature_is_sequence(
+        raise_feature_is_sequence(
             self.config.local_offsets_end,
             features[self.config.local_offsets_end],
-            Value("int32"),
+            INDEX_TYPES,
         )
-
-        if (
-            features[self.config.local_offsets_begin]
-            != features[self.config.local_offsets_end]
-        ):
-            raise TypeError(
-                "Begin and end features of local offsets don't match, "
-                "got %s != %s"
-                % (
-                    features[self.config.local_offsets_begin],
-                    features[self.config.local_offsets_end],
-                )
-            )
+        # make sure begin and end features match exactly
+        raise_features_align(
+            self.config.local_offsets_begin,
+            self.config.local_offsets_end,
+            features[self.config.local_offsets_begin],
+            features[self.config.local_offsets_end],
+        )
 
         if self.config.global_offsets_begin is not None:
             if self.config.local_to_global_mapping is None:
@@ -129,32 +125,26 @@ class LocalToGlobalOffsets(BaseDataProcessor):
                     "`local_to_global_mapping` argument not specified"
                 )
 
-            check_feature_exists(self.config.global_offsets_begin, features)
-            check_feature_exists(self.config.local_to_global_mapping, features)
+            raise_feature_exists(self.config.global_offsets_begin, features)
+            raise_feature_exists(self.config.local_to_global_mapping, features)
 
-            check_feature_is_sequence(
+            raise_feature_is_sequence(
                 self.config.global_offsets_begin,
                 features[self.config.global_offsets_begin],
-                Value("int32"),
+                INDEX_TYPES,
             )
-            check_feature_is_sequence(
+            raise_feature_is_sequence(
                 self.config.local_to_global_mapping,
                 features[self.config.local_to_global_mapping],
-                Value("int32"),
+                INDEX_TYPES,
             )
 
-            if (
-                features[self.config.local_to_global_mapping]
-                != features[self.config.local_offsets_begin]
-            ):
-                raise TypeError(
-                    "Global to local mapping feature doesn't align with local "
-                    "offsets features, got %s != %s"
-                    % (
-                        features[self.config.local_to_global_mapping],
-                        features[self.config.local_offsets_begin],
-                    )
-                )
+            raise_features_align(
+                self.config.local_to_global_mapping,
+                "local offset features",
+                features[self.config.local_to_global_mapping],
+                features[self.config.local_offsets_begin],
+            )
 
         return Features(
             {

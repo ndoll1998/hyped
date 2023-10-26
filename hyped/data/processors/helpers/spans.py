@@ -3,7 +3,15 @@ from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
 )
-from datasets import Features, Sequence, Value
+from hyped.utils.feature_checks import (
+    INDEX_TYPES,
+    raise_feature_exists,
+    raise_features_align,
+    raise_feature_is_sequence,
+    check_feature_equals,
+    check_feature_is_sequence,
+)
+from datasets import Features
 from dataclasses import dataclass
 from typing import Literal, Any
 
@@ -68,96 +76,50 @@ class CharToTokenSpans(BaseDataProcessor[CharToTokenSpansConfig]):
         Returns:
             out (Features): token-level span annotation features
         """
-        if self.config.char_spans_begin not in features:
-            raise KeyError(
-                "`%s` not present in features!" % self.config.char_spans_begin
-            )
+        # make sure all features exisr
+        raise_feature_exists(self.config.char_spans_begin, features)
+        raise_feature_exists(self.config.char_spans_end, features)
+        raise_feature_exists(self.config.token_offsets_begin, features)
+        raise_feature_exists(self.config.token_offsets_end, features)
 
-        if self.config.char_spans_end not in features:
-            raise KeyError(
-                "`%s` not present in features!" % self.config.char_spans_end
-            )
-
-        if self.config.token_offsets_begin not in features:
-            raise KeyError(
-                "`%s` not present in features!"
-                % self.config.token_offsets_begin
-            )
-
-        if self.config.token_offsets_end not in features:
-            raise KeyError(
-                "`%s` not present in features!" % self.config.token_offsets_end
-            )
-
-        # check character span feature
-        # must be either Sequence of integers or an integer value
-        if not (
-            isinstance(features[self.config.char_spans_begin], Sequence)
-            and features[self.config.char_spans_begin].feature
-            == Value("int32")
-        ) and not (features[self.config.char_spans_begin] == Value("int32")):
-            raise TypeError(
-                "Expected `char_spans_begin` to be an integer value "
-                "or a sequence of integers, got %s"
-                % features[self.config.char_spans_begin]
-            )
-
-        if not (
-            isinstance(features[self.config.char_spans_end], Sequence)
-            and features[self.config.char_spans_end].feature == Value("int32")
-        ) and not (features[self.config.char_spans_end] == Value("int32")):
-            raise TypeError(
-                "Expected `char_spans_begin` to be an integer value "
-                "or a sequence of integers, got %s"
-                % features[self.config.char_spans_end]
-            )
-
-        if (
-            features[self.config.char_spans_begin]
-            != features[self.config.char_spans_end]
-        ):
-            raise TypeError(
-                "Begin and end features of character spans don't match, "
-                "got %s != %s"
-                % (
-                    features[self.config.char_spans_begin],
-                    features[self.config.char_spans_end],
+        # character spans must either be a sequence of
+        # integers or an integer value
+        for key in [self.config.char_spans_begin, self.config.char_spans_end]:
+            if not (
+                check_feature_is_sequence(features[key], INDEX_TYPES)
+                or check_feature_equals(features[key], INDEX_TYPES)
+            ):
+                raise TypeError(
+                    "Expected `%s` to be an integer value or a sequence "
+                    "of integers, got %s" % (key, features[key])
                 )
-            )
 
-        # check token offset features
-        if not (
-            isinstance(features[self.config.token_offsets_begin], Sequence)
-            and features[self.config.token_offsets_begin].feature
-            == Value("int32")
-        ):
-            raise TypeError(
-                "Expected `token_offsets_begin` to be a sequence of integers, "
-                "got %s" % features[self.config.token_offsets_begin]
-            )
+        # character spans begin and end features must align
+        raise_features_align(
+            self.config.char_spans_begin,
+            self.config.char_spans_end,
+            features[self.config.char_spans_begin],
+            features[self.config.char_spans_end],
+        )
 
-        if not (
-            isinstance(features[self.config.token_offsets_end], Sequence)
-            and features[self.config.token_offsets_end].feature
-            == Value("int32")
-        ):
-            raise TypeError(
-                "Expected `token_offsets_begin` to be a sequence of integers, "
-                "got %s" % features[self.config.token_offsets_end]
-            )
-
-        if (
-            features[self.config.token_offsets_begin]
-            != features[self.config.token_offsets_end]
-        ):
-            raise TypeError(
-                "Begin and end features of token offsets don't match, "
-                "got %s != %s"
-                % (
-                    features[self.config.token_offsets_begin],
-                    features[self.config.token_offsets_end],
-                )
-            )
+        # token offsets must be sequence of integers
+        raise_feature_is_sequence(
+            self.config.token_offsets_begin,
+            features[self.config.token_offsets_begin],
+            INDEX_TYPES,
+        )
+        raise_feature_is_sequence(
+            self.config.token_offsets_begin,
+            features[self.config.token_offsets_end],
+            INDEX_TYPES,
+        )
+        # and they must align excatly
+        raise_features_align(
+            self.config.token_offsets_begin,
+            self.config.token_offsets_end,
+            features[self.config.token_offsets_begin],
+            features[self.config.token_offsets_end],
+        )
 
         return Features(
             {

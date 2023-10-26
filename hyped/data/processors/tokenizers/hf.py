@@ -2,6 +2,13 @@ from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
 )
+from hyped.utils.feature_checks import (
+    INT_TYPES,
+    UINT_TYPES,
+    raise_feature_exists,
+    raise_feature_equals,
+    raise_feature_is_sequence,
+)
 from transformers import (
     PreTrainedTokenizer,
     PreTrainedTokenizerFast,
@@ -186,23 +193,17 @@ class HuggingFaceTokenizer(BaseDataProcessor[HuggingFaceTokenizerConfig]):
             key (str): feature key/name to check
             features (Features): feature mapping
         """
-        # make sure text column is present
-        if key not in features:
-            raise KeyError("`%s` not present in features!" % self.config.text)
 
-        # check type of input feature
-        f = features[key]
-        if self.config.is_split_into_words and not (
-            isinstance(f, Sequence) and (f.feature == Value("string"))
-        ):
-            raise TypeError(
-                "Input feature `%s` must be sequence of strings, got %s."
-                % (key, f)
-            )
-        elif (not self.config.is_split_into_words) and (f != Value("string")):
-            raise TypeError(
-                "Input feature `%s` must be string, got %s." % (key, f)
-            )
+        # make sure feature exists
+        raise_feature_exists(key, features)
+        # check type
+        if self.config.is_split_into_words:
+            # when pre-tokenized the input should be a sequence of strings
+            raise_feature_is_sequence(key, features[key], Value("string"))
+
+        else:
+            # otherwise it should simply be a string
+            raise_feature_equals(key, features[key], Value("string"))
 
     def _check_input_features(self, features: Features) -> None:
         """Check input features"""
@@ -228,20 +229,14 @@ class HuggingFaceTokenizer(BaseDataProcessor[HuggingFaceTokenizerConfig]):
                     "word-level bounding boxes"
                 )
 
-            if self.config.boxes not in features:
-                raise KeyError(
-                    "`%s` not present in features!" % self.config.boxes
-                )
-
-            f = features[self.config.boxes]
-            if not isinstance(f, Sequence) or (
-                f.feature != Sequence(Value["int32"], length=4)
-            ):
-                raise TypeError(
-                    "Expected feature type of `%s` to be sequence of "
-                    "sequences of four integers, got %s"
-                    % (self.config.boxes, f)
-                )
+            # make sure the feature exists
+            raise_feature_exists(self.config.boxes, features)
+            # make sure its of the correct type
+            raise_feature_is_sequence(
+                self.config.boxes,
+                features[self.config.boxes],
+                Sequence(INT_TYPES + UINT_TYPES, length=4),
+            )
 
     def _get_output_sequence_length(self) -> int:
         """Infers the (fixed) sequence length of the output sequences such

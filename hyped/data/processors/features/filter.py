@@ -2,6 +2,7 @@ from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
 )
+from hyped.utils.feature_checks import raise_feature_exists
 from datasets import Features
 from dataclasses import dataclass
 from typing import Literal, Any
@@ -70,13 +71,9 @@ class FilterFeatures(BaseDataProcessor[FilterFeaturesConfig]):
         if remove is not None:
             remove = [remove] if isinstance(remove, str) else remove
 
-        # make sure all features are present
+        # make sure all features exist
         for k in keep if keep is not None else remove:
-            if k not in features:
-                raise KeyError(
-                    "Key `%s` not present in feature mapping, valid "
-                    "keys are %s" % (k, list(features.keys()))
-                )
+            raise_feature_exists(k, features)
 
         if keep is not None:
             # collect features

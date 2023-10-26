@@ -2,6 +2,7 @@ from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
 )
+from hyped.utils.feature_checks import check_feature_equals
 from datasets import Features, Sequence
 from dataclasses import dataclass
 from typing import Literal, Any
@@ -133,7 +134,10 @@ class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):
             if isinstance(mapping, list):
                 new_features = list(map(_map_features, mapping))
                 # make sure all sub-feature-types are equal
-                if any(f != new_features[0] for f in new_features[1:]):
+                if not all(
+                    check_feature_equals(f, new_features[0])
+                    for f in new_features[1:]
+                ):
                     raise TypeError(
                         "Expected all items of a sequence to be of the "
                         "same feature type, got %s" % str(new_features)
