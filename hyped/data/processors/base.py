@@ -2,7 +2,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datasets import Features
 from dataclasses import dataclass
-from collections import defaultdict
 from hyped.base.config import BaseConfig, BaseConfigurable
 from types import GeneratorType
 from typing import Literal, Any, TypeVar, Generator
@@ -157,7 +156,7 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
                 processed examples and source indices when asked for
         """
 
-        out = defaultdict(list)
+        out = {key: [] for key in self.out_features.keys()}
         out_index = []
         # process each example one-by-one
         for j, i in enumerate(index):

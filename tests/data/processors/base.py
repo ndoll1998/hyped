@@ -87,7 +87,9 @@ class BaseTestDataProcessor(ABC):
 
             # apply processor
             with self.err_handler(expected_err_on_process):
-                out_batch = processor.batch_process(batch, index=index, rank=0)
+                out_batch, index = processor.batch_process(
+                    batch, index=index, rank=0, return_index=True
+                )
 
             if expected_err_on_process is not None:
                 return
@@ -101,6 +103,11 @@ class BaseTestDataProcessor(ABC):
             if expected_out_batch is not None:
                 # check output content
                 if processor.config.keep_input_features:
-                    assert out_batch == (batch | expected_out_batch)
+                    # apply source index to input batch and update with
+                    # expected output batch to achieve full expected output
+                    prepared_batch = {
+                        k: [v[i] for i in index] for k, v in batch.items()
+                    }
+                    assert out_batch == (prepared_batch | expected_out_batch)
                 else:
                     assert out_batch == expected_out_batch
