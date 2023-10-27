@@ -28,7 +28,7 @@ class CharToTokenSpansConfig(BaseDataProcessorConfig):
     Note that the output spans are exclusive, i.e. for an output
     span (i, j) the index of the last member to the span is j-1.
 
-    Type Identifier: `hyped.data.processors.helpers.char_to_token_spans`
+    Type Identifier: `hyped.data.processors.spans.char_to_token_spans`
 
     Attributes:
         char_spans_begin (str):
@@ -48,8 +48,8 @@ class CharToTokenSpansConfig(BaseDataProcessorConfig):
     """
 
     t: Literal[
-        "hyped.data.processors.helpers.char_to_token_spans"
-    ] = "hyped.data.processors.helpers.char_to_token_spans"
+        "hyped.data.processors.spans.char_to_token_spans"
+    ] = "hyped.data.processors.spans.char_to_token_spans"
 
     # character-level annotation spans
     char_spans_begin: str = None

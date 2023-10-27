@@ -1,5 +1,5 @@
 from tests.data.processors.base import BaseTestDataProcessor
-from hyped.data.processors.helpers.offsets import (
+from hyped.data.processors.spans.loc_to_glob import (
     LocalToGlobalOffsets,
     LocalToGlobalOffsetsConfig,
 )

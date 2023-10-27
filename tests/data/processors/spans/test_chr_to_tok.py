@@ -1,5 +1,5 @@
 from tests.data.processors.base import BaseTestDataProcessor
-from hyped.data.processors.helpers.spans import (
+from hyped.data.processors.spans.chr_to_tok import (
     CharToTokenSpans,
     CharToTokenSpansConfig,
 )

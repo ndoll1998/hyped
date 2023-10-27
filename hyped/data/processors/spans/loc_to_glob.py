@@ -37,6 +37,8 @@ class LocalToGlobalOffsetsConfig(BaseDataProcessorConfig):
             ]
         )
 
+    Type Identifier: `hyped.data.processors.spans.local_to_global_offsets`
+
     Attributes:
         local_offsets_begin (str):
             column containing begins of local offsets
@@ -58,8 +60,8 @@ class LocalToGlobalOffsetsConfig(BaseDataProcessorConfig):
     """
 
     t: Literal[
-        "hyped.data.processors.helpers.word_to_text_offsets"
-    ] = "hyped.data.processors.helpers.word_to_text_offsets"
+        "hyped.data.processors.spans.local_to_global_offsets"
+    ] = "hyped.data.processors.spans.local_to_global_offsets"
 
     # local offsets
     local_offsets_begin: str = None
