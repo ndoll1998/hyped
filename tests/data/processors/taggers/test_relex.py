@@ -186,4 +186,3 @@ class TestRelExTagger(BaseTestDataProcessor):
 
         else:
             return {"input_sequence.with_markers": []}
-

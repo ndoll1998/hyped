@@ -2,7 +2,10 @@ from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
 )
-from hyped.utils.feature_checks import check_feature_equals
+from hyped.utils.feature_checks import (
+    check_feature_equals,
+    get_sequence_length,
+)
 from datasets import Features, Sequence
 from dataclasses import dataclass
 from typing import Literal, Any
@@ -70,11 +73,12 @@ class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):
                             % (str(path[:i]), _features)
                         )
                     # check key
-                    if (_features.length >= 0) and (key >= _features.length):
+                    length = get_sequence_length(_features)
+                    if (length >= 0) and (key >= length):
                         raise IndexError(
                             "Index `%i` out of bounds for sequence of "
                             "length `%i` of feature at path %s"
-                            % (key, _features.length, str(path[:i]))
+                            % (key, length, str(path[:i]))
                         )
                     # get feature type at index
                     _features = (

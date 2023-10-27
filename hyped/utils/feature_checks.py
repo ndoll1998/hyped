@@ -1,3 +1,4 @@
+from inspect import isclass
 from datasets import Features, Sequence, Value
 from datasets.features.features import FeatureType
 
@@ -69,7 +70,7 @@ def check_feature_equals(
     if isinstance(target, (list, tuple)):
         # if multiple valid targets are given the feature
         # should match any one of them
-        if len(target) > 1:
+        if (len(target) > 1) or (len(target) == 0):
             return any(check_feature_equals(feature, t) for t in target)
         # a list of length one is a valid definition of sequence
         return check_feature_is_sequence(
@@ -80,11 +81,12 @@ def check_feature_equals(
     if isinstance(feature, list):
         # at this point the target cannot be a list so to
         # align with the given feature is must be sequence
-        return (
-            isinstance(target, Sequence)
-            and check_feature_is_sequence(feature, target.feature)
-            and check_sequence_lengths_match(feature, target)
-        )
+        if isinstance(target, Sequence):
+            return check_feature_is_sequence(
+                feature, target.feature
+            ) and check_sequence_lengths_match(feature, target)
+
+        return target is Sequence
 
     if isinstance(feature, dict):
         # make sure the target is also a mapping
@@ -99,12 +101,18 @@ def check_feature_equals(
             )
         )
 
+    if isclass(target):
+        # if only the target feature class and
+        # not the exact target feature is specified
+        return isinstance(feature, target)
+
     # otherwise it should just match the target
     return feature == target
 
 
 def check_feature_is_sequence(
-    feature: FeatureType, value_type: FeatureType | list[FeatureType]
+    feature: FeatureType,
+    value_type: None | FeatureType | list[FeatureType] = None,
 ) -> bool:
     """Check if a given feature is a sequence of values of
     a given value type (and arbitrary length).
@@ -112,18 +120,25 @@ def check_feature_is_sequence(
     Arguments:
         feature (FeatureType):
             the feature to check
-        value_type (FeatureType | list[FeatureType]):
+        value_type (None | FeatureType | list[FeatureType]):
             the expected sequence value type or a target
             of valid value types. If the value type is a list or
-            tuple of length one that it is still considered to
-            be a feature and not a list of features as this is also
-            a definition of a sequence feature type.
+            tuple of length one, it is still considered to be a
+            feature and not a list of features as this is also a
+            valid definition of a sequence feature type. If the
+            value type is set to None, the item type is not
+            checked.
 
     Returns:
         is_sequence (bool):
             whether the feature is a sequence of (one of) the
             given value type(s)
     """
+
+    if value_type is None:
+        # only check if the feature is a sequence
+        return isinstance(feature, (Sequence, list, tuple))
+
     return (
         # either its a sequence, then check the value type
         isinstance(feature, Sequence)
@@ -135,8 +150,23 @@ def check_feature_is_sequence(
     )
 
 
+def get_sequence_length(seq: Sequence | list | tuple) -> int:
+    """Get the length of a given sequence feature
+
+    Arguments:
+        seq (Sequence | list | tuple): sequence to get the length of
+
+    Returns:
+        length (int):
+            the length of the given sequence. Returns -1 for
+            sequences of undefined length
+    """
+    assert isinstance(seq, (Sequence, list, tuple))
+    return seq.length if isinstance(seq, Sequence) else -1
+
+
 def check_sequence_lengths_match(
-    sequence_A: Sequence | list | tuple, sequence_B: Sequence | list | tuple
+    seq_A: Sequence | list | tuple, seq_B: Sequence | list | tuple
 ) -> bool:
     """Check whether the lengths of two sequences match
 
@@ -147,12 +177,7 @@ def check_sequence_lengths_match(
     Returns:
         match (bool): bool indicating if the lengths match
     """
-
-    # get lengths of the sequences
-    length_A = sequence_A.length if isinstance(sequence_A, Sequence) else -1
-    length_B = sequence_B.length if isinstance(sequence_B, Sequence) else -1
-    # compare
-    return length_A == length_B
+    return get_sequence_length(seq_A) == get_sequence_length(seq_B)
 
 
 def raise_feature_exists(name: str, features: Features) -> None:
@@ -235,7 +260,7 @@ def raise_features_align(
 def raise_feature_is_sequence(
     name: str,
     feature: FeatureType,
-    value_type: FeatureType | list[FeatureType],
+    value_type: None | FeatureType | list[FeatureType] = None,
 ) -> None:
     """Check if a given feature is a sequence of values of
     a given value type (and arbitrary length).
@@ -248,15 +273,22 @@ def raise_feature_is_sequence(
         value_type (FeatureType | list[FeatureType]):
             the expected sequence value type or a target
             of valid value types. If the value type is a list or
-            tuple of length one that it is still considered to
-            be a feature and not a list of features as this is also
-            a definition of a sequence feature type.
+            tuple of length one, it is still considered to be a
+            feature and not a list of features as this is also a
+            valid definition of a sequence feature type. If the
+            value type is set to None, the item type is not
+            checked.
 
     Raises:
         exc (TypeError):
             when the value type doesn't match the expected value type
     """
     if not check_feature_is_sequence(feature, value_type):
+        if value_type is None:
+            raise TypeError(
+                "Expected `%s` to be a sequence, got %s" % (name, feature)
+            )
+
         if isinstance(value_type, (list, tuple)) and (len(value_type) > 1):
             # slightly different error message for list of
             # value feature types

@@ -2,7 +2,10 @@ from hyped.data.processors.features.format import (
     FormatFeatures,
     FormatFeaturesConfig,
 )
-from hyped.utils.feature_checks import raise_feature_exists
+from hyped.utils.feature_checks import (
+    raise_feature_exists,
+    get_sequence_length,
+)
 from datasets import Features, Sequence
 from dataclasses import dataclass
 from typing import Literal
@@ -87,15 +90,16 @@ class FlattenFeatures(FormatFeatures):
                 ]
 
             # only unpack sequences of fixed length
-            if isinstance(_features, Sequence) and (
-                0 < _features.length < self.config.max_seq_length_to_unpack
-            ):
-                # add to flat feature mapping
-                return [
-                    (i,) + path
-                    for path in _build_feature_paths(_features.feature)
-                    for i in range(_features.length)
-                ]
+            if isinstance(_features, Sequence):
+                length = get_sequence_length(_features)
+
+                if 0 < length < self.config.max_seq_length_to_unpack:
+                    # add to flat feature mapping
+                    return [
+                        (i,) + path
+                        for path in _build_feature_paths(_features.feature)
+                        for i in range(length)
+                    ]
 
             # all other feature types are considered already flat
             return [tuple()]

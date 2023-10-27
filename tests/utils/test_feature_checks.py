@@ -3,6 +3,7 @@ from hyped.utils.feature_checks import (
     check_feature_equals,
     check_feature_is_sequence,
     check_sequence_lengths_match,
+    get_sequence_length,
     raise_feature_exists,
     raise_feature_equals,
     raise_feature_is_sequence,
@@ -229,6 +230,37 @@ class TestFeatureEquals:
                     ),
                 ],
             ],
+            # restrict feature class only
+            [Value("int32"), Value],
+            [Value("int64"), Value],
+            [Value("string"), Value],
+            [[Value("int32")], Sequence],
+            [Sequence(Value("string")), Sequence],
+            [Sequence(Value("string")), [Value]],
+            [Value("string"), [Sequence, Value]],
+            [
+                Features({"A": Value("int32"), "B": Value("int32")}),
+                Features({"A": Value, "B": Value("int32")}),
+            ],
+            [
+                Features({"A": Value("int32"), "B": Value("int32")}),
+                Features({"A": Value, "B": Value}),
+            ],
+            [
+                Features({"A": Value("int32"), "B": Sequence(Value("int32"))}),
+                Features({"A": Value, "B": Sequence}),
+            ],
+            [
+                Features({"A": Value("int32"), "B": Sequence(Value("int32"))}),
+                Features({"A": Value, "B": [Value]}),
+            ],
+            [
+                Features({"A": Value("int32"), "B": Sequence(Value("int32"))}),
+                [
+                    Features({"A": [Value], "B": [Value]}),
+                    Features({"A": Value, "B": [Value]}),
+                ],
+            ],
         ],
     )
     def test_is_equal(self, feature, target):
@@ -265,6 +297,33 @@ class TestFeatureEquals:
                 Sequence(Value("int32")),
                 Features({"A": Sequence(Value("int32"))}),
             ],
+            # restrict feature class only
+            [Value("int32"), Sequence],
+            [Value("int64"), Sequence],
+            [Value("string"), [Sequence, Features]],
+            [
+                Features({"A": Value("int32"), "B": Value("int32")}),
+                Features({"A": Value, "B": Value("int64")}),
+            ],
+            [
+                Features({"A": Value("int32"), "B": Value("int32")}),
+                Features({"A": Value, "B": Sequence}),
+            ],
+            [
+                Features({"A": Value("int32"), "B": Sequence(Value("int32"))}),
+                Features({"A": Value, "B": Value}),
+            ],
+            [
+                Features({"A": Value("int32"), "B": Sequence(Value("int32"))}),
+                Features({"A": Value, "B": [Sequence]}),
+            ],
+            [
+                Features({"A": Value("int32"), "B": Sequence(Value("int32"))}),
+                [
+                    Features({"A": [Value], "B": [Value]}),
+                    Features({"A": Value, "B": Value}),
+                ],
+            ],
         ],
     )
     def test_is_not_equal(self, feature, target):
@@ -279,6 +338,12 @@ class TestFeatureIsSequence:
     @pytest.mark.parametrize(
         "feature,value_type",
         [
+            [[Value("int32")], None],
+            [Sequence(Value("int32")), None],
+            [[Value("int64")], None],
+            [Sequence(Value("int64")), None],
+            [[Value("string")], None],
+            [Sequence(Value("string")), None],
             [[Value("int32")], Value("int32")],
             [Sequence(Value("int32")), Value("int32")],
             [Sequence(Value("int32"), length=2), Value("int32")],
@@ -292,6 +357,20 @@ class TestFeatureIsSequence:
             [
                 Sequence(Sequence(Value("int32")), length=2),
                 Sequence(Value("int32")),
+            ],
+            [[Value("int32")], Value],
+            [Sequence(Value("int32")), Value],
+            [Sequence(Value("int32"), length=2), Value],
+            [Sequence(Value("int32")), [Value, Sequence]],
+            [Sequence([Value("int32")]), [Value]],
+            [Sequence([Value("int32")]), Sequence],
+            [
+                Sequence(Sequence(Value("int32"))),
+                Sequence,
+            ],
+            [
+                Sequence(Sequence(Value("int32")), length=2),
+                Sequence,
             ],
         ],
     )
@@ -339,6 +418,21 @@ class TestFeatureIsSequence:
         # and shouldn't raise an error
         with pytest.raises(TypeError):
             raise_feature_is_sequence("name", feature, value_type)
+
+
+class TestGetSequenceLength:
+    @pytest.mark.parametrize(
+        "seq, length",
+        [
+            [[Value("int32")], -1],
+            [Sequence(Value("int32")), -1],
+            [Sequence(Value("int32"), length=8), 8],
+            [Sequence(Value("int32"), length=16), 16],
+            [Sequence(Value("int32"), length=32), 32],
+        ],
+    )
+    def test(self, seq, length):
+        assert get_sequence_length(seq) == length
 
 
 class TestSequenceLengthsMatch:

@@ -8,6 +8,7 @@ from hyped.utils.feature_checks import (
     raise_feature_exists,
     raise_feature_equals,
     raise_feature_is_sequence,
+    get_sequence_length,
 )
 from dataclasses import dataclass
 from datasets import Features, Sequence, Value
@@ -20,7 +21,7 @@ class RelExTaggerConfig(BaseDataProcessorConfig):
 
     Marks source and target entities in the input sequence.
 
-    Arguments:
+    Attributes:
         source_begin_marker (str | int):
             marker used to indicate the beginning of the source entity.
             Marker type should match the item type of the input sequence,
@@ -96,9 +97,7 @@ class RelExTaggerConfig(BaseDataProcessorConfig):
         ]
 
 
-class RelExTagger(
-    BaseDataProcessor[RelExTaggerConfig]
-):
+class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
     """Relation Extraction Tagger
 
     Marks source and target entities in the input sequence.
@@ -108,7 +107,8 @@ class RelExTagger(
         sequence = features[self.config.input_sequence]
 
         # increase length by four to account for the entity markers
-        length = -1 if sequence.length == -1 else (sequence.length + 4)
+        length = get_sequence_length(sequence)
+        length = -1 if length == -1 else (length + 4)
         # apply maximum sequence length
         if self.config.max_sequence_length is not None:
             length = min(length, self.config.max_sequence_length)
