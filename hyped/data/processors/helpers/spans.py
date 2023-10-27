@@ -11,6 +11,7 @@ from hyped.utils.feature_checks import (
     check_feature_equals,
     check_feature_is_sequence,
 )
+from hyped.utils.spans import compute_spans_overlap_matrix
 from datasets import Features
 from dataclasses import dataclass
 from typing import Literal, Any
@@ -23,6 +24,9 @@ class CharToTokenSpansConfig(BaseDataProcessorConfig):
     Convert character-level span annotations to token-level
     span annotations. Especially useful for squad-style Question
     Answering (QA) or Named-Entity-Recognition (NER).
+
+    Note that the output spans are exclusive, i.e. for an output
+    span (i, j) the index of the last member to the span is j-1.
 
     Type Identifier: `hyped.data.processors.helpers.char_to_token_spans`
 
@@ -64,6 +68,9 @@ class CharToTokenSpans(BaseDataProcessor[CharToTokenSpansConfig]):
     Convert character-level span annotations to token-level
     span annotations. Especially useful for squad-style Question
     Answering (QA) or Named-Entity-Recognition (NER).
+
+    Note that the output spans are exclusive, i.e. for an output
+    span (i, j) the index of the last member to the span is j-1.
     """
 
     def map_features(self, features: Features) -> Features:
@@ -151,20 +158,22 @@ class CharToTokenSpans(BaseDataProcessor[CharToTokenSpansConfig]):
             char_spans_begin = [char_spans_begin]
             char_spans_end = [char_spans_end]
 
-        # get spans and offsets and convert to numpy arrays
-        char_spans_begin = np.asarray(char_spans_begin)
-        char_spans_end = np.asarray(char_spans_end)
-        token_offsets_begin = np.asarray(
-            example[self.config.token_offsets_begin]
+        # get spans and offsets
+        char_spans = zip(char_spans_begin, char_spans_end)
+        token_offsets = zip(
+            example[self.config.token_offsets_begin],
+            example[self.config.token_offsets_end],
         )
-        token_offsets_end = np.asarray(example[self.config.token_offsets_end])
-        # make end coordinates exclusive
-        char_spans_end += int(self.config.char_spans_inclusive)
-        token_offsets_end += int(self.config.token_offsets_inclusive)
-        # compute mask over token spans
-        mask = (char_spans_begin[:, None] <= token_offsets_begin[None, :]) & (
-            token_offsets_end[None, :] < char_spans_end[:, None]
+
+        # for each character-level span find the
+        # token offset that it overlaps with
+        mask = compute_spans_overlap_matrix(
+            char_spans,
+            token_offsets,
+            self.config.char_spans_inclusive,
+            self.config.token_offsets_inclusive,
         )
+
         # get begins and ends from mask
         token_spans_begin = mask.argmax(axis=1)
         token_spans_end = token_spans_begin + mask.sum(axis=1)

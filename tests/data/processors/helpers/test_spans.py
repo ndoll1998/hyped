@@ -196,8 +196,8 @@ class TestCharToTokenSpans(BaseTestDataProcessor):
                 [3, 1][:num_annotations],
             ],
             "token_spans_end": [
-                [2, 5][:num_annotations],
-                [5, 2][:num_annotations],
+                [3, 6][:num_annotations],
+                [6, 3][:num_annotations],
             ],
         }
 
@@ -245,5 +245,5 @@ class TestSingleCharToTokenSpan(TestCharToTokenSpans):
     def expected_out_batch(self):
         return {
             "token_spans_begin": [1, 3],
-            "token_spans_end": [2, 5],
+            "token_spans_end": [3, 6],
         }

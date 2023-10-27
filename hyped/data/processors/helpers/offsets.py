@@ -9,6 +9,7 @@ from hyped.utils.feature_checks import (
     raise_feature_is_sequence,
     raise_features_align,
 )
+from hyped.utils.spans import make_spans_exclusive
 from datasets import Features
 from dataclasses import dataclass
 from typing import Literal, Any
@@ -51,6 +52,9 @@ class LocalToGlobalOffsetsConfig(BaseDataProcessorConfig):
             i-th position is the index of the global offset element
             by which to offset the i-th local offset. Required when
             `global_offsets_begin` is specified.
+        local_offsets_inclusive (bool):
+            bool indicating whether the local offset spans are inclusive
+            or not. Defaults to False.
     """
 
     t: Literal[
@@ -63,6 +67,8 @@ class LocalToGlobalOffsetsConfig(BaseDataProcessorConfig):
     # map to global offset
     global_offsets_begin: None | str = None
     local_to_global_mapping: None | str = None
+    # offsets inclusive or not
+    local_offsets_inclusive: bool = False
 
 
 class LocalToGlobalOffsets(BaseDataProcessor):
@@ -166,14 +172,20 @@ class LocalToGlobalOffsets(BaseDataProcessor):
         Returns:
             out (dict[str, Any]): global offsets
         """
-        # get local offsets
-        local_offsets_begin = np.asarray(
-            example[self.config.local_offsets_begin]
+
+        # get local offset spans
+        local_offsets = zip(
+            example[ſelf.config.local_offsets_begin],
+            example[ſelf.config.local_offsets_end],
         )
-        local_offsets_end = np.asarray(example[self.config.local_offsets_end])
+        # make offsets exclusive and convert to numpy array
+        local_offsets = make_spans_exclusive(
+            local_offsets, self.config.local_offsets_inclusive
+        )
+        local_offsets = np.asarray(local_offsets).reshape(-1, 2)
 
         if self.config.global_offsets_begin is None:
-            mask = local_offsets_begin == 0
+            mask = local_offsets[:, 0] == 0
             # increase the global index by one whenever the local
             # offsets begin jumps back to zero
             # -1 to account for the initial zero
@@ -183,7 +195,7 @@ class LocalToGlobalOffsets(BaseDataProcessor):
             # local instances + 1 to add a space in between
             mask = np.roll(mask, shift=-1)
             mask[-1] = False
-            global_offsets_begin = (local_offsets_end[mask] + 1).cumsum()
+            global_offsets_begin = (local_offsets[mask, 1] + 1).cumsum()
             # insert initial zero
             global_offsets_begin = np.insert(global_offsets_begin, 0, 0)
 
@@ -198,10 +210,10 @@ class LocalToGlobalOffsets(BaseDataProcessor):
 
         # compute offsets on global scale
         offsets_begin = (
-            local_offsets_begin + global_offsets_begin[local_to_global_mapping]
+            local_offsets[:, 0] + global_offsets_begin[local_to_global_mapping]
         )
         offsets_end = (
-            local_offsets_end + global_offsets_begin[local_to_global_mapping]
+            local_offsets[:, 1] + global_offsets_begin[local_to_global_mapping]
         )
         # return offsets
         return {

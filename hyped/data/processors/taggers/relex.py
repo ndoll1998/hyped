@@ -10,6 +10,7 @@ from hyped.utils.feature_checks import (
     raise_feature_is_sequence,
     get_sequence_length,
 )
+from hyped.utils.spans import make_spans_exclusive
 from dataclasses import dataclass
 from datasets import Features, Sequence, Value
 from typing import Any, Literal
@@ -202,20 +203,26 @@ class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
         input_sequence = example[self.config.input_sequence]
         l = len(input_sequence)  # noqa: E741
 
-        # get span values and make all spans exclusive, that is
-        # the end coordinate points to the first item after the
-        # entity as the marker will be inserted before the item
-        spans = np.asarray(
-            [
-                example[self.config.source_span_begin],
-                example[self.config.source_span_end]
-                + int(self.config.source_span_inclusive),
-                example[self.config.target_span_begin],
-                example[self.config.target_span_end]
-                + int(self.config.target_span_inclusive),
-            ],
-            dtype=int,
+        # get source and target spans
+        src_span = (
+            example[self.config.source_span_begin],
+            example[self.config.source_span_end],
         )
+        tgt_span = (
+            example[self.config.target_span_begin],
+            example[self.config.target_span_end],
+        )
+        # make spans exclusive, that is the end coordinate points
+        # to the first item after the entity as the marker will be
+        # inserted before the item
+        src_span = make_spans_exclusive(
+            [src_span], self.config.source_span_inclusive
+        )[0]
+        tgt_span = make_spans_exclusive(
+            [tgt_span], self.config.target_span_inclusive
+        )[0]
+        # concatenate spans for ease of use later
+        spans = np.asarray([*src_span, *tgt_span], dtype=int)
 
         if self.config.max_sequence_length is not None:
             i, j = min(spans), max(spans)
