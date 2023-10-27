@@ -5,6 +5,7 @@ from hyped.data.processors.base import (
 from hyped.utils.feature_checks import (
     check_feature_equals,
     get_sequence_length,
+    get_sequence_feature,
 )
 from datasets import Features, Sequence
 from dataclasses import dataclass
@@ -81,11 +82,7 @@ class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):
                             % (key, length, str(path[:i]))
                         )
                     # get feature type at index
-                    _features = (
-                        _features.feature
-                        if isinstance(_features, Sequence)
-                        else _features[0]
-                    )
+                    _features = get_sequence_feature(_features)
 
                 elif isinstance(key, str):
                     # check feature type

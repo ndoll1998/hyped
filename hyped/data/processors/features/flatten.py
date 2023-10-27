@@ -5,6 +5,7 @@ from hyped.data.processors.features.format import (
 from hyped.utils.feature_checks import (
     raise_feature_exists,
     get_sequence_length,
+    get_sequence_feature,
 )
 from datasets import Features, Sequence
 from dataclasses import dataclass
@@ -97,7 +98,9 @@ class FlattenFeatures(FormatFeatures):
                     # add to flat feature mapping
                     return [
                         (i,) + path
-                        for path in _build_feature_paths(_features.feature)
+                        for path in _build_feature_paths(
+                            get_sequence_feature(_features)
+                        )
                         for i in range(length)
                     ]
 

@@ -139,15 +139,9 @@ def check_feature_is_sequence(
         # only check if the feature is a sequence
         return isinstance(feature, (Sequence, list, tuple))
 
-    return (
-        # either its a sequence, then check the value type
-        isinstance(feature, Sequence)
-        and check_feature_equals(feature.feature, value_type)
-    ) or (
-        # or its a list, then also check the value type
-        isinstance(feature, (list, tuple))
-        and check_feature_equals(feature[0], value_type)
-    )
+    return isinstance(
+        feature, (Sequence, list, tuple)
+    ) and check_feature_equals(get_sequence_feature(feature), value_type)
 
 
 def get_sequence_length(seq: Sequence | list | tuple) -> int:
@@ -163,6 +157,21 @@ def get_sequence_length(seq: Sequence | list | tuple) -> int:
     """
     assert isinstance(seq, (Sequence, list, tuple))
     return seq.length if isinstance(seq, Sequence) else -1
+
+
+def get_sequence_feature(seq: Sequence | list | tuple) -> FeatureType:
+    """Get the item feature type of a given sequence feature
+
+    Arguments:
+        seq (Sequence | list | tuple):
+            sequence to get the item feature type of
+
+    Returns:
+        feature (FeatureType):
+            the item feature type of the sequence
+    """
+    assert isinstance(seq, (Sequence, list, tuple))
+    return seq.feature if isinstance(seq, Sequence) else seq[0]
 
 
 def check_sequence_lengths_match(

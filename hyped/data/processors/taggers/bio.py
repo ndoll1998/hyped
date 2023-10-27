@@ -8,6 +8,7 @@ from hyped.utils.feature_checks import (
     raise_feature_is_sequence,
     raise_features_align,
     get_sequence_length,
+    get_sequence_feature,
 )
 from hyped.utils.spans import (
     make_spans_exclusive,
@@ -87,10 +88,10 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
             [Value("string"), ClassLabel],
         )
 
-        # get the item feature type of the sequence
-        feature = features[self.config.entity_spans_label].feature
-
-        # get the length of the input sequence
+        # get the item feature type and length of the sequence
+        feature = get_sequence_feature(
+            features[self.config.entity_spans_label]
+        )
         length = get_sequence_length(features[self.config.input_sequence])
 
         # build output feature type
@@ -114,12 +115,14 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
 
     @property
     def entity_label_space(self) -> None | ClassLabel:
-        feature = self.in_features[self.config.entity_spans_label].feature
+        feature = self.in_features[self.config.entity_spans_label]
+        feature = get_sequence_feature(feature)
         return feature if isinstance(feature, ClassLabel) else None
 
     @property
     def bio_label_space(self) -> None | ClassLabel:
-        feature = self.new_features["bio_tags"].feature
+        feature = self.new_features["bio_tags"]
+        feature = get_sequence_feature(feature)
         return feature if isinstance(feature, ClassLabel) else None
 
     def map_features(self, features: Features) -> Features:

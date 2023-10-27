@@ -171,7 +171,7 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
                 y = (y,)
             else:
                 raise ValueError(
-                    "Expected output of `DataProcessor.process` to be dict of "
+                    "Expected output of `DataProcessor.process` to be dict or "
                     "generator of dicts, got %s" % str(y)
                 )
 

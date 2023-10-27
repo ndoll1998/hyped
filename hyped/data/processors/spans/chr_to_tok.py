@@ -1,4 +1,3 @@
-import numpy as np
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,

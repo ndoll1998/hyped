@@ -68,7 +68,7 @@ class TestBioTagger(BaseTestDataProcessor):
         mask = [i < length for i in entity_spans_begin]
         entity_spans_begin = [i for i, v in zip(entity_spans_begin, mask) if v]
         entity_spans_end = [i for i, v in zip(entity_spans_end, mask) if v]
-        entity_spans_label = [l for l, v in zip(entity_spans_label, mask) if v]
+        entity_spans_label = [k for k, v in zip(entity_spans_label, mask) if v]
         # truncate entities at sequence length
         entity_spans_end = [min(i, length) for i in entity_spans_end]
         # apply inclusive or not
@@ -166,7 +166,7 @@ class TestBioTaggerWithOverlaps(TestBioTagger):
         mask = [i < length for i in entity_spans_begin]
         entity_spans_begin = [i for i, v in zip(entity_spans_begin, mask) if v]
         entity_spans_end = [i for i, v in zip(entity_spans_end, mask) if v]
-        entity_spans_label = [l for l, v in zip(entity_spans_label, mask) if v]
+        entity_spans_label = [k for k, v in zip(entity_spans_label, mask) if v]
         # truncate entities at sequence length
         entity_spans_end = [min(i, length) for i in entity_spans_end]
         # apply inclusive or not

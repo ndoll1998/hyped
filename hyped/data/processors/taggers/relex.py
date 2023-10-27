@@ -9,6 +9,7 @@ from hyped.utils.feature_checks import (
     raise_feature_equals,
     raise_feature_is_sequence,
     get_sequence_length,
+    get_sequence_feature,
 )
 from hyped.utils.spans import make_spans_exclusive
 from dataclasses import dataclass
@@ -114,7 +115,7 @@ class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
         if self.config.max_sequence_length is not None:
             length = min(length, self.config.max_sequence_length)
 
-        return Sequence(sequence.feature, length=length)
+        return Sequence(get_sequence_feature(sequence), length=length)
 
     def _get_sequence_value_type(self) -> Value | list[Value]:
         """Check the marker configuration and infer the expected
