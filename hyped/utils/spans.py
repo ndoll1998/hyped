@@ -89,11 +89,11 @@ def compute_spans_overlap_matrix(
         (
             # source overlaps with target begin
             (source_spans[:, 0, None] <= target_spans[None, :, 0])
-            & (target_spans[None, :, 0] <= source_spans[:, 1, None])
+            & (target_spans[None, :, 0] < source_spans[:, 1, None])
         )
         | (
             # source overlaps with target end
-            (source_spans[:, 0, None] <= target_spans[None, :, 1])
+            (source_spans[:, 0, None] < target_spans[None, :, 1])
             & (target_spans[None, :, 1] <= source_spans[:, 1, None])
         )
         | (
