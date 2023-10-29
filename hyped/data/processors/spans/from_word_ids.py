@@ -80,12 +80,12 @@ class TokenSpansFromWordIds(BaseDataProcessor[TokenSpansFromWordIdsConfig]):
         """
         word_ids = example[self.config.word_ids]
         # check word ids
-        for i, j in zip(word_ids[:-1], word_ids[1:]):
-            # either stay the same or increment by one
-            if i not in {j, j - 1}:
+        for k, (i, j) in enumerate(zip(word_ids[:-1], word_ids[1:])):
+            # must be monotonically increasing
+            if j < i:
                 raise ValueError(
                     "Word id sequence is invalid, got %s"
-                    % word_ids[max(0, i - 4) : i + 4]
+                    % word_ids[max(0, k - 4) : k + 4]  # noqa: E203
                 )
 
         # group tokens by the word they are a part of
