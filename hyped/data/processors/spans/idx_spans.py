@@ -35,7 +35,7 @@ class CoveredIndexSpansConfig(BaseDataProcessorConfig):
     typically required in data processing for squad-style
     Question Answering (QA) or Named-Entity-Recognition (NER).
 
-    Type Identifier: `hyped.data.processors.spans.char_to_token_spans`
+    Type Identifier: `hyped.data.processors.spans.covered_idx_spans`
 
     Attributes:
         queries_begin (str):

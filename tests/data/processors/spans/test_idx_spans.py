@@ -7,7 +7,7 @@ from datasets import Features, Sequence, Value
 import pytest
 
 
-class TestCharToTokenSpansError(BaseTestDataProcessor):
+class TestCoveredIndexSpansErrors(BaseTestDataProcessor):
     @pytest.fixture(
         params=[
             # invalid feature type
@@ -105,7 +105,7 @@ class TestCharToTokenSpansError(BaseTestDataProcessor):
         return TypeError
 
 
-class TestCharToTokenSpans(BaseTestDataProcessor):
+class TestCoveredIndexSpans(BaseTestDataProcessor):
     @pytest.fixture(params=[True, False])
     def is_queries_inclusive(self, request):
         return request.param
@@ -202,7 +202,7 @@ class TestCharToTokenSpans(BaseTestDataProcessor):
         }
 
 
-class TestSingleCharToTokenSpan(TestCharToTokenSpans):
+class TestSingleCoveredIndexSpan(TestCoveredIndexSpans):
     @pytest.fixture
     def in_features(self):
         return Features(
