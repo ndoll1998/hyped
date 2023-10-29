@@ -70,7 +70,7 @@ def check_feature_equals(
     if isinstance(target, (list, tuple)):
         # if multiple valid targets are given the feature
         # should match any one of them
-        if (len(target) > 1) or (len(target) == 0):
+        if len(target) != 1:
             return any(check_feature_equals(feature, t) for t in target)
         # a list of length one is a valid definition of sequence
         return check_feature_is_sequence(
@@ -88,6 +88,11 @@ def check_feature_equals(
 
         return target is Sequence
 
+    if isclass(target):
+        # if only the target feature class and
+        # not the exact target feature is specified
+        return isinstance(feature, target)
+
     if isinstance(feature, dict):
         # make sure the target is also a mapping
         # with the same keys and ensure that the
@@ -100,11 +105,6 @@ def check_feature_equals(
                 for k in feature.keys()
             )
         )
-
-    if isclass(target):
-        # if only the target feature class and
-        # not the exact target feature is specified
-        return isinstance(feature, target)
 
     # otherwise it should just match the target
     return feature == target
@@ -236,7 +236,7 @@ def raise_feature_equals(
             # value feature types
             raise TypeError(
                 "Expected `%s` to be a one of the types "
-                "in %s, got %s" % (name, target, feature)
+                "in %s, got %s" % (name, target, type(feature))
             )
 
         raise TypeError(

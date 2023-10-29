@@ -4,6 +4,8 @@ from hyped.data.processors.base import (
 )
 from hyped.utils.feature_checks import (
     check_feature_equals,
+    raise_feature_equals,
+    raise_feature_is_sequence,
     get_sequence_length,
     get_sequence_feature,
 )
@@ -63,53 +65,70 @@ class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):
                 mapping specified in the config
         """
 
-        def _resolve_feature_from_path(path, _features):
-            for i, key in enumerate(path):
+        def _resolve_feature_from_path(path, index, _features):
+            # trivial case, reached end of path
+            if index == len(path):
+                return _features
+
+            key = path[index]
+            cur_path = (
+                ("Path%s" % str(path[:index])) if index > 0 else "features"
+            )
+
+            if isinstance(key, (int, slice)):
+                # check feature type must be sequence
+                raise_feature_is_sequence(cur_path, _features)
+                # get sequence feature and length
+                length = get_sequence_length(_features)
+                _features = get_sequence_feature(_features)
+                # follow path
+                _features = _resolve_feature_from_path(
+                    path, index + 1, _features
+                )
+
                 if isinstance(key, int):
-                    # check feature type
-                    if not isinstance(_features, (Sequence, list)):
-                        raise TypeError(
-                            "Expected feature type at path `%s` to be a "
-                            "`Sequence` (or `list`), got %s"
-                            % (str(path[:i]), _features)
-                        )
-                    # check key
-                    length = get_sequence_length(_features)
-                    if (length >= 0) and (key >= length):
+                    # check integer key is in bounds
+                    if (key >= 0) and (key >= length):
                         raise IndexError(
                             "Index `%i` out of bounds for sequence of "
                             "length `%i` of feature at path %s"
-                            % (key, length, str(path[:i]))
+                            % (key, length, cur_path)
                         )
-                    # get feature type at index
-                    _features = get_sequence_feature(_features)
+                    # recurse along path by incrementing the index
+                    return _features
 
-                elif isinstance(key, str):
-                    # check feature type
-                    if not isinstance(_features, (Features, dict)):
-                        raise TypeError(
-                            "Expected feature type at path `%s` to be a "
-                            "mapping (i.e. `Features` or `dict`), got %s"
-                            % (str(path[:i]), _features)
+                if isinstance(key, slice):
+                    # TODO: support more complex slices
+                    if key != slice(-1):
+                        raise NotImplementedError(
+                            "Currently only supports complete slicing "
+                            "i.e. slice(0, -1, 1), got %s" % str(key)
                         )
-                    # check key
-                    if key not in _features.keys():
-                        raise KeyError(
-                            "Key `%s` not present in feature mapping at "
-                            "path `%s`, valid keys are %s"
-                            % (key, str(path[:i]), list(_features.keys()))
-                        )
-                    # get feature type at key
-                    _features = _features[key]
+                    # pack feature in sequence
+                    return Sequence(_features)
 
-                else:
-                    # unexpected key type in path
-                    raise TypeError(
-                        "Unexpected key type in path, valid types are `str` "
-                        "or `int`, got %s" % key
+            elif isinstance(key, str):
+                # check feature type
+                raise_feature_equals(cur_path, _features, [Features, dict])
+
+                # check key
+                if key not in _features.keys():
+                    raise KeyError(
+                        "Key `%s` not present in feature mapping at "
+                        "path `%s`, valid keys are %s"
+                        % (key, cur_path, list(_features.keys()))
                     )
+                # recurse on feature at key
+                return _resolve_feature_from_path(
+                    path, index + 1, _features[key]
+                )
 
-            return _features
+            else:
+                # unexpected key type in path
+                raise TypeError(
+                    "Unexpected key type in path, valid types are `str` "
+                    "or `int`, got %s" % key
+                )
 
         def _map_features(mapping):
             if isinstance(mapping, str):
@@ -130,7 +149,7 @@ class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):
                         "feature mapping"
                     )
                 # resolve
-                return _resolve_feature_from_path(mapping, features)
+                return _resolve_feature_from_path(mapping, 0, features)
 
             if isinstance(mapping, list):
                 new_features = list(map(_map_features, mapping))
@@ -172,13 +191,23 @@ class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):
             out (dict[str, Any]): formatted example
         """
 
-        def _resolve_value_from_path(path, _example):
-            # follow path
-            for key in path:
-                # works for both sequences and mappings
-                _example = _example[key]
+        def _resolve_value_from_path(path, example):
+            # trivial case, reached end of path
+            if len(path) == 0:
+                return example
 
-            return _example
+            # get the current key from the path
+            key = path[0]
+
+            if isinstance(key, slice):
+                # recurse further for each item in the sequence
+                return [
+                    _resolve_value_from_path(path[1:], value)
+                    for value in example
+                ]
+
+            # works for both sequences and mappings
+            return _resolve_value_from_path(path[1:], example[key])
 
         def _map_example(mapping):
             if isinstance(mapping, str):

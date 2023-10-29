@@ -300,3 +300,57 @@ class TestAccessNestedFeatures(BaseTestFormatNestedFeatures):
             "A.y.0": [item["y"][0] for item in batch["A"]],
             "A.y.1": [item["y"][1] for item in batch["A"]],
         }
+
+
+class TestFormatSliceFeatures(BaseTestDataProcessor):
+    @pytest.fixture
+    def in_features(self):
+        return Features(
+            {
+                "X": Value("int32"),
+                "A": Sequence(Sequence(Value("int32"), length=3)),
+            }
+        )
+
+    @pytest.fixture
+    def batch(self):
+        return {
+            "X": list(range(0, 12)),
+            "A": [
+                [[i + 1, i + 2, i + 3] for i in range(0, 12)]
+                for _ in range(12)
+            ],
+        }
+
+    @pytest.fixture
+    def processor(self):
+        return FormatFeatures(
+            FormatFeaturesConfig(
+                mapping={
+                    "new_X": "X",
+                    "A.0": ("A", slice(-1), 0),
+                    "A.1": ("A", slice(-1), 1),
+                    "A.2": ("A", slice(-1), 2),
+                }
+            )
+        )
+
+    @pytest.fixture
+    def expected_out_features(self):
+        return Features(
+            {
+                "new_X": Value("int32"),
+                "A.0": Sequence(Value("int32")),
+                "A.1": Sequence(Value("int32")),
+                "A.2": Sequence(Value("int32")),
+            }
+        )
+
+    @pytest.fixture
+    def expected_out_batch(self):
+        return {
+            "new_X": list(range(0, 12)),
+            "A.0": [[i + 1 for i in range(0, 12)] for _ in range(12)],
+            "A.1": [[i + 2 for i in range(0, 12)] for _ in range(12)],
+            "A.2": [[i + 3 for i in range(0, 12)] for _ in range(12)],
+        }
