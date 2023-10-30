@@ -5,6 +5,7 @@ from hyped.utils.spans import (
     ResolveOverlapsStrategy,
 )
 from contextlib import nullcontext
+from itertools import compress
 import numpy as np
 import pytest
 
@@ -40,6 +41,10 @@ class TestComputeSpansOverlapMatrix:
 
 
 class TestResolveOverlaps:
+    def resolve(self, spans, strategy):
+        mask = resolve_overlaps(spans, strategy)
+        return list(compress(spans, mask))
+
     @pytest.mark.parametrize(
         "spans, expected_err",
         [[[(2, 4), (5, 9)], None], [[(2, 7), (5, 9)], ValueError]],
@@ -48,7 +53,7 @@ class TestResolveOverlaps:
         with nullcontext() if expected_err is None else pytest.raises(
             expected_err
         ):
-            resolve_overlaps(spans, ResolveOverlapsStrategy.RAISE)
+            self.resolve(spans, ResolveOverlapsStrategy.RAISE)
 
     @pytest.mark.parametrize(
         "spans, expected_spans",
@@ -89,7 +94,7 @@ class TestResolveOverlaps:
     )
     def test_keep_first(self, spans, expected_spans):
         assert (
-            resolve_overlaps(spans, ResolveOverlapsStrategy.KEEP_FIRST)
+            self.resolve(spans, ResolveOverlapsStrategy.KEEP_FIRST)
             == expected_spans
         )
 
@@ -132,7 +137,7 @@ class TestResolveOverlaps:
     )
     def test_keep_last(self, spans, expected_spans):
         assert (
-            resolve_overlaps(spans, ResolveOverlapsStrategy.KEEP_LAST)
+            self.resolve(spans, ResolveOverlapsStrategy.KEEP_LAST)
             == expected_spans
         )
 
@@ -175,7 +180,7 @@ class TestResolveOverlaps:
     )
     def test_keep_largest(self, spans, expected_spans):
         assert (
-            resolve_overlaps(spans, ResolveOverlapsStrategy.KEEP_LARGEST)
+            self.resolve(spans, ResolveOverlapsStrategy.KEEP_LARGEST)
             == expected_spans
         )
 
@@ -218,6 +223,6 @@ class TestResolveOverlaps:
     )
     def test_keep_smallest(self, spans, expected_spans):
         assert (
-            resolve_overlaps(spans, ResolveOverlapsStrategy.KEEP_SMALLEST)
+            self.resolve(spans, ResolveOverlapsStrategy.KEEP_SMALLEST)
             == expected_spans
         )

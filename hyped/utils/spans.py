@@ -112,7 +112,7 @@ def compute_spans_overlap_matrix(
 def resolve_overlaps(
     spans: Sequence[tuple[int]],
     strategy: ResolveOverlapsStrategy = ResolveOverlapsStrategy.APPROX,
-) -> list[tuple[int]]:
+) -> list[bool]:
     """Resolve span overlaps
 
     Iteratively removes the span which overlaps with most other
@@ -124,6 +124,12 @@ def resolve_overlaps(
             sequence of potentially overlapping spans
         strategy (ResloveOverlapsStrategy):
             strategy to apply for resolving overlaps between spans
+
+    Returns:
+        mask (list[bool]):
+            mask over the span sequence resolving overlaps when applied.
+            Specifically the mask marks spans to keep with true and spans
+            to remove to resolve the overlaps with false
     """
 
     spans = np.asarray(list(spans)).reshape(-1, 2)
@@ -180,13 +186,12 @@ def resolve_overlaps(
         # remove the first candidate
         idx_to_remove = cand_mask.argmax()
 
-        # remove the span at the selected index
-        spans = np.delete(spans, idx_to_remove, axis=0)
         # update counts
         counts = counts - overlap[idx_to_remove, :].astype(int)
-        counts = np.delete(counts, idx_to_remove)
+        counts[idx_to_remove] = -1
         # update the overlap matrix
-        overlap = np.delete(overlap, idx_to_remove, axis=0)
-        overlap = np.delete(overlap, idx_to_remove, axis=1)
+        overlap[:, idx_to_remove] = False
+        overlap[idx_to_remove, :] = False
 
-    return list(map(tuple, spans.tolist()))
+    # return mask indicating which spans to keep
+    return (counts != -1).tolist()
