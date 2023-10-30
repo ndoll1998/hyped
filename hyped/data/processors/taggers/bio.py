@@ -12,9 +12,8 @@ from hyped.utils.feature_checks import (
 )
 from hyped.utils.spans import (
     make_spans_exclusive,
-    resolve_overlaps,
-    ResolveOverlapsStrategy,
 )
+import numpy as np
 from dataclasses import dataclass
 from datasets import Features, Sequence, ClassLabel, Value
 from typing import Any, Literal
@@ -47,11 +46,6 @@ class BioTaggerConfig(BaseDataProcessorConfig):
         entity_spans_inclusive (bool):
             whether the end coordinate of the entity spans are
             inclusive or exclusive. Defaults to false.
-        resolve_overlaps (ResolveOverlapsStrategy):
-            the filter strategy to apply on overlapping entities. By default
-            set to `ResolveOverlapsStrategy.RAISE` which will raise an
-            Exception when an overlap is detected.
-            See `hyped.utils.spans.ResolveOverlapsStrategy` for other options.
     """
 
     t: Literal[
@@ -68,8 +62,6 @@ class BioTaggerConfig(BaseDataProcessorConfig):
     entity_spans_label: str = None
 
     entity_spans_inclusive: bool = False
-    # handle overlaps between spans
-    resolve_overlaps: ResolveOverlapsStrategy = ResolveOverlapsStrategy.RAISE
 
 
 class BioTagger(BaseDataProcessor[BioTaggerConfig]):
@@ -79,7 +71,35 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
     using the BIO-tagging scheme.
     """
 
+    @property
+    def entity_label_space(self) -> None | ClassLabel:
+        """Entity label-space extracted from input features"""
+        feature = self.in_features[self.config.entity_spans_label]
+        feature = get_sequence_feature(feature)
+        return feature if isinstance(feature, ClassLabel) else None
+
+    @property
+    def bio_label_space(self) -> None | ClassLabel:
+        """Bio tags label-space extracted from new features"""
+        feature = self.new_features["bio_tags"]
+        feature = get_sequence_feature(feature)
+        return feature if isinstance(feature, ClassLabel) else None
+
     def _tag_sequence_feature(self, features: Features) -> Sequence:
+        """Build the tag sequence dataset feature given the input
+        feature mapping
+
+        If the entity labels feature is a sequence of class labels, then
+        the bio tag label-space is inferred from it by applying the BIO
+        label scheme. Otherwise the tag sequence will be a sequence of
+        strings.
+
+        Arguments:
+            features (Features): input dataset features
+
+        Returns:
+            tag_seq (Sequence): the dataset feature for the bio tags
+        """
         # the entity class label feature must be a sequence of
         # string values or class labels
         raise_feature_is_sequence(
@@ -110,22 +130,20 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
 
             return Sequence(bio_feature_type, length=length)
 
-        elif feature == Value("string"):
-            return Sequence(Value("string"), length=length)
-
-    @property
-    def entity_label_space(self) -> None | ClassLabel:
-        feature = self.in_features[self.config.entity_spans_label]
-        feature = get_sequence_feature(feature)
-        return feature if isinstance(feature, ClassLabel) else None
-
-    @property
-    def bio_label_space(self) -> None | ClassLabel:
-        feature = self.new_features["bio_tags"]
-        feature = get_sequence_feature(feature)
-        return feature if isinstance(feature, ClassLabel) else None
+        # otherwise the input feature type must be string
+        # in which case keep it a string
+        return Sequence(Value("string"), length=length)
 
     def map_features(self, features: Features) -> Features:
+        """Check input features and return feature mapping
+        for the bio tags.
+
+        Arguments:
+            features (Features): input dataset features
+
+        Returns:
+            out (Features): bio tags feature mapping
+        """
         # make sure the input sequence exists and is a sequence
         raise_feature_exists(self.config.input_sequence, features)
         raise_feature_is_sequence(
@@ -158,6 +176,16 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
     def process(
         self, example: dict[str, Any], index: int, rank: int
     ) -> dict[str, Any]:
+        """Apply processor to an example
+
+        Arguments:
+            example (dict[str, Any]): example to process
+            index (int): dataset index of the example
+            rank (int): execution process rank
+
+        Returns:
+            out (dict[str, Any]): token-level span annotations
+        """
         # get length of input sequence
         length = len(example[self.config.input_sequence])
 
@@ -167,10 +195,7 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
             example[self.config.entity_spans_end],
         )
         # make entity spans exclusive and filter overlapping spans
-        init_spans = make_spans_exclusive(
-            spans, self.config.entity_spans_inclusive
-        )
-        spans = resolve_overlaps(init_spans, self.config.resolve_overlaps)
+        spans = make_spans_exclusive(spans, self.config.entity_spans_inclusive)
 
         # get the entity labels
         labels = example[self.config.entity_spans_label]
@@ -178,22 +203,35 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
         if self.entity_label_space is not None:
             labels = self.entity_label_space.int2str(labels)
 
-        # if any spans have been filtered then
-        # the labels need to be filtered to
-        if len(spans) < len(init_spans):
-            labels = map(labels.__getitem__, map(init_spans.index, spans))
-
         # build initial tag sequence of all out tags
-        tags = [self.config.out_tag] * length
+        tags = np.full(length, fill_value=self.config.out_tag, dtype=object)
 
         # insert all entity spans
         for label, (b, e) in zip(labels, spans):
-            # all overlaps should be filtered at this point
-            assert all(t == self.config.out_tag for t in tags[b:e])
+            # check for overlaps with previous annotations
+            if (tags[b:e] != self.config.out_tag).any():
+                # get the overlapping entity types
+                overlap_types = [label] + [
+                    (
+                        tag.removeprefix(
+                            self.config.begin_tag_prefix
+                        ).removeprefix(self.config.in_tag_prefix)
+                    )
+                    for tag in tags[b:e]
+                    if tag != self.config.out_tag
+                ]
+                # raise error on overlap
+                raise ValueError(
+                    "Detected overlap between entities of types %s"
+                    % ", ".join(overlap_types)
+                )
+
             # add entity to tag sequence
-            tags[b:e] = ["%s%s" % (self.config.in_tag_prefix, label)] * (e - b)
+            tags[b:e] = "%s%s" % (self.config.in_tag_prefix, label)
             tags[b] = "%s%s" % (self.config.begin_tag_prefix, label)
 
+        # convert numpy array to list
+        tags = tags.tolist()
         # convert label strings to label ids
         if self.bio_label_space is not None:
             tags = self.bio_label_space.str2int(tags)

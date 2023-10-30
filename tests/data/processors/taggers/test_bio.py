@@ -3,7 +3,6 @@ from hyped.data.processors.taggers.bio import (
     BioTagger,
     BioTaggerConfig,
 )
-from hyped.utils.spans import ResolveOverlapsStrategy
 from datasets import Features, Sequence, Value, ClassLabel
 from itertools import permutations
 import pytest
@@ -128,19 +127,9 @@ class TestBioTagger(BaseTestDataProcessor):
         return {"bio_tags": [tags]}
 
 
-class TestBioTaggerWithOverlaps(TestBioTagger):
-    @pytest.fixture(
-        params=[
-            ResolveOverlapsStrategy.RAISE,
-            ResolveOverlapsStrategy.KEEP_SMALLEST,
-            ResolveOverlapsStrategy.KEEP_LARGEST,
-        ]
-    )
-    def strategy(self, request):
-        return request.param
-
+class TestBioTaggerErrorOnOverlap(TestBioTagger):
     @pytest.fixture
-    def processor(self, is_span_inclusive, strategy):
+    def processor(self, is_span_inclusive):
         return BioTagger(
             BioTaggerConfig(
                 input_sequence="input_sequence",
@@ -148,7 +137,6 @@ class TestBioTaggerWithOverlaps(TestBioTagger):
                 entity_spans_end="entity_spans_end",
                 entity_spans_label="entity_spans_label",
                 entity_spans_inclusive=is_span_inclusive,
-                resolve_overlaps=strategy,
             )
         )
 
@@ -187,43 +175,5 @@ class TestBioTaggerWithOverlaps(TestBioTagger):
         }
 
     @pytest.fixture
-    def expected_err_on_process(self, strategy):
-        if strategy == ResolveOverlapsStrategy.RAISE:
-            return ValueError
-
-    @pytest.fixture
-    def expected_out_batch(self, strategy, length, tags_feature):
-        if strategy == ResolveOverlapsStrategy.RAISE:
-            # no output expected in this case
-            return None
-
-        # initial bio tags are all out tags
-        tags = ["O"] * 32
-
-        if strategy == ResolveOverlapsStrategy.KEEP_SMALLEST:
-            # X entities
-            tags[3] = "B-X"
-            tags[4:8] = ["I-X"] * 4
-            # Y entites
-            tags[14] = "B-Y"
-            tags[15:19] = ["I-Y"] * 4
-
-        if strategy == ResolveOverlapsStrategy.KEEP_LARGEST:
-            # overlapping X entity
-            tags[1] = "B-X"
-            tags[2:15] = ["I-X"] * 13
-
-        # others
-        tags[24] = "B-Y"
-        tags[28] = "B-X"
-        tags[29:31] = ["I-X"] * 2
-
-        # cut tags at relevant length
-        tags = tags[: (20 if length == -1 else length)]
-
-        # convert to label indices
-        if isinstance(tags_feature, ClassLabel):
-            tags = tags_feature.str2int(tags)
-
-        # return bio tags
-        return {"bio_tags": [tags]}
+    def expected_err_on_process(self):
+        return ValueError

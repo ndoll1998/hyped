@@ -163,8 +163,7 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
             x = {k: v[j] for k, v in examples.items()}
             y = self.process(x, index=i, rank=rank)
 
-            # handle output types to to end up with
-            # an iterable over outputs
+            # handle different output types
             if isinstance(y, GeneratorType):
                 pass
             elif isinstance(y, dict):
