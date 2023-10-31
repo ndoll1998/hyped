@@ -125,6 +125,15 @@ class ResolveSpanOverlaps(BaseDataProcessor[ResolveSpanOverlapsConfig]):
                 example[self.config.spans_end],
             )
         )
+
+        if len(spans) == 0:
+            # handle edgecase no spans
+            return {
+                "resolve_overlaps_mask": [],
+                self.config.spans_begin: [],
+                self.config.spans_end: [],
+            }
+
         # make spans exclusive and resolve overlaps
         excl_spans = make_spans_exclusive(
             spans, self.config.is_spans_inclusive

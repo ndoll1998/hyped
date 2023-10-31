@@ -11,6 +11,7 @@ import pytest
 class TestResolveSpanOverlaps(BaseTestDataProcessor):
     @pytest.fixture(
         params=[
+            [[], []],
             [[(2, 4), (5, 9)], [True, True]],
             [[(2, 5), (5, 9)], [True, True]],
             [[(2, 6), (3, 9)], [False, True]],
@@ -51,7 +52,7 @@ class TestResolveSpanOverlaps(BaseTestDataProcessor):
 
     @pytest.fixture
     def batch(self, spans):
-        begins, ends = zip(*spans)
+        begins, ends = ([], []) if len(spans) == 0 else zip(*spans)
         return {
             "spans_begin": [list(begins)],
             "spans_end": [list(ends)],
@@ -59,8 +60,8 @@ class TestResolveSpanOverlaps(BaseTestDataProcessor):
 
     @pytest.fixture
     def expected_out_batch(self, spans, mask):
-        spans = compress(spans, mask)
-        begins, ends = zip(*spans)
+        spans = list(compress(spans, mask))
+        begins, ends = ([], []) if len(spans) == 0 else zip(*spans)
 
         return {
             "resolve_overlaps_mask": [mask],
