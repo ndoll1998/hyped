@@ -29,7 +29,8 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
     """Abstract Base Data Processor
 
     Provides basic functionality of a data-processor. Sub-types need to
-    specify the `process` and `map_features` function.
+    specify the `map_features` and either the `process` or
+    `internal_batch_process` function.
 
     Arguments:
         config (BaseDataProcessorConfig): data processor configuration
@@ -152,11 +153,55 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
                 whether to return the source index for each output example
 
         Returns:
-            out (dict[str, list[Any]]|tuple[dict[str, list[Any]], list[int]]):
-                processed examples and source indices when asked for
+            out_batch (dict[str, list[Any]]): processed examples
+            index (list[int]):
+                the source indices to each example. Only returned when
+                `return_index` is set to true.
         """
+        # process batch
+        out_batch, out_index = self.internal_batch_process(
+            examples, index, rank
+        )
 
-        out = {key: [] for key in self.out_features.keys()}
+        if self.config.keep_input_features:
+            if out_index != index:
+                # gather input features to each output example
+                # this filters/duplicates or reorders the input
+                # features to match the output batch
+                examples = {
+                    k: [v[i] for i in out_index] for k, v in examples.items()
+                }
+
+            # add input features to output batch
+            out_batch = dict(examples | out_batch)
+
+        # return output examples
+        return (out_batch, out_index) if return_index else out_batch
+
+    def internal_batch_process(
+        self, examples: dict[str, list[Any]], index: list[int], rank: int
+    ) -> tuple[dict[str, list[Any]], list[int]]:
+        """Internal batch process
+
+        By default passes each example one-by-one to the `process`
+        function and gathers the outputs into an output batch. Also
+        handles the index mapping in case the `process` function
+        defines a generator.
+
+        Overwrite this function to process a whole batch simultaneously
+        instead of single examples.
+
+        Arguments:
+            examples (dict[str, list[Any]]): batch of examples to process
+            index (list[int]): dataset indices of the examples
+            rank (int): execution process rank
+
+        Returns:
+            out_batch (dict[str, list[Any]]): processed examples
+            index (list[int]):
+                the source index to each example in the output batch
+        """
+        out_batch = {key: [] for key in self.new_features.keys()}
         out_index = []
         # process each example one-by-one
         for j, i in enumerate(index):
@@ -175,22 +220,20 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
                 )
 
             for d in y:
-                # merge output with input features if asked for
-                d = (x | d) if self.config.keep_input_features else d
-                # write all features to output dictionary
+                # collect outputs
                 for k, v in d.items():
-                    out[k].append(v)
+                    out_batch[k].append(v)
                 # add index to out index array
                 out_index.append(i)
 
         # return output examples
-        return (out, out_index) if return_index else out
+        return out_batch, out_index
 
-    @abstractmethod
     def process(
         self, example: dict[str, Any], index: int, rank: int
     ) -> dict[str, Any] | Generator[dict[str, Any], None, None]:
-        """Abstract process method. Needs to be overwritten in sub-classes.
+        """Abstract process method. Called by `internal_batch_process`.
+        Needs to be overwritten in sub-classes.
 
         The function can either return the output example directly, or it can
         be a generator yielding a number of generated examples. This is handy
@@ -206,7 +249,7 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
             out (dict[str, Any]|Generator[dict[str, Any], None, None]):
                 processed example or generator over examples
         """
-        ...
+        raise NotImplementedError
 
     @abstractmethod
     def map_features(self, features: Features) -> Features:

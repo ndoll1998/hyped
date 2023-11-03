@@ -88,6 +88,11 @@ class TestHuggingFaceTokenizer(BaseTestDataProcessor):
         for enc in map(tokenize, batch["text"]):
             # add to output batch
             for key, val in enc.items():
+                # length is a list of a single item
+                # when only a single element is passed
+                if key == "length":
+                    val = val[0]
+                # collect features
                 out_batch[key].append(val)
             # add word ids
             if processor.config.return_word_ids:
@@ -139,7 +144,7 @@ class TestHuggingFaceTokenizer(BaseTestDataProcessor):
                 Sequence(Value("int32"), length=2), length=max_length
             )
         if return_options.get("return_length", False):
-            features["length"] = Sequence(Value("int32"), length=1)
+            features["length"] = Value("int32")
         if return_options.get("return_word_ids", False):
             features["word_ids"] = Sequence(Value("int32"), length=max_length)
 
