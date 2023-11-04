@@ -23,11 +23,19 @@ class Registrable(ABC):
         type and *not* runtime specific. This allows for type
         resolving by hash accross python runtimes.
 
+        When the source code of the class is not available, the
+        hash of the class module and name is computed instead.
+        This is the case for pre-compiled classes or classes
+        defined in jupyter notebooks.
+
         Returns:
             h (str): hash code of type
         """
-        src = inspect.getsource(cls)
-        src_lines = src.splitlines()
+        try:
+            src = inspect.getsource(cls)
+            src_lines = src.splitlines()
+        except OSError:
+            src_lines = [cls.__module__, cls.__name__]
         return _hash_python_lines(src_lines)
 
 
