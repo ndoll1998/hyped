@@ -358,4 +358,4 @@ class HuggingFaceTokenizer(BaseDataProcessor[HuggingFaceTokenizerConfig]):
                 for j in range(len(index))
             ]
         # convert to dict and return
-        return dict(enc), index
+        return dict(enc), list(range(len(index)))

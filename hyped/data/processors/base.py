@@ -159,24 +159,29 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
                 `return_index` is set to true.
         """
         # process batch
-        out_batch, out_index = self.internal_batch_process(
+        out_batch, src_index = self.internal_batch_process(
             examples, index, rank
         )
 
         if self.config.keep_input_features:
-            if out_index != index:
+            # check if the src index is not range(n)
+            if (len(index) != len(src_index)) or any(
+                i != j for i, j in enumerate(src_index)
+            ):
                 # gather input features to each output example
                 # this filters/duplicates or reorders the input
                 # features to match the output batch
                 examples = {
-                    k: [v[i] for i in out_index] for k, v in examples.items()
+                    k: [v[i] for i in src_index] for k, v in examples.items()
                 }
+                # gather the out indices
+                index = [index[i] for i in src_index]
 
             # add input features to output batch
             out_batch = dict(examples | out_batch)
 
         # return output examples
-        return (out_batch, out_index) if return_index else out_batch
+        return (out_batch, index) if return_index else out_batch
 
     def internal_batch_process(
         self, examples: dict[str, list[Any]], index: list[int], rank: int
@@ -198,11 +203,13 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
 
         Returns:
             out_batch (dict[str, list[Any]]): processed examples
-            index (list[int]):
-                the source index to each example in the output batch
+            src_index (list[int]):
+                the index of the source example in the input batch that
+                generated the output example, specifically the i-th output
+                element is generated from the src_index[i]-th input example
         """
         out_batch = {key: [] for key in self.new_features.keys()}
-        out_index = []
+        src_index = []
         # process each example one-by-one
         for j, i in enumerate(index):
             x = {k: v[j] for k, v in examples.items()}
@@ -224,10 +231,10 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
                 for k, v in d.items():
                     out_batch[k].append(v)
                 # add index to out index array
-                out_index.append(i)
+                src_index.append(j)
 
         # return output examples
-        return out_batch, out_index
+        return out_batch, src_index
 
     def process(
         self, example: dict[str, Any], index: int, rank: int
