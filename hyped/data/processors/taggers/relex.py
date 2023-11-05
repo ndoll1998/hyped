@@ -201,7 +201,7 @@ class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
         self, example: dict[str, Any], index: int, rank: int
     ) -> dict[str, Any]:
         # get input sequence from example
-        input_sequence = example[self.config.input_sequence]
+        input_sequence = list(example[self.config.input_sequence])
         l = len(input_sequence)  # noqa: E741
 
         # get source and target spans
@@ -246,15 +246,12 @@ class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
             input_sequence = input_sequence[i:j]
             spans -= i
 
-        # insert markers
-        marked_input_sequence = np.insert(
-            np.asarray(input_sequence, dtype=object),
-            spans,
-            np.asarray(self.config.markers, dtype=object),
-        )
+        # insert markers from back to front
+        # sort markers by their actual positions and insert begin
+        # markers before end markers to avoid overlaps in case
+        # begin and end position are equal (ends are exclusive)
+        for i in sorted(range(4), key=lambda i: (-spans[i] - i // 2)):
+            input_sequence.insert(spans[i], self.config.markers[i])
 
         # remove dummy item at the end of the sequence and return
-        yield {
-            "%s.with_markers"
-            % self.config.input_sequence: marked_input_sequence.tolist()
-        }
+        yield {"%s.with_markers" % self.config.input_sequence: input_sequence}
