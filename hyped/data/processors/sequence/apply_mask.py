@@ -28,8 +28,8 @@ class ApplyMaskConfig(BaseDataProcessorConfig):
     """
 
     t: Literal[
-        "hyped.data.processors.pruners.apply_mask"
-    ] = "hyped.data.processors.pruners.apply_mask"
+        "hyped.data.processors.sequence.apply_mask"
+    ] = "hyped.data.processors.sequence.apply_mask"
 
     mask: str = None
     sequences: str | list[str] = None

@@ -1,5 +1,8 @@
 from tests.data.processors.base import BaseTestDataProcessor
-from hyped.data.processors.pruners.apply_mask import ApplyMask, ApplyMaskConfig
+from hyped.data.processors.sequence.apply_mask import (
+    ApplyMask,
+    ApplyMaskConfig,
+)
 from datasets import Features, Sequence, Value
 import pytest
 
