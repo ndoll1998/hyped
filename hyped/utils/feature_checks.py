@@ -1,6 +1,9 @@
+import pyarrow as pa
 from inspect import isclass
 from datasets import Features, Sequence, Value
 from datasets.features.features import FeatureType
+from .arrow import convert_features_to_arrow_schema
+from typing import Any
 
 INT_TYPES = [
     Value("int8"),
@@ -189,6 +192,33 @@ def check_sequence_lengths_match(
     return get_sequence_length(seq_A) == get_sequence_length(seq_B)
 
 
+def check_object_matches_feature(obj: Any, feature: FeatureType):
+    """Check whether the object is of the given feature type
+
+    Arguments:
+        obj (Any): the object whichs type to check
+        feature (FeatureType): the feature type to check for
+
+    Returns:
+        is_of_type (bool):
+            boolean indicating whether the object is of the
+            feature type or not
+    """
+
+    # preparation
+    data = {"__obj__": [obj]}
+    features = Features({"__obj__": feature})
+
+    try:
+        # try to encode data into pyarrow table which internally checks types
+        pa.table(data=data, schema=convert_features_to_arrow_schema(features))
+        return True
+
+    except (pa.lib.ArrowTypeError, pa.lib.ArrowInvalid):
+        # catch error in type check
+        return False
+
+
 def raise_feature_exists(name: str, features: Features) -> None:
     """Check if feature exists in feature mapping
 
@@ -309,4 +339,22 @@ def raise_feature_is_sequence(
         raise TypeError(
             "Expected `%s` to be a sequence of type %s, got %s"
             % (name, value_type, feature)
+        )
+
+
+def raise_object_matches_feature(obj: Any, feature: FeatureType):
+    """Check whether the object is of the given feature type
+
+    Arguments:
+        obj (Any): the object whichs type to check
+        feature (FeatureType): the feature type to check for
+
+    Raises:
+        exc (TypeError):
+            when the object is not of the feature type
+    """
+
+    if not check_object_matches_feature(obj, feature):
+        raise TypeError(
+            "Expected object to be of type %s, got %s" % (feature, obj)
         )

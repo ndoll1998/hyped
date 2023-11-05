@@ -3,10 +3,13 @@ from hyped.utils.feature_checks import (
     check_feature_equals,
     check_feature_is_sequence,
     check_sequence_lengths_match,
+    check_object_matches_feature,
     get_sequence_length,
+    get_sequence_feature,
     raise_feature_exists,
     raise_feature_equals,
     raise_feature_is_sequence,
+    raise_object_matches_feature,
 )
 from datasets import Features, Sequence, Value
 import pytest
@@ -433,6 +436,63 @@ class TestGetSequenceLength:
     )
     def test(self, seq, length):
         assert get_sequence_length(seq) == length
+
+
+class TestGetSequenceFeature:
+    @pytest.mark.parametrize(
+        "seq, feature",
+        [
+            [[Value("int32")], Value("int32")],
+            [Sequence(Value("int32")), Value("int32")],
+            [Sequence(Value("int32"), length=8), Value("int32")],
+            [[Value("string")], Value("string")],
+            [Sequence(Value("string")), Value("string")],
+            [Sequence(Value("string"), length=8), Value("string")],
+            [[Sequence(Value("string"))], Sequence(Value("string"))],
+            [Sequence(Sequence(Value("string"))), Sequence(Value("string"))],
+            [
+                Sequence(Sequence(Value("string"), length=8)),
+                Sequence(Value("string"), length=8),
+            ],
+        ],
+    )
+    def test(self, seq, feature):
+        assert get_sequence_feature(seq) == feature
+
+
+class TestObjectMatchesFeature:
+    @pytest.mark.parametrize(
+        "obj, feature",
+        [
+            [1, Value("int16")],
+            [1, Value("int32")],
+            [1, Value("int64")],
+            ["test", Value("string")],
+            [[1, 2, 3], Sequence(Value("int32"))],
+            [[1, 2, 3], Sequence(Value("int32"), length=3)],
+        ],
+    )
+    def test_true(self, obj, feature):
+        # object should match the type
+        assert check_object_matches_feature(obj, feature)
+        # thus this shouldn't raise an error
+        raise_object_matches_feature(obj, feature)
+
+    @pytest.mark.parametrize(
+        "obj, feature",
+        [
+            [1, Value("string")],
+            ["test", Value("int32")],
+            [[1, 2, 3], Sequence(Value("string"))],
+            [[1, 2, 3], Sequence(Value("int32"), length=2)],
+        ],
+    )
+    def test_false(self, obj, feature):
+        # object doesn't match the type
+        assert not check_object_matches_feature(obj, feature)
+        # thus this should raise an error
+        with pytest.raises(TypeError):
+            raise_object_matches_feature(obj, feature)
 
 
 class TestSequenceLengthsMatch:
