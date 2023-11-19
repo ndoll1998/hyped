@@ -43,7 +43,13 @@ class BioTaggerConfig(BaseDataProcessorConfig):
             of a specific class
         out_tag (str):
             out tag used to mark tokens that are not part of any entity
-        input_sequence (str): column containing the input sequence
+        input_sequence (str):
+            column containing the input sequence
+        mask (None | str):
+            column containing a mask specifying items to ignore in the
+            input sequence. The corresponding items in the generated bio
+            tag sequence will be set to INV or -100. Typically this is
+            set to the `HuggingFaceTokenizerOutputs.SPECIAL_TOKENS_MASK`.
         entity_spans_begin (str):
             column containing begins of the entity span annotations
         entity_spans_end (str):
@@ -65,6 +71,7 @@ class BioTaggerConfig(BaseDataProcessorConfig):
     out_tag: str = "O"
 
     input_sequence: str = None
+    mask: None | str = None
     entity_spans_begin: str = None
     entity_spans_end: str = None
     entity_spans_label: str = None
@@ -78,6 +85,9 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
     Convert Entity span annotations to per-token labels
     using the BIO-tagging scheme.
     """
+
+    INVALID_TAG = "INV"
+    INVALID_VAL = -100
 
     @property
     def entity_label_space(self) -> None | ClassLabel:
@@ -158,6 +168,14 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
             self.config.input_sequence, features[self.config.input_sequence]
         )
 
+        # make sure the invalid mask exists and is a sequence when set
+        if self.config.mask:
+            raise_feature_exists(self.config.mask, features)
+            raise_feature_is_sequence(
+                self.config.mask, features[self.config.mask],
+                [Value("bool")] + INDEX_TYPES
+            )
+
         # make sure entity spans exist and are of correct type
         raise_feature_exists(self.config.entity_spans_begin, features)
         raise_feature_exists(self.config.entity_spans_end, features)
@@ -198,6 +216,11 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
         """
         # get length of input sequence
         length = len(example[self.config.input_sequence])
+        # get the invalid mask
+        if self.config.mask is not None:
+            mask = np.asarray(example[self.config.mask], dtype=bool)
+        else:
+            mask = np.full(length, fill_value=False, dtype=bool)
 
         # get entity spans
         spans = zip(
@@ -213,8 +236,9 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
         if self.entity_label_space is not None:
             labels = self.entity_label_space.int2str(labels)
 
-        # build initial tag sequence of all out tags
+        # build initial tag sequence of all out and invalid tags
         tags = np.full(length, fill_value=self.config.out_tag, dtype=object)
+        tags[mask] = type(self).INVALID_TAG
 
         # insert all entity spans
         for label, (b, e) in zip(labels, spans):
@@ -240,11 +264,10 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
             tags[b:e] = "%s%s" % (self.config.in_tag_prefix, label)
             tags[b] = "%s%s" % (self.config.begin_tag_prefix, label)
 
-        # convert numpy array to list
-        tags = tags.tolist()
         # convert label strings to label ids
         if self.bio_label_space is not None:
-            tags = self.bio_label_space.str2int(tags)
+            tags[mask] = type(self).INVALID_VAL
+            tags[~mask] = self.bio_label_space.str2int(tags[~mask].tolist())
 
         # return bio tags
-        return {BioTaggerOutputs.BIO_TAGS: tags}
+        return {BioTaggerOutputs.BIO_TAGS: tags.tolist()}

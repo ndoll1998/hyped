@@ -37,9 +37,14 @@ class TestBioTagger(BaseTestDataProcessor):
     def tags_feature(self, labels_and_tags_feature):
         return labels_and_tags_feature[1]
 
+    @pytest.fixture(params=[False, True])
+    def with_mask(self, request):
+        return request.param
+
     @pytest.fixture
-    def in_features(self, length, labels_feature):
-        return Features(
+    def in_features(self, length, labels_feature, with_mask):
+        # base features
+        features = Features(
             {
                 "input_sequence": Sequence(Value("int32"), length=length),
                 "entity_spans_begin": Sequence(Value("int32")),
@@ -47,9 +52,14 @@ class TestBioTagger(BaseTestDataProcessor):
                 "entity_spans_label": Sequence(labels_feature),
             }
         )
+        # add mask feature if needed
+        if with_mask:
+            features["mask"] = Sequence(Value("bool"))
+
+        return features
 
     @pytest.fixture(params=permutations(range(4)))
-    def batch(self, request, length, labels_feature, is_span_inclusive):
+    def batch(self, request, length, labels_feature, is_span_inclusive, with_mask):
         # set length if it is undefined
         length = 20 if length == -1 else length
 
@@ -80,18 +90,23 @@ class TestBioTagger(BaseTestDataProcessor):
             entity_spans_label = labels_feature.str2int(entity_spans_label)
 
         # return batch
-        return {
+        batch = {
             "input_sequence": [list(range(length))],
             "entity_spans_begin": [entity_spans_begin],
             "entity_spans_end": [entity_spans_end],
             "entity_spans_label": [entity_spans_label],
         }
 
+        if with_mask:
+            mask = [True] + [False] * (length - 2) + [True]
+            batch["mask"] = [mask]
+
     @pytest.fixture
-    def processor(self, is_span_inclusive):
+    def processor(self, is_span_inclusive, with_mask):
         return BioTagger(
             BioTaggerConfig(
                 input_sequence="input_sequence",
+                mask="mask" if with_mask else None,
                 entity_spans_begin="entity_spans_begin",
                 entity_spans_end="entity_spans_end",
                 entity_spans_label="entity_spans_label",
@@ -104,7 +119,7 @@ class TestBioTagger(BaseTestDataProcessor):
         return Features({"bio_tags": Sequence(tags_feature, length=length)})
 
     @pytest.fixture
-    def expected_out_batch(self, length, tags_feature):
+    def expected_out_batch(self, length, tags_feature, with_mask):
         # initial bio tags are all out tags
         tags = ["O"] * 32
         # X entities
@@ -123,11 +138,19 @@ class TestBioTagger(BaseTestDataProcessor):
         if isinstance(tags_feature, ClassLabel):
             tags = tags_feature.str2int(tags)
 
+        if with_mask:
+            tags[0] = -100 if isinstance(tags_feature, ClassLabel) else "INV"
+            tags[-1] = -100 if isinstance(tags_feature, ClassLabel) else "INV"
+
         # return bio tags
         return {"bio_tags": [tags]}
 
 
 class TestBioTaggerErrorOnOverlap(TestBioTagger):
+    @pytest.fixture(params=[False])
+    def with_mask(self, request):
+        return request.param
+    
     @pytest.fixture
     def processor(self, is_span_inclusive):
         return BioTagger(
