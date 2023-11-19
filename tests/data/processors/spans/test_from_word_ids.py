@@ -38,7 +38,7 @@ class TestTokenSpansFromWordIds(BaseTestDataProcessor):
     @pytest.fixture
     def processor(self):
         return TokenSpansFromWordIds(
-            TokenSpansFromWordIdsConfig(word_ids="word_ids")
+            TokenSpansFromWordIdsConfig(word_ids="word_ids", mask=None)
         )
 
     @pytest.fixture
@@ -58,6 +58,47 @@ class TestTokenSpansFromWordIds(BaseTestDataProcessor):
         return {
             SpansOutputs.BEGINS: [list(spans_begin)],
             SpansOutputs.ENDS: [list(spans_end)],
+        }
+
+
+class TestTokenSpansFromWordIdsWithMask(TestTokenSpansFromWordIds):
+    @pytest.fixture
+    def in_features(self):
+        return Features(
+            {
+                "word_ids": Sequence(Value("int32")),
+                "mask": Sequence(Value("bool")),
+            }
+        )
+
+    @pytest.fixture
+    def batch(self, spans):
+        # create initial word ids sequence of all -1
+        length = max(e for _, e in spans)
+        word_ids = [-1] * (length + 2)
+        # fill with actual word ids from spans
+        for i, (b, e) in enumerate(spans):
+            word_ids[b + 1 : e + 1] = [i] * (e - b)  # noqa: E203
+        # return word ids
+        return {
+            "word_ids": [word_ids],
+            "mask": [[True] + [False] * length + [True]],
+        }
+
+    @pytest.fixture
+    def processor(self):
+        return TokenSpansFromWordIds(
+            TokenSpansFromWordIdsConfig(word_ids="word_ids", mask="mask")
+        )
+
+    @pytest.fixture
+    def expected_out_batch(self, spans):
+        # pack features together
+        spans_begin, spans_end = zip(*spans)
+        # return all features new
+        return {
+            SpansOutputs.BEGINS: [[b + 1 for b in spans_begin]],
+            SpansOutputs.ENDS: [[e + 1 for e in spans_end]],
         }
 
 

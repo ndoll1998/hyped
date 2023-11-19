@@ -1,3 +1,4 @@
+import numpy as np
 from .outputs import SpansOutputs
 from hyped.data.processors.tokenizers.hf import HuggingFaceTokenizerOutputs
 from hyped.data.processors.base import (
@@ -10,7 +11,6 @@ from hyped.utils.feature_checks import (
     raise_feature_is_sequence,
 )
 from datasets import Features, Sequence, Value
-from itertools import groupby
 from dataclasses import dataclass
 from typing import Literal, Any
 
@@ -24,7 +24,14 @@ class TokenSpansFromWordIdsConfig(BaseDataProcessorConfig):
 
     Attributes:
         word_ids (str):
-            column containing the word-ids to parse. Defaults to `word_ids`
+            column containing the word-ids to parse.
+            Defaults to `HuggingFaceTokenizerOutputs.WORD_IDS`
+        mask (str):
+            column containing mask over words indicating which items
+            in the `word_ids` sequence to ignore for building the spans.
+            If set to None, all values in the word-ids sequence are
+            considered. Defaults to
+            `HuggingFaceTokenizerOutputs.SPECIAL_TOKENS_MASK`.
     """
 
     t: Literal[
@@ -32,6 +39,7 @@ class TokenSpansFromWordIdsConfig(BaseDataProcessorConfig):
     ] = "hyped.data.processors.spans.from_word_ids"
 
     word_ids: str = HuggingFaceTokenizerOutputs.WORD_IDS
+    mask: None | str = HuggingFaceTokenizerOutputs.SPECIAL_TOKENS_MASK
 
 
 class TokenSpansFromWordIds(BaseDataProcessor[TokenSpansFromWordIdsConfig]):
@@ -61,6 +69,14 @@ class TokenSpansFromWordIds(BaseDataProcessor[TokenSpansFromWordIdsConfig]):
         raise_feature_is_sequence(
             self.config.word_ids, features[self.config.word_ids], INDEX_TYPES
         )
+        # make sure mask is valid if specified
+        if self.config.mask is not None:
+            raise_feature_exists(self.config.mask, features)
+            raise_feature_is_sequence(
+                self.config.mask,
+                features[self.config.mask],
+                [Value("bool")] + INDEX_TYPES,
+            )
         # return token-level span features
         return {
             SpansOutputs.BEGINS: Sequence(Value("int32")),
@@ -80,32 +96,41 @@ class TokenSpansFromWordIds(BaseDataProcessor[TokenSpansFromWordIdsConfig]):
         Returns:
             out (dict[str, Any]): token-level spans
         """
-        word_ids = example[self.config.word_ids]
+        # get word ids from example and convert to numpy array
+        word_ids = np.asarray(example[self.config.word_ids])
+
+        if self.config.mask is not None:
+            # get mask from example and convert to numpy array
+            # also invert it to get a mask indicating valid items
+            mask = ~np.asarray(example[self.config.mask]).astype(bool)
+        else:
+            # create a dummy mask of all trues when mask is not specified
+            mask = np.full_like(word_ids, fill_value=True, dtype=bool)
+
+        # apply mask to word ids
+        masked_word_ids = word_ids[mask]
+
         # check word ids
-        for k, (i, j) in enumerate(zip(word_ids[:-1], word_ids[1:])):
-            # must be monotonically increasing
-            if j < i:
-                raise ValueError(
-                    "Word id sequence is invalid, got %s"
-                    % word_ids[max(0, k - 4) : k + 4]  # noqa: E203
-                )
+        if (masked_word_ids[:-1] > masked_word_ids[1:]).any():
+            raise ValueError(
+                "Word id sequence must be monotonically increasing, got %s"
+                % masked_word_ids
+            )
 
-        # group tokens by the word they are a part of
-        # note that the word ids are sorted thus we don't
-        # need to sort them explicitely before groupby
-        word_groups = groupby(range(len(word_ids)), key=word_ids.__getitem__)
+        word_bounds_mask = word_ids[:-1] != word_ids[1:]
+        # identify the beginnings of words
+        word_begins_mask = np.append(True, word_bounds_mask)
+        word_begins_mask &= mask
+        # identify the ends of words
+        word_ends_mask = np.append(word_bounds_mask, True)
+        word_ends_mask &= mask
+        # get the indices, that is the index spans
+        (word_begins,) = word_begins_mask.nonzero()
+        (word_ends,) = word_ends_mask.nonzero()
+        # make word-spans exclusive
+        word_ends += 1
 
-        spans_begin, spans_end = [], []
-        # build span features from word groups
-        for _, group in word_groups:
-            group = tuple(group)
-            assert len(group) > 0
-            # token spans are exclusive, thus + 1
-            spans_begin.append(min(group))
-            spans_end.append(max(group) + 1)
-
-        # return span features
         return {
-            SpansOutputs.BEGINS: spans_begin,
-            SpansOutputs.ENDS: spans_end,
+            SpansOutputs.BEGINS: word_begins.tolist(),
+            SpansOutputs.ENDS: word_ends.tolist(),
         }
