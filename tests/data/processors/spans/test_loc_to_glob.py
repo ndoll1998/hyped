@@ -1,4 +1,5 @@
 from tests.data.processors.base import BaseTestDataProcessor
+from hyped.data.processors.spans.outputs import SpansOutputs
 from hyped.data.processors.spans.loc_to_glob import (
     LocalToGlobalOffsets,
     LocalToGlobalOffsetsConfig,
@@ -147,16 +148,16 @@ class TestLocalToGlobalOffsets(BaseTestDataProcessor):
     def expected_out_features(self):
         return Features(
             {
-                "offsets_begin": Sequence(Value("int32")),
-                "offsets_end": Sequence(Value("int32")),
+                SpansOutputs.BEGINS: Sequence(Value("int32")),
+                SpansOutputs.ENDS: Sequence(Value("int32")),
             }
         )
 
     @pytest.fixture
     def expected_out_batch(self):
         return {
-            "offsets_begin": [[0, 4, 6, 10, 13, 15, 20, 23]],
-            "offsets_end": [[4, 6, 9, 13, 15, 19, 23, 27]],
+            SpansOutputs.BEGINS: [[0, 4, 6, 10, 13, 15, 20, 23]],
+            SpansOutputs.ENDS: [[4, 6, 9, 13, 15, 19, 23, 27]],
         }
 
 
@@ -196,14 +197,14 @@ class TestLocalToGlobalOffsetsWithGlobalOffsets(BaseTestDataProcessor):
     def expected_out_features(self):
         return Features(
             {
-                "offsets_begin": Sequence(Value("int32")),
-                "offsets_end": Sequence(Value("int32")),
+                SpansOutputs.BEGINS: Sequence(Value("int32")),
+                SpansOutputs.ENDS: Sequence(Value("int32")),
             }
         )
 
     @pytest.fixture
     def expected_out_batch(self):
         return {
-            "offsets_begin": [[16, 20, 22, 32, 35, 37, 64, 67]],
-            "offsets_end": [[20, 22, 25, 35, 37, 41, 67, 71]],
+            SpansOutputs.BEGINS: [[16, 20, 22, 32, 35, 37, 64, 67]],
+            SpansOutputs.ENDS: [[20, 22, 25, 35, 37, 41, 67, 71]],
         }

@@ -1,4 +1,5 @@
 from tests.data.processors.base import BaseTestDataProcessor
+from hyped.data.processors.spans.outputs import SpansOutputs
 from hyped.data.processors.spans.idx_spans import (
     CoveredIndexSpans,
     CoveredIndexSpansConfig,
@@ -179,10 +180,10 @@ class TestCoveredIndexSpans(BaseTestDataProcessor):
     def expected_out_features(self, num_annotations):
         return Features(
             {
-                "idx_spans_begin": Sequence(
+                SpansOutputs.BEGINS: Sequence(
                     Value("int32"), length=num_annotations
                 ),
-                "idx_spans_end": Sequence(
+                SpansOutputs.ENDS: Sequence(
                     Value("int32"), length=num_annotations
                 ),
             }
@@ -191,11 +192,11 @@ class TestCoveredIndexSpans(BaseTestDataProcessor):
     @pytest.fixture
     def expected_out_batch(self, num_annotations):
         return {
-            "idx_spans_begin": [
+            SpansOutputs.BEGINS: [
                 [1, 3][:num_annotations],
                 [3, 1][:num_annotations],
             ],
-            "idx_spans_end": [
+            SpansOutputs.ENDS: [
                 [3, 6][:num_annotations],
                 [6, 3][:num_annotations],
             ],
@@ -236,14 +237,14 @@ class TestSingleCoveredIndexSpan(TestCoveredIndexSpans):
     def expected_out_features(self):
         return Features(
             {
-                "idx_spans_begin": Value("int32"),
-                "idx_spans_end": Value("int32"),
+                SpansOutputs.BEGINS: Value("int32"),
+                SpansOutputs.ENDS: Value("int32"),
             }
         )
 
     @pytest.fixture
     def expected_out_batch(self):
         return {
-            "idx_spans_begin": [1, 3],
-            "idx_spans_end": [3, 6],
+            SpansOutputs.BEGINS: [1, 3],
+            SpansOutputs.ENDS: [3, 6],
         }

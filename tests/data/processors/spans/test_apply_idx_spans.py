@@ -1,4 +1,5 @@
 from tests.data.processors.base import BaseTestDataProcessor
+from hyped.data.processors.spans.outputs import SpansOutputs
 from hyped.data.processors.spans.apply_idx_spans import (
     ApplyIndexSpans,
     ApplyIndexSpansConfig,
@@ -81,21 +82,23 @@ class TestApplyIndexSpans(BaseTestDataProcessor):
     def expected_out_features(self, num_annotations):
         return Features(
             {
-                "spans_begin": Sequence(
+                SpansOutputs.BEGINS: Sequence(
                     Value("int32"), length=num_annotations
                 ),
-                "spans_end": Sequence(Value("int32"), length=num_annotations),
+                SpansOutputs.ENDS: Sequence(
+                    Value("int32"), length=num_annotations
+                ),
             }
         )
 
     @pytest.fixture
     def expected_out_batch(self, num_annotations):
         return {
-            "spans_begin": [
+            SpansOutputs.BEGINS: [
                 [6, 31][:num_annotations],
                 [31, 6][:num_annotations],
             ],
-            "spans_end": [
+            SpansOutputs.ENDS: [
                 [23, 36][:num_annotations],
                 [36, 23][:num_annotations],
             ],
@@ -140,14 +143,14 @@ class TestApplySingleIndexSpan(TestApplyIndexSpans):
     def expected_out_features(self):
         return Features(
             {
-                "spans_begin": Value("int32"),
-                "spans_end": Value("int32"),
+                SpansOutputs.BEGINS: Value("int32"),
+                SpansOutputs.ENDS: Value("int32"),
             }
         )
 
     @pytest.fixture
     def expected_out_batch(self):
         return {
-            "spans_begin": [6, 31],
-            "spans_end": [23, 36],
+            SpansOutputs.BEGINS: [6, 31],
+            SpansOutputs.ENDS: [23, 36],
         }

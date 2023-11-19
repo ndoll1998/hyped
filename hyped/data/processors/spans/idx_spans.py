@@ -1,3 +1,4 @@
+from .outputs import SpansOutputs
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
@@ -147,8 +148,8 @@ class CoveredIndexSpans(BaseDataProcessor[CoveredIndexSpansConfig]):
 
         return Features(
             {
-                "idx_spans_begin": features[self.config.queries_begin],
-                "idx_spans_end": features[self.config.queries_end],
+                SpansOutputs.BEGINS: features[self.config.queries_begin],
+                SpansOutputs.ENDS: features[self.config.queries_end],
             }
         )
 
@@ -204,6 +205,6 @@ class CoveredIndexSpans(BaseDataProcessor[CoveredIndexSpansConfig]):
 
         # return index spans
         return {
-            "idx_spans_begin": idx_spans_begin,
-            "idx_spans_end": idx_spans_end,
+            SpansOutputs.BEGINS: idx_spans_begin,
+            SpansOutputs.ENDS: idx_spans_end,
         }

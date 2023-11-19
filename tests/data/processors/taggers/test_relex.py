@@ -2,6 +2,7 @@ from tests.data.processors.base import BaseTestDataProcessor
 from hyped.data.processors.taggers.relex import (
     RelExTagger,
     RelExTaggerConfig,
+    RelExTaggerOutputs,
 )
 from datasets import Features, Sequence, Value
 import pytest
@@ -170,7 +171,7 @@ class TestRelExTagger(BaseTestDataProcessor):
     @pytest.fixture
     def expected_out_features(self, sequence_feature, out_length):
         return {
-            "input_sequence.with_markers": Sequence(
+            RelExTaggerOutputs.MARKED_SEQUENCE: Sequence(
                 sequence_feature, length=out_length
             )
         }
@@ -179,10 +180,10 @@ class TestRelExTagger(BaseTestDataProcessor):
     def expected_out_batch(self, example, value_type):
         if example["expected_out"] is not None:
             return {
-                "input_sequence.with_markers": [
+                RelExTaggerOutputs.MARKED_SEQUENCE: [
                     list(map(value_type, example["expected_out"]))
                 ]
             }
 
         else:
-            return {"input_sequence.with_markers": []}
+            return {RelExTaggerOutputs.MARKED_SEQUENCE: []}

@@ -27,7 +27,7 @@ class TestRenameFlatFeatures(BaseTestFormatFlatFeatures):
     @pytest.fixture
     def processor(self):
         return FormatFeatures(
-            FormatFeaturesConfig(mapping={"new_X": "X", "new_Y": "Y"})
+            FormatFeaturesConfig(output_format={"new_X": "X", "new_Y": "Y"})
         )
 
     @pytest.fixture
@@ -50,7 +50,9 @@ class TestRenameFlatFeatures(BaseTestFormatFlatFeatures):
 class TestPackFlatFeaturesInSequence(BaseTestFormatFlatFeatures):
     @pytest.fixture
     def processor(self):
-        return FormatFeatures(FormatFeaturesConfig(mapping={"XY": ["X", "Y"]}))
+        return FormatFeatures(
+            FormatFeaturesConfig(output_format={"XY": ["X", "Y"]})
+        )
 
     @pytest.fixture
     def expected_out_features(self):
@@ -65,7 +67,9 @@ class TestErrorOnPackDifferentTypesInSequence(BaseTestFormatFlatFeatures):
     @pytest.fixture
     def processor(self):
         # pack integer and string feature in a sequence is invalid
-        return FormatFeatures(FormatFeaturesConfig(mapping={"XA": ["X", "A"]}))
+        return FormatFeatures(
+            FormatFeaturesConfig(output_format={"XA": ["X", "A"]})
+        )
 
     @pytest.fixture
     def expected_err_on_prepare(self):
@@ -77,7 +81,7 @@ class TestPackFlatFeaturesInDict(BaseTestFormatFlatFeatures):
     def processor(self):
         return FormatFeatures(
             FormatFeaturesConfig(
-                mapping={"XYA": {"X": "X", "YA": {"Y": "Y", "A": "A"}}}
+                output_format={"XYA": {"X": "X", "YA": {"Y": "Y", "A": "A"}}}
             )
         )
 
@@ -107,7 +111,7 @@ class TestPackFlatFeaturesInListOfDicts(BaseTestFormatFlatFeatures):
     def processor(self):
         return FormatFeatures(
             FormatFeaturesConfig(
-                mapping={
+                output_format={
                     "XYA": [{"XorY": "X", "A": "A"}, {"XorY": "Y", "A": "A"}]
                 }
             )
@@ -163,13 +167,15 @@ class BaseTestFormatNestedFeatures(BaseTestDataProcessor):
 class TestErrorOnInvalidKeyType(BaseTestFormatNestedFeatures):
     @pytest.fixture(
         params=[
-            [{"Y": ("Y", 1.2)}],  # key must be string or int
-            [{"Y": ("Y", "x")}],  # index sequence with string
-            [{"Y": ("A", 0)}],  # index mapping with int
+            {"Y": ("Y", 1.2)},  # key must be string or int
+            {"Y": ("Y", "x")},  # index sequence with string
+            {"Y": ("A", 0)},  # index mapping with int
         ]
     )
     def processor(self, request):
-        return FormatFeatures(FormatFeaturesConfig(mapping=request.param))
+        return FormatFeatures(
+            FormatFeaturesConfig(output_format=request.param)
+        )
 
     @pytest.fixture
     def expected_err_on_prepare(self):
@@ -181,7 +187,7 @@ class TestAccessNestedSequence(BaseTestFormatNestedFeatures):
     def processor(self):
         return FormatFeatures(
             FormatFeaturesConfig(
-                mapping={
+                output_format={
                     "new_X": "X",
                     "Y.0": ("Y", 0),
                 }
@@ -205,7 +211,7 @@ class TestErrorOnIndexOutOfRange(BaseTestFormatNestedFeatures):
     def processor(self):
         return FormatFeatures(
             FormatFeaturesConfig(
-                mapping={
+                output_format={
                     "new_X": "X",
                     "Y.0": ("Y", 0),
                     "Y.1": ("Y", 1),
@@ -225,7 +231,11 @@ class TestAccessNestedMapping(BaseTestFormatNestedFeatures):
     def processor(self):
         return FormatFeatures(
             FormatFeaturesConfig(
-                mapping={"new_X": "X", "A.x": ("A", "x"), "A.y": ("A", "y")}
+                output_format={
+                    "new_X": "X",
+                    "A.x": ("A", "x"),
+                    "A.y": ("A", "y"),
+                }
             )
         )
 
@@ -253,7 +263,7 @@ class TestErrorKeyNotFound(BaseTestFormatNestedFeatures):
     def processor(self):
         return FormatFeatures(
             FormatFeaturesConfig(
-                mapping={
+                output_format={
                     "new_X": "X",
                     "A.x": ("A", "x"),
                     "A.y": ("A", "y"),
@@ -272,7 +282,7 @@ class TestAccessNestedFeatures(BaseTestFormatNestedFeatures):
     def processor(self):
         return FormatFeatures(
             FormatFeaturesConfig(
-                mapping={
+                output_format={
                     "new_X": "X",
                     "A.x": ("A", "x"),
                     "A.y.0": ("A", "y", 0),
@@ -326,7 +336,7 @@ class TestFormatSliceFeatures(BaseTestDataProcessor):
     def processor(self):
         return FormatFeatures(
             FormatFeaturesConfig(
-                mapping={
+                output_format={
                     "new_X": "X",
                     "A.0": ("A", slice(-1), 0),
                     "A.1": ("A", slice(-1), 1),

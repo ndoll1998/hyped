@@ -1,4 +1,5 @@
 import numpy as np
+from .outputs import SpansOutputs
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
@@ -25,13 +26,13 @@ class LocalToGlobalOffsetsConfig(BaseDataProcessorConfig):
 
     Specifically the i-th token span is computed as follows:
 
-        token_span_begin[i] = (
+        span_begin[i] = (
             local_offsets_begin[i] + global_offsets_begin[
                 local_to_global_mapping[i]
             ]
         )
 
-        token_span_end[i] = (
+        span_end[i] = (
             local_offsets_end[i] + global_offsets_begin[
                 local_to_global_mapping[i]
             ]
@@ -82,13 +83,13 @@ class LocalToGlobalOffsets(BaseDataProcessor):
 
     Specifically the i-th token span is computed as follows:
 
-        token_span_begin[i] = (
+        span_begin[i] = (
             local_offsets_begin[i] + global_offsets_begin[
                 local_to_global_mapping[i]
             ]
         )
 
-        token_span_end[i] = (
+        span_end[i] = (
             local_offsets_end[i] + global_offsets_begin[
                 local_to_global_mapping[i]
             ]
@@ -156,8 +157,8 @@ class LocalToGlobalOffsets(BaseDataProcessor):
 
         return Features(
             {
-                "offsets_begin": features[self.config.local_offsets_begin],
-                "offsets_end": features[self.config.local_offsets_end],
+                SpansOutputs.BEGINS: features[self.config.local_offsets_begin],
+                SpansOutputs.ENDS: features[self.config.local_offsets_end],
             }
         )
 
@@ -219,6 +220,6 @@ class LocalToGlobalOffsets(BaseDataProcessor):
         )
         # return offsets
         return {
-            "offsets_begin": offsets_begin.tolist(),
-            "offsets_end": offsets_end.tolist(),
+            SpansOutputs.BEGINS: offsets_begin.tolist(),
+            SpansOutputs.ENDS: offsets_end.tolist(),
         }

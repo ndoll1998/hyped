@@ -12,9 +12,17 @@ from hyped.utils.feature_checks import (
     get_sequence_feature,
 )
 from hyped.utils.spans import make_spans_exclusive
+from enum import StrEnum
 from dataclasses import dataclass
 from datasets import Features, Sequence, Value
 from typing import Any, Literal
+
+
+class RelExTaggerOutputs(StrEnum):
+    """Enumeration of outputs of the relation extraction tagger"""
+
+    MARKED_SEQUENCE = "marked_sequence"
+    """Output column containing the marked input sequence"""
 
 
 @dataclass
@@ -191,10 +199,9 @@ class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
             raise_feature_equals(key, features[key], INDEX_TYPES)
 
         return {
-            "%s.with_markers"
-            % self.config.input_sequence: self._marked_sequence_feature(
+            RelExTaggerOutputs.MARKED_SEQUENCE: self._marked_sequence_feature(
                 features
-            ),
+            )
         }
 
     def process(
@@ -254,4 +261,4 @@ class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
             input_sequence.insert(spans[i], self.config.markers[i])
 
         # remove dummy item at the end of the sequence and return
-        yield {"%s.with_markers" % self.config.input_sequence: input_sequence}
+        yield {RelExTaggerOutputs.MARKED_SEQUENCE: input_sequence}

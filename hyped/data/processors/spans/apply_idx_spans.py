@@ -1,3 +1,4 @@
+from .outputs import SpansOutputs
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
@@ -140,8 +141,8 @@ class ApplyIndexSpans(BaseDataProcessor[ApplyIndexSpansConfig]):
 
         return Features(
             {
-                "spans_begin": features[self.config.idx_spans_begin],
-                "spans_end": features[self.config.idx_spans_end],
+                SpansOutputs.BEGINS: features[self.config.idx_spans_begin],
+                SpansOutputs.ENDS: features[self.config.idx_spans_end],
             }
         )
 
@@ -181,4 +182,4 @@ class ApplyIndexSpans(BaseDataProcessor[ApplyIndexSpansConfig]):
             begins = begins[0]
             ends = ends[0]
 
-        return {"spans_begin": begins, "spans_end": ends}
+        return {SpansOutputs.BEGINS: begins, SpansOutputs.ENDS: ends}

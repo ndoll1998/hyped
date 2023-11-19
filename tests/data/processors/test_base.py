@@ -99,6 +99,70 @@ class TestDataProcessor(BaseTestSetup):
         return out_batch
 
 
+class TestDataProcessorWithOutputFormat(BaseTestSetup):
+    @pytest.fixture
+    def processor(self, keep_inputs):
+        # create processor and make sure it is not prepared
+        # before calling prepare function
+        c = ConstantDataProcessorConfig(
+            name="A",
+            value="B",
+            keep_input_features=keep_inputs,
+            output_format={"custom_A": "A"},
+        )
+        p = ConstantDataProcessor(c)
+        assert not p.is_prepared
+        # return processor
+        return p
+
+    @pytest.fixture
+    def out_batch(self, keep_inputs, batch):
+        # new values added by processor
+        out_batch = {"costum_A": ["B"] * 10}
+        # keep input features if needed
+        if keep_inputs:
+            out_batch["X"] = batch["X"]
+
+        return out_batch
+
+
+class TestDataProcessorWithComplexOutputFormat(BaseTestSetup):
+    @pytest.fixture
+    def processor(self, keep_inputs):
+        # create processor and make sure it is not prepared
+        # before calling prepare function
+        c = ConstantDataProcessorConfig(
+            name="A",
+            value="B",
+            keep_input_features=keep_inputs,
+            output_format={
+                "custom_A": "A",
+                "seq_A": ["A", "A"],
+                "dict_A": {"A1": "A", "A2": "A"},
+                "nest_A": [{"A3": {"A4": ["A"]}}],
+            },
+        )
+        p = ConstantDataProcessor(c)
+        assert not p.is_prepared
+        # return processor
+        return p
+
+    @pytest.fixture
+    def out_batch(self, keep_inputs, batch):
+        # new values added by processor
+        out_batch = {
+            "costum_A": ["B"] * 10,
+            "seq_A": [["B"] * 10, ["B"] * 10],
+            "dict_A": {"A1": ["B"] * 10, "A2": ["B"] * 10},
+            "nest_A": [{"A3": {"A4": [["B"] * 10]}}],
+        }
+        # keep input features if needed
+        if keep_inputs:
+            out_batch["X"] = batch["X"]
+
+        return out_batch
+
+
 class TestGeneratorDataProcessor(BaseTestSetup):
     @pytest.fixture(params=[0, 1, 2, 3])
     def n(self, request):

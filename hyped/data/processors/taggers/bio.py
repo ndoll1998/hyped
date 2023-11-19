@@ -14,9 +14,17 @@ from hyped.utils.spans import (
     make_spans_exclusive,
 )
 import numpy as np
+from enum import StrEnum
 from dataclasses import dataclass
 from datasets import Features, Sequence, ClassLabel, Value
 from typing import Any, Literal
+
+
+class BioTaggerOutputs(StrEnum):
+    """Enumeration of outputs of the bio tagger processor"""
+
+    BIO_TAGS = "bio_tags"
+    """Output column containing the generated bio tag sequence"""
 
 
 @dataclass
@@ -81,7 +89,7 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
     @property
     def bio_label_space(self) -> None | ClassLabel:
         """Bio tags label-space extracted from new features"""
-        feature = self.new_features["bio_tags"]
+        feature = self.raw_features[BioTaggerOutputs.BIO_TAGS]
         feature = get_sequence_feature(feature)
         return feature if isinstance(feature, ClassLabel) else None
 
@@ -171,7 +179,9 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
             features[self.config.entity_spans_end],
         )
 
-        return {"bio_tags": self._tag_sequence_feature(features)}
+        return {
+            BioTaggerOutputs.BIO_TAGS: self._tag_sequence_feature(features)
+        }
 
     def process(
         self, example: dict[str, Any], index: int, rank: int
@@ -237,4 +247,4 @@ class BioTagger(BaseDataProcessor[BioTaggerConfig]):
             tags = self.bio_label_space.str2int(tags)
 
         # return bio tags
-        return {"bio_tags": tags}
+        return {BioTaggerOutputs.BIO_TAGS: tags}

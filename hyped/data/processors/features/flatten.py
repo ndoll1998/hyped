@@ -70,7 +70,7 @@ class FlattenFeatures(FormatFeatures):
             out (Features): flattened feature mapping
         """
         # overwriting feature mapping in config
-        if self.config.mapping is not None:
+        if self.config.output_format is not None:
             warnings.warn(
                 "Feature mapping is not None and will be overwritten",
                 UserWarning,
@@ -116,8 +116,8 @@ class FlattenFeatures(FormatFeatures):
         to_flatten = {k: features[k] for k in to_flatten}
         # build feature mapping
         paths = _build_feature_paths(to_flatten)
-        self.config.mapping = Features(
-            {self.config.delimiter.join(map(str, p)): p for p in paths}
-        )
+        self.config.output_format = {
+            self.config.delimiter.join(map(str, p)): p for p in paths
+        }
         # map features
         return super(FlattenFeatures, self).map_features(features)

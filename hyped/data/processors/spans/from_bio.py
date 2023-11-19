@@ -1,3 +1,4 @@
+from .outputs import LabelledSpansOutputs
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
@@ -46,14 +47,14 @@ class TokenSpansFromBioTags(BaseDataProcessor[TokenSpansFromBioTagsConfig]):
 
     @property
     def tag_feature(self) -> Value | ClassLabel:
-        """Tag feature type"""
+        """The item feature of the tag sequence"""
         feature = self.in_features[self.config.bio_tags]
         return get_sequence_feature(feature)
 
     @property
     def label_feature(self) -> Value | ClassLabel:
-        """Entity label feature type"""
-        feature = self.new_features["token_spans_label"]
+        """The item feature of the label sequence"""
+        feature = self.raw_features[LabelledSpansOutputs.LABELS]
         return get_sequence_feature(feature)
 
     def map_features(self, features: Features) -> Features:
@@ -98,17 +99,17 @@ class TokenSpansFromBioTags(BaseDataProcessor[TokenSpansFromBioTagsConfig]):
             ]
             # make names unqiue while preserving order
             names = list(dict.fromkeys(names))
+            # create label sequence feature
             return {
-                "token_spans_begin": Sequence(Value("int32")),
-                "token_spans_end": Sequence(Value("int32")),
-                "token_spans_label": Sequence(ClassLabel(names=names)),
+                LabelledSpansOutputs.BEGINS: Sequence(Value("int32")),
+                LabelledSpansOutputs.ENDS: Sequence(Value("int32")),
+                LabelledSpansOutputs.LABELS: Sequence(ClassLabel(names=names)),
             }
 
-        # otherwise keep it a sequence of strings
         return {
-            "token_spans_begin": Sequence(Value("int32")),
-            "token_spans_end": Sequence(Value("int32")),
-            "token_spans_label": Sequence(Value("string")),
+            LabelledSpansOutputs.BEGINS: Sequence(Value("int32")),
+            LabelledSpansOutputs.ENDS: Sequence(Value("int32")),
+            LabelledSpansOutputs.LABELS: Sequence(Value("string")),
         }
 
     def process(
@@ -183,7 +184,7 @@ class TokenSpansFromBioTags(BaseDataProcessor[TokenSpansFromBioTagsConfig]):
         assert len(spans_begin) == len(spans_end) == len(spans_label)
 
         return {
-            "token_spans_begin": spans_begin,
-            "token_spans_end": spans_end,
-            "token_spans_label": spans_label,
+            LabelledSpansOutputs.BEGINS: spans_begin,
+            LabelledSpansOutputs.ENDS: spans_end,
+            LabelledSpansOutputs.LABELS: spans_label,
         }

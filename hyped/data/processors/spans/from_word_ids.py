@@ -1,3 +1,5 @@
+from .outputs import SpansOutputs
+from hyped.data.processors.tokenizers.hf import HuggingFaceTokenizerOutputs
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
@@ -29,7 +31,7 @@ class TokenSpansFromWordIdsConfig(BaseDataProcessorConfig):
         "hyped.data.processors.spans.from_word_ids"
     ] = "hyped.data.processors.spans.from_word_ids"
 
-    word_ids: str = "word_ids"
+    word_ids: str = HuggingFaceTokenizerOutputs.WORD_IDS
 
 
 class TokenSpansFromWordIds(BaseDataProcessor[TokenSpansFromWordIdsConfig]):
@@ -61,8 +63,8 @@ class TokenSpansFromWordIds(BaseDataProcessor[TokenSpansFromWordIdsConfig]):
         )
         # return token-level span features
         return {
-            "token_spans_begin": Sequence(Value("int32")),
-            "token_spans_end": Sequence(Value("int32")),
+            SpansOutputs.BEGINS: Sequence(Value("int32")),
+            SpansOutputs.ENDS: Sequence(Value("int32")),
         }
 
     def process(
@@ -103,4 +105,7 @@ class TokenSpansFromWordIds(BaseDataProcessor[TokenSpansFromWordIdsConfig]):
             spans_end.append(max(group) + 1)
 
         # return span features
-        return {"token_spans_begin": spans_begin, "token_spans_end": spans_end}
+        return {
+            SpansOutputs.BEGINS: spans_begin,
+            SpansOutputs.ENDS: spans_end,
+        }

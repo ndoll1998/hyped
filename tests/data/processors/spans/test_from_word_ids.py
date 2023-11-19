@@ -1,4 +1,5 @@
 from tests.data.processors.base import BaseTestDataProcessor
+from hyped.data.processors.spans.outputs import SpansOutputs
 from hyped.data.processors.spans.from_word_ids import (
     TokenSpansFromWordIds,
     TokenSpansFromWordIdsConfig,
@@ -44,8 +45,8 @@ class TestTokenSpansFromWordIds(BaseTestDataProcessor):
     def expected_out_feature(self):
         return Features(
             {
-                "token_spans_begin": Sequence(Value("int32")),
-                "token_spans_end": Sequence(Value("int32")),
+                SpansOutputs.BEGINS: Sequence(Value("int32")),
+                SpansOutputs.ENDS: Sequence(Value("int32")),
             }
         )
 
@@ -55,8 +56,8 @@ class TestTokenSpansFromWordIds(BaseTestDataProcessor):
         spans_begin, spans_end = zip(*spans)
         # return all features new
         return {
-            "token_spans_begin": [list(spans_begin)],
-            "token_spans_end": [list(spans_end)],
+            SpansOutputs.BEGINS: [list(spans_begin)],
+            SpansOutputs.ENDS: [list(spans_end)],
         }
 
 

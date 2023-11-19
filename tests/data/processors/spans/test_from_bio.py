@@ -1,4 +1,5 @@
 from tests.data.processors.base import BaseTestDataProcessor
+from hyped.data.processors.spans.outputs import LabelledSpansOutputs
 from hyped.data.processors.spans.from_bio import (
     TokenSpansFromBioTags,
     TokenSpansFromBioTagsConfig,
@@ -75,9 +76,9 @@ class TestTokenSpansFromBioTags(BaseTestDataProcessor):
     def expected_out_feature(self, labels_feature):
         return Features(
             {
-                "token_spans_begin": Sequence(Value("int32")),
-                "token_spans_end": Sequence(Value("int32")),
-                "token_spans_label": Sequence(labels_feature),
+                LabelledSpansOutputs.BEGINS: Sequence(Value("int32")),
+                LabelledSpansOutputs.ENDS: Sequence(Value("int32")),
+                LabelledSpansOutputs.LABELS: Sequence(labels_feature),
             }
         )
 
@@ -90,9 +91,50 @@ class TestTokenSpansFromBioTags(BaseTestDataProcessor):
             spans_label = labels_feature.str2int(spans_label)
         # return all features new
         return {
-            "token_spans_begin": [list(spans_begin)],
-            "token_spans_end": [list(spans_end)],
-            "token_spans_label": [list(spans_label)],
+            LabelledSpansOutputs.BEGINS: [list(spans_begin)],
+            LabelledSpansOutputs.ENDS: [list(spans_end)],
+            LabelledSpansOutputs.LABELS: [list(spans_label)],
+        }
+
+
+class TestTokenSpansFromBioTagsWithCostumOutputFormat(
+    TestTokenSpansFromBioTags
+):
+    @pytest.fixture
+    def processor(self):
+        return TokenSpansFromBioTags(
+            TokenSpansFromBioTagsConfig(
+                bio_tags="bio_tags",
+                output_format={
+                    LabelledSpansOutputs.BEGINS: LabelledSpansOutputs.BEGINS,
+                    LabelledSpansOutputs.ENDS: LabelledSpansOutputs.ENDS,
+                    "custom_output_labels_column": LabelledSpansOutputs.LABELS,
+                },
+            )
+        )
+
+    @pytest.fixture
+    def expected_out_feature(self, labels_feature):
+        return Features(
+            {
+                LabelledSpansOutputs.BEGINS: Sequence(Value("int32")),
+                LabelledSpansOutputs.ENDS: Sequence(Value("int32")),
+                "custom_output_labels_column": Sequence(labels_feature),
+            }
+        )
+
+    @pytest.fixture
+    def expected_out_batch(self, labels_feature, spans):
+        # pack features together
+        spans_begin, spans_end, spans_label = zip(*spans)
+        # convert labels to label ids
+        if isinstance(labels_feature, ClassLabel):
+            spans_label = labels_feature.str2int(spans_label)
+        # return all features new
+        return {
+            LabelledSpansOutputs.BEGINS: [list(spans_begin)],
+            LabelledSpansOutputs.ENDS: [list(spans_end)],
+            "custom_output_labels_column": [list(spans_label)],
         }
 
 

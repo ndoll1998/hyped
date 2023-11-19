@@ -19,7 +19,52 @@ from transformers.utils import PaddingStrategy
 from transformers.tokenization_utils_base import TruncationStrategy
 from datasets import Features, Sequence, Value
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Literal, Any
+
+
+class HuggingFaceTokenizerOutputs(StrEnum):
+    """Enumeration of the outputs of the HuggingFace (transformers) Tokenizer
+
+    Note that some of the output columns are optional and controlled by the
+    specific type of tokenizer and the configuration. Furthermore there might
+    be outputs of tokenizer that are not explicitly listed here.
+
+    For more information on each output please refer to the transformers
+    documentation.
+    """
+
+    INPUT_IDS = "input_ids"
+    """Output column containing the input id sequence"""
+
+    TOKEN_TYPE_IDS = "token_type_ids"
+    """Output column containing the token type id sequence. Only available
+    when `return_token_type_ids=True` in the configuration."""
+
+    ATTENTION_MASK = "attention_mask"
+    """Output column containing the token type id sequence. Only available
+    when `return_attention_mask=True` in the configuration."""
+
+    OVERFLOW_TO_SAMPLE_MAPPING = "overflow_to_sample_mapping"
+    """Output column containing the overflow to sample mapping. Only available
+    when `return_overflowing_tokens=True` in the configuration."""
+
+    SPECIAL_TOKENS_MASK = "special_tokens_mask"
+    """Output column containing the special tokens mask. Only available when
+    `return_special_tokens_mask=True` in the configuration."""
+
+    OFFSETS_MAPPING = "offsets_mapping"
+    """Output column containing the character offsets of each token. Only
+    available when `return_offsets_mapping=True` in the configuration."""
+
+    LENGTH = "length"
+    """Output column containing the length of the tokenized sequence. Only
+    available when `return_length=True` in the configuration."""
+
+    WORD_IDS = "word_ids"
+    """Output column containing the word-id sequence mapping each token to
+    the index word it is a part of. Only available when `return_word_ids=True`
+    in the configuration."""
 
 
 @dataclass
@@ -353,7 +398,7 @@ class HuggingFaceTokenizer(BaseDataProcessor[HuggingFaceTokenizerConfig]):
         enc = self.tokenizer(**kwargs)
         # add word ids to output
         if self.config.return_word_ids:
-            enc["word_ids"] = [
+            enc[HuggingFaceTokenizerOutputs.WORD_IDS] = [
                 [(i if i is not None else -1) for i in enc.word_ids(j)]
                 for j in range(len(index))
             ]
