@@ -7,6 +7,7 @@ from hyped.utils.feature_checks import (
     get_sequence_feature,
 )
 from datasets.features.features import Features, FeatureType, Sequence
+from itertools import chain
 from typing import Any, Iterable
 
 # TODO: write tests
@@ -21,6 +22,232 @@ FeatureKeyCollection = (
     | list["FeatureKeyCollection"]
     | dict[str, "FeatureKeyCollection"]
 )
+
+
+def is_simple_key(key: FeatureKey) -> bool:
+    """Check whether a given feature key is simple.
+
+    A feature key is considered simple if it only consists of
+    strings.
+
+    The concept behind a simple key is that is only
+    indexes dictionaries, meaning it does not interact with
+    sequences.
+
+    It does not require fancy sequence slicing. Also modifying
+    the value at the key modifies the full feature and not just
+    a part of it.
+
+    As a counter example consider the following complex keys
+
+        - ("A", 0, "B")
+        - ("A", slice(4, 10), "B")
+
+    Both incorporate indexing a sequence feature and modifying it
+    would only modify a specific value or sub-area of the sequence.
+
+    Arguments:
+        key (FeatureKey): key to check
+
+    Returns:
+        is_simple (bool): boolean indicating whether the key is simple
+    """
+    return (
+        # either a simple string key
+        isinstance(key, str)
+        | (
+            # or a path of only string keys
+            isinstance(key, tuple)
+            and all(isinstance(k, str) for k in key)
+        )
+    )
+
+
+def key_cutoff_at_slice(key: FeatureKey) -> FeatureKey:
+    """Cutoff given key at first occurance of a slice
+
+    Consider the following example:
+
+        ("A", "B", 0, "C", slice(-1), "D") => ("A", "B", 0)
+
+    Arguments:
+        key (FeatureKey): key to check
+
+    Returns:
+        cut_key (FeatureKey):
+            truncated key guaranteed to not contain a slice
+    """
+
+    if is_simple_key(key):
+        return key
+
+    # find slice in key
+    for i, k in enumerate(key):
+        if isinstance(k, slice):
+            # cutoff before slice
+            return key[:i]
+
+    # no slice detected
+    return key
+
+
+def raise_is_simple_key(key: FeatureKey):
+    """Check whether a given feature key is simple.
+
+    A feature key is considered simple if it only consists of
+    strings.
+
+    Arguments:
+        key (FeatureKey): key to check
+
+    Raises:
+        exc (TypeError): when the given key is complex
+    """
+
+    if not is_simple_key(key):
+        raise TypeError("Expected simple key, got %s" % str(key))
+
+
+def iter_keys_in_features(
+    features: FeatureType, max_depth: int = -1, max_seq_len_to_unpack: int = 8
+) -> Iterable[FeatureKey]:
+    """Iterate over all keys present in the given features
+
+    Take for example the following feature mapping
+
+        {
+            "A": {"B": Value("string")},
+            "X": Sequence(Value("int32"), length=2)
+        }
+
+    Then the iterator would yield the following keys
+
+        ("A", "B"), ("X", 0), ("X", 1)
+
+    Arguments:
+        features (FeatureType): features to build the keys for
+        max_depth (int):
+            when set to a positive integer, the nested structure
+            of the feature mapping will only be traversed to the
+            specified depth. The maximum length of each key is
+            restricted by this value. Defaults to -1.
+        max_seq_len_to_unpack (int):
+            upper threshold of length to flatten sequences. If the sequence
+            length exceeds this threshold, the sequence will not be flattened
+
+    Returns:
+        keys (Iterable[FeatureKey]):
+            iterator over present keys
+    """
+
+    if max_depth == 0:
+        # trivial case, maximum depth reached
+        yield tuple()
+
+    elif isinstance(features, (dict, Features)):
+        # recursivly flatten all features in mapping and
+        # prefix each sub-key with the current key of the mapping
+        yield from chain.from_iterable(
+            (
+                map((k,).__add__, iter_keys_in_features(v, max_depth - 1))
+                for k, v in features.items()
+            )
+        )
+
+    elif isinstance(features, Sequence):
+        length = get_sequence_length(features)
+        # only unpack sequences of fixed length
+        if 0 < length < max_seq_len_to_unpack:
+            yield from (
+                (i,) + sub_key
+                for sub_key in iter_keys_in_features(
+                    get_sequence_feature(features), max_depth - 1
+                )
+                for i in range(length)
+            )
+
+        else:
+            yield from map(
+                (slice(-1),).__add__,
+                iter_keys_in_features(
+                    get_sequence_feature(features), max_depth - 1
+                ),
+            )
+
+    else:
+        # all other feature types are considered primitive/unpackable
+        yield tuple()
+
+
+def build_collection_from_keys(keys: list[FeatureKey]) -> FeatureKeyCollection:
+    """Build a feature collection from a list of feature keys.
+
+    The resulting feature collection matches the format of the
+    feature keys, i.e. the feature keys apply to the collection.
+
+    Take for example to following feature keys:
+
+        [("A", "X"), ("A", "Y")]
+
+    Then the resulting feature collection would be:
+
+        {"A": {"X": ("A", "X"), "Y": ("A", "Y")}}
+
+    Arguments:
+        keys (list[FeatureKey]):
+            list of feature keys to build a collection from
+
+    Returns:
+        collection (FeatureCollection):
+            resulting feature collection
+    """
+
+    # TODO: support complex keys
+    if not all(map(is_simple_key, keys)):
+        raise NotImplementedError()
+
+    # initialize feature key collection
+    collection = {}
+
+    # add all keys
+    for key in keys:
+        # currently only supports simple keys
+        key = (key,) if isinstance(key, str) else key
+
+        c = collection
+        # follow key path in collection
+        for k in key[:-1]:
+            if k not in c:
+                c[k] = {}
+            c = c[k]
+        # write key to collection
+        c[key[-1]] = key
+
+    return collection
+
+
+def remove_feature(features: Features, key: FeatureKey) -> Features:
+    """Remove a feature from a feature mapping
+
+    Arguments:
+        features (Features): features to remove the feature from
+        key (FeatureKey): key to the feature to remove, must be a simple key
+
+    Returns:
+        remaining_features (Features): the remaining features
+    """
+
+    # can only remove simple features
+    if not is_simple_key(key):
+        raise ValueError(
+            "Can only remove feature with simple key from features, "
+            "got `%s`" % str(key)
+        )
+    # remove the feature at key from the given features
+    key = (key,) if isinstance(key, str) else key
+    get_feature_at_key(features, key[:-1]).pop(key[-1])
+    # remove remaining features
+    return features
 
 
 def get_feature_at_key(
@@ -183,6 +410,26 @@ def get_value_at_key(example: dict[str, Any], key: FeatureKey) -> Any:
 
     # works for both sequences and mappings
     return get_value_at_key(example[cur_key], key[1:])
+
+
+def batch_get_value_at_key(
+    examples: dict[str, list[Any]], key: FeatureKey
+) -> Any:
+    """Index a batch of examples with the given key and retrieve
+    the batch of values.
+
+    Arguments:
+        example (dict[str, Any]): Batch of example to index.
+        key (FeatureKey): The key or path specifying the value to extract.
+
+    Returns:
+        values (Any): the batch of values of the example at the given key.
+    """
+
+    if not isinstance(key, str) and (len(key) > 1):
+        key = key[:1] + (slice(-1),) + key[1:]
+
+    return get_value_at_key(examples, key)
 
 
 def collect_values(

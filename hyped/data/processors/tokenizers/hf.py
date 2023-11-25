@@ -5,9 +5,13 @@ from hyped.data.processors.base import (
 from hyped.utils.feature_checks import (
     INT_TYPES,
     UINT_TYPES,
-    raise_feature_exists,
     raise_feature_equals,
     raise_feature_is_sequence,
+)
+from hyped.utils.feature_access import (
+    FeatureKey,
+    get_feature_at_key,
+    batch_get_value_at_key,
 )
 from transformers import (
     PreTrainedTokenizer,
@@ -82,20 +86,20 @@ class HuggingFaceTokenizerConfig(BaseDataProcessorConfig):
             the pre-trained tokenizer to apply. Either the uri or local
             path to load the tokenizer from using `AutoTokenizer`, or
             the pre-trained tokenizer object.
-        text (None | str):
-            feature column to pass as `text` keyword argument
+        text (None | FeatureKey):
+            feature to pass as `text` keyword argument
             to the tokenizer. Defaults to `text`.
-        text_pair (None | str):
-            feature column to pass as `text_pair` keyword argument
+        text_pair (None | FeatureKey):
+            feature to pass as `text_pair` keyword argument
             to the tokenizer
-        text_target (None | str):
-            feature column to pass as `text_target` keyword argument
+        text_target (None | FeatureKey):
+            feature to pass as `text_target` keyword argument
             to the tokenizer
-        text_pair_target (None | str):
-            feature column to pass as `text_pair_target` keyword argument
+        text_pair_target (None | FeatureKey):
+            feature to pass as `text_pair_target` keyword argument
             to the tokenizer
-        boxes (None | str):
-            feature column to pass as `boxes` to the tokenizer.
+        boxes (None | FeatureKey):
+            feature to pass as `boxes` to the tokenizer.
             Required for `LayoutXLMTokenizer`.
         add_special_tokens (None | bool):
             whether to add special tokens to the tokenized sequence.
@@ -145,11 +149,11 @@ class HuggingFaceTokenizerConfig(BaseDataProcessorConfig):
 
     tokenizer: str | PreTrainedTokenizer = "bert-base-uncased"
     # text input to tokenize
-    text: None | str = "text"
-    text_pair: None | str = None
-    text_target: None | str = None
-    text_pair_target: None | str = None
-    boxes: None | str = None
+    text: None | FeatureKey = "text"
+    text_pair: None | FeatureKey = None
+    text_target: None | FeatureKey = None
+    text_pair_target: None | FeatureKey = None
+    boxes: None | FeatureKey = None
     # post-processing
     add_special_tokens: bool = True
     padding: bool | str | PaddingStrategy = False
@@ -227,7 +231,7 @@ class HuggingFaceTokenizer(BaseDataProcessor[HuggingFaceTokenizerConfig]):
                     ",got %s" % self.tokenizer
                 )
 
-    def _check_text_feature(self, key: str, features: Features) -> None:
+    def _check_text_feature(self, key: FeatureKey, features: Features) -> None:
         """Check textual input dataset features
 
         Raises KeyError when the key is not present in the feature mapping.
@@ -235,20 +239,20 @@ class HuggingFaceTokenizer(BaseDataProcessor[HuggingFaceTokenizerConfig]):
         feature is of type string but expected token sequence or vise versa.
 
         Arguments:
-            key (str): feature key/name to check
+            key (FeatureKey): feature key to check
             features (Features): feature mapping
         """
 
         # make sure feature exists
-        raise_feature_exists(key, features)
+        feature = get_feature_at_key(features, key)
         # check type
         if self.config.is_split_into_words:
             # when pre-tokenized the input should be a sequence of strings
-            raise_feature_is_sequence(key, features[key], Value("string"))
+            raise_feature_is_sequence(key, feature, Value("string"))
 
         else:
             # otherwise it should simply be a string
-            raise_feature_equals(key, features[key], Value("string"))
+            raise_feature_equals(key, feature, Value("string"))
 
     def _check_input_features(self, features: Features) -> None:
         """Check input features"""
@@ -275,11 +279,11 @@ class HuggingFaceTokenizer(BaseDataProcessor[HuggingFaceTokenizerConfig]):
                 )
 
             # make sure the feature exists
-            raise_feature_exists(self.config.boxes, features)
+            boxes = get_feature_at_key(features, self.config.boxes)
             # make sure its of the correct type
             raise_feature_is_sequence(
                 self.config.boxes,
-                features[self.config.boxes],
+                boxes,
                 Sequence(INT_TYPES + UINT_TYPES, length=4),
             )
 
@@ -372,7 +376,9 @@ class HuggingFaceTokenizer(BaseDataProcessor[HuggingFaceTokenizerConfig]):
         # collect all features form the example
         for key in type(self).KWARGS_FROM_EXAMPLE:
             if getattr(self.config, key) is not None:
-                kwargs[key] = examples[getattr(self.config, key)]
+                kwargs[key] = batch_get_value_at_key(
+                    examples, getattr(self.config, key)
+                )
         # add all options kwargs specified in the config
         for key in type(self).KWARGS_FROM_CONFIG:
             kwargs[key] = getattr(self.config, key)

@@ -121,6 +121,34 @@ class TestFlattenSelectedFeatures(BaseTestFlattenFeatures):
         return out_batch
 
 
+class TestFlattenNestedFeatures(BaseTestFlattenFeatures):
+    @pytest.fixture()
+    def processor(self):
+        return FlattenFeatures(
+            FlattenFeaturesConfig(
+                delimiter=".",
+                to_flatten=[("A", "y")]
+            )
+        )
+
+    @pytest.fixture
+    def expected_out_features(self):
+        return Features({
+            "A": {
+                "y.0": Value("int32"),
+                "y.1": Value("int32")
+            }
+        })
+
+    @pytest.fixture
+    def expected_out_batch(self, batch):
+        return {
+            "A": [
+                {"y.0": item["y"][0], "y.1": item["y"][1]}
+                for item in batch["A"]
+            ]
+        }
+
 class TestFeatureKeyNotFound(BaseTestFlattenFeatures):
     @pytest.fixture
     def processor(self):

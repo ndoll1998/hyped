@@ -6,9 +6,13 @@ from hyped.data.processors.base import (
 )
 from hyped.utils.feature_checks import (
     INDEX_TYPES,
-    raise_feature_exists,
     raise_feature_is_sequence,
     raise_features_align,
+)
+from hyped.utils.feature_access import (
+    FeatureKey,
+    get_feature_at_key,
+    get_value_at_key,
 )
 from hyped.utils.spans import make_spans_exclusive
 from datasets import Features
@@ -41,17 +45,17 @@ class LocalToGlobalOffsetsConfig(BaseDataProcessorConfig):
     Type Identifier: `hyped.data.processors.spans.local_to_global_offsets`
 
     Attributes:
-        local_offsets_begin (str):
-            column containing begins of local offsets
-        local_offsets_end (str):
-            column containing ends of local offsets
-        global_offsets_begin (None | str):
-            column containing the global character-level begin
+        local_offsets_begin (FeatureKey):
+            feature containing begins of local offsets
+        local_offsets_end (FeatureKey):
+            feature containing ends of local offsets
+        global_offsets_begin (None | FeatureKey):
+            feature containing the global character-level begin
             offsets of each local instance (i.e. word). When set
             to None, each local instance will be offset by the
             current accumulated text length + 1.
-        local_to_global_mapping (None | str):
-            column containing a sequence of integers where the
+        local_to_global_mapping (None | FeatureKey):
+            feature containing a sequence of integers where the
             i-th position is the index of the global offset element
             by which to offset the i-th local offset. Required when
             `global_offsets_begin` is specified.
@@ -65,11 +69,11 @@ class LocalToGlobalOffsetsConfig(BaseDataProcessorConfig):
     ] = "hyped.data.processors.spans.local_to_global_offsets"
 
     # local offsets
-    local_offsets_begin: str = None
-    local_offsets_end: str = None
+    local_offsets_begin: FeatureKey = None
+    local_offsets_end: FeatureKey = None
     # map to global offset
-    global_offsets_begin: None | str = None
-    local_to_global_mapping: None | str = None
+    global_offsets_begin: None | FeatureKey = None
+    local_to_global_mapping: None | FeatureKey = None
     # offsets inclusive or not
     local_offsets_inclusive: bool = False
 
@@ -107,25 +111,29 @@ class LocalToGlobalOffsets(BaseDataProcessor):
             out (Features): global offset features
         """
         # make sure local offsets features exist
-        raise_feature_exists(self.config.local_offsets_begin, features)
-        raise_feature_exists(self.config.local_offsets_end, features)
+        local_offsets_begin = get_feature_at_key(
+            features, self.config.local_offsets_begin
+        )
+        local_offsets_end = get_feature_at_key(
+            features, self.config.local_offsets_end
+        )
         # and are of the correct type
         raise_feature_is_sequence(
             self.config.local_offsets_begin,
-            features[self.config.local_offsets_begin],
+            local_offsets_begin,
             INDEX_TYPES,
         )
         raise_feature_is_sequence(
             self.config.local_offsets_end,
-            features[self.config.local_offsets_end],
+            local_offsets_end,
             INDEX_TYPES,
         )
         # make sure begin and end features match exactly
         raise_features_align(
             self.config.local_offsets_begin,
             self.config.local_offsets_end,
-            features[self.config.local_offsets_begin],
-            features[self.config.local_offsets_end],
+            local_offsets_begin,
+            local_offsets_end,
         )
 
         if self.config.global_offsets_begin is not None:
@@ -134,31 +142,35 @@ class LocalToGlobalOffsets(BaseDataProcessor):
                     "`local_to_global_mapping` argument not specified"
                 )
 
-            raise_feature_exists(self.config.global_offsets_begin, features)
-            raise_feature_exists(self.config.local_to_global_mapping, features)
+            global_offsets_begin = get_feature_at_key(
+                features, self.config.global_offsets_begin
+            )
+            local_to_global_mapping = get_feature_at_key(
+                features, self.config.local_to_global_mapping
+            )
 
             raise_feature_is_sequence(
                 self.config.global_offsets_begin,
-                features[self.config.global_offsets_begin],
+                global_offsets_begin,
                 INDEX_TYPES,
             )
             raise_feature_is_sequence(
                 self.config.local_to_global_mapping,
-                features[self.config.local_to_global_mapping],
+                local_to_global_mapping,
                 INDEX_TYPES,
             )
 
             raise_features_align(
                 self.config.local_to_global_mapping,
-                "local offset features",
-                features[self.config.local_to_global_mapping],
-                features[self.config.local_offsets_begin],
+                self.config.local_offsets_begin,
+                local_to_global_mapping,
+                local_offsets_begin,
             )
 
         return Features(
             {
-                SpansOutputs.BEGINS: features[self.config.local_offsets_begin],
-                SpansOutputs.ENDS: features[self.config.local_offsets_end],
+                SpansOutputs.BEGINS: local_offsets_begin,
+                SpansOutputs.ENDS: local_offsets_end,
             }
         )
 
@@ -178,8 +190,8 @@ class LocalToGlobalOffsets(BaseDataProcessor):
 
         # get local offset spans
         local_offsets = zip(
-            example[ſelf.config.local_offsets_begin],
-            example[ſelf.config.local_offsets_end],
+            get_value_at_key(example, self.config.local_offsets_begin),
+            get_value_at_key(example, self.config.local_offsets_end),
         )
         # make offsets exclusive and convert to numpy array
         local_offsets = make_spans_exclusive(
@@ -205,10 +217,10 @@ class LocalToGlobalOffsets(BaseDataProcessor):
         else:
             # get global information
             global_offsets_begin = np.asarray(
-                example[self.config.global_offsets_begin]
+                get_value_at_key(example, self.config.global_offsets_begin)
             )
             local_to_global_mapping = np.asarray(
-                example[self.config.local_to_global_mapping]
+                get_value_at_key(example, self.config.local_to_global_mapping)
             )
 
         # compute offsets on global scale

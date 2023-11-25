@@ -4,9 +4,13 @@ from hyped.data.processors.base import (
     BaseDataProcessorConfig,
 )
 from hyped.utils.feature_checks import (
-    raise_feature_exists,
     raise_feature_is_sequence,
     get_sequence_feature,
+)
+from hyped.utils.feature_access import (
+    FeatureKey,
+    get_feature_at_key,
+    get_value_at_key,
 )
 from datasets import Features, Sequence, Value, ClassLabel
 from dataclasses import dataclass
@@ -23,8 +27,8 @@ class TokenSpansFromBioTagsConfig(BaseDataProcessorConfig):
         begin_tag_prefix (str): tag prefix marking begin tags
         in_tag_prefix (str): tag prefix marking in tags
         out_tag (str): out tag
-        bio_tags (str):
-            column containing the bio tag sequence to parse
+        bio_tags (FeatureKey):
+            input feature containing the bio tag sequence to parse
     """
 
     t: Literal[
@@ -36,7 +40,7 @@ class TokenSpansFromBioTagsConfig(BaseDataProcessorConfig):
     in_tag_prefix: str = "I-"
     out_tag: str = "O"
     # bio tags
-    bio_tags: str = None
+    bio_tags: FeatureKey = None
 
 
 class TokenSpansFromBioTags(BaseDataProcessor[TokenSpansFromBioTagsConfig]):
@@ -48,7 +52,7 @@ class TokenSpansFromBioTags(BaseDataProcessor[TokenSpansFromBioTagsConfig]):
     @property
     def tag_feature(self) -> Value | ClassLabel:
         """The item feature of the tag sequence"""
-        feature = self.in_features[self.config.bio_tags]
+        feature = get_feature_at_key(self.in_features, self.config.bio_tags)
         return get_sequence_feature(feature)
 
     @property
@@ -74,10 +78,10 @@ class TokenSpansFromBioTags(BaseDataProcessor[TokenSpansFromBioTagsConfig]):
         """
         # make sure bio tags feature exists and is a sequence
         # of either class labels or strings indicating the label
-        raise_feature_exists(self.config.bio_tags, features)
+        feature = get_feature_at_key(features, self.config.bio_tags)
         raise_feature_is_sequence(
             self.config.bio_tags,
-            features[self.config.bio_tags],
+            feature,
             (Value("string"), ClassLabel),
         )
         # get the item feature
@@ -126,7 +130,7 @@ class TokenSpansFromBioTags(BaseDataProcessor[TokenSpansFromBioTagsConfig]):
             out (dict[str, Any]): token-level span annotations
         """
 
-        tags = example[self.config.bio_tags]
+        tags = get_value_at_key(example, self.config.bio_tags)
         # convert tag-ids to tags
         if isinstance(self.tag_feature, ClassLabel):
             tags = self.tag_feature.int2str(tags)

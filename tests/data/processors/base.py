@@ -108,8 +108,6 @@ class BaseTestDataProcessor(ABC):
                     prepared_batch = {
                         k: [v[i] for i in index] for k, v in batch.items()
                     }
-                    print(out_batch)
-                    print(expected_out_batch)
                     assert out_batch == (prepared_batch | expected_out_batch)
                 else:
                     assert out_batch == expected_out_batch

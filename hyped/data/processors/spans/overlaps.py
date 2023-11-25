@@ -4,11 +4,15 @@ from hyped.data.processors.base import (
 )
 from hyped.utils.feature_checks import (
     INDEX_TYPES,
-    raise_feature_exists,
     raise_features_align,
     raise_feature_is_sequence,
     get_sequence_feature,
     get_sequence_length,
+)
+from hyped.utils.feature_access import (
+    FeatureKey,
+    get_feature_at_key,
+    get_value_at_key,
 )
 from hyped.utils.spans import (
     make_spans_exclusive,
@@ -30,9 +34,9 @@ class ResolveSpanOverlapsConfig(BaseDataProcessorConfig):
     Type Identifier: `hyped.data.processors.spans.covered_idx_spans`
 
     Attributes:
-        spans_begin (str):
+        spans_begin (FeatureKey):
             input feature containing the begin values of the span sequence A.
-        spans_end (str):
+        spans_end (FeatureKey):
             input feature containing the end values of the span sequence A.
         is_spans_inclusive (bool):
             whether the end coordinates of the spans in the sequence A are
@@ -49,8 +53,8 @@ class ResolveSpanOverlapsConfig(BaseDataProcessorConfig):
     ] = "hyped.data.processors.spans.resolve_overlaps"
 
     # span sequence
-    spans_begin: str = None
-    spans_end: str = None
+    spans_begin: FeatureKey = None
+    spans_end: FeatureKey = None
     is_spans_inclusive: bool = False
     # strategy to apply
     strategy: ResolveOverlapsStrategy = ResolveOverlapsStrategy.APPROX
@@ -74,29 +78,29 @@ class ResolveSpanOverlaps(BaseDataProcessor[ResolveSpanOverlapsConfig]):
             out (Features): output feature mapping
         """
         # make sure all features exist
-        raise_feature_exists(self.config.spans_begin, features)
-        raise_feature_exists(self.config.spans_end, features)
+        spans_begin = get_feature_at_key(features, self.config.spans_begin)
+        spans_end = get_feature_at_key(features, self.config.spans_end)
         # spans must be sequence of integers
         raise_feature_is_sequence(
             self.config.spans_begin,
-            features[self.config.spans_begin],
+            spans_begin,
             INDEX_TYPES,
         )
         raise_feature_is_sequence(
             self.config.spans_begin,
-            features[self.config.spans_end],
+            spans_end,
             INDEX_TYPES,
         )
         # and they must align excatly
         raise_features_align(
             self.config.spans_begin,
             self.config.spans_end,
-            features[self.config.spans_begin],
-            features[self.config.spans_end],
+            spans_begin,
+            spans_end,
         )
         # get item feature and length from span sequence feature
-        feature = get_sequence_feature(features[self.config.spans_begin])
-        length = get_sequence_length(features[self.config.spans_begin])
+        feature = get_sequence_feature(spans_begin)
+        length = get_sequence_length(spans_begin)
         # returns a mask over the span sequence and overwrite
         # the span sequence
         return {
@@ -121,8 +125,8 @@ class ResolveSpanOverlaps(BaseDataProcessor[ResolveSpanOverlapsConfig]):
 
         spans = list(
             zip(
-                example[self.config.spans_begin],
-                example[self.config.spans_end],
+                get_value_at_key(example, self.config.spans_begin),
+                get_value_at_key(example, self.config.spans_end),
             )
         )
 

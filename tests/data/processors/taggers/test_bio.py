@@ -59,7 +59,9 @@ class TestBioTagger(BaseTestDataProcessor):
         return features
 
     @pytest.fixture(params=permutations(range(4)))
-    def batch(self, request, length, labels_feature, is_span_inclusive, with_mask):
+    def batch(
+        self, request, length, labels_feature, is_span_inclusive, with_mask
+    ):
         # set length if it is undefined
         length = 20 if length == -1 else length
 
@@ -150,7 +152,7 @@ class TestBioTaggerErrorOnOverlap(TestBioTagger):
     @pytest.fixture(params=[False])
     def with_mask(self, request):
         return request.param
-    
+
     @pytest.fixture
     def processor(self, is_span_inclusive):
         return BioTagger(

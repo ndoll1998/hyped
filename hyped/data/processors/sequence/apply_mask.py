@@ -3,10 +3,14 @@ from hyped.data.processors.base import (
     BaseDataProcessorConfig,
 )
 from hyped.utils.feature_checks import (
-    raise_feature_exists,
     raise_feature_is_sequence,
     get_sequence_length,
     get_sequence_feature,
+)
+from hyped.utils.feature_access import (
+    FeatureKey,
+    get_feature_at_key,
+    get_value_at_key,
 )
 from itertools import compress
 from datasets import Features, Sequence, Value
@@ -21,18 +25,21 @@ class ApplyMaskConfig(BaseDataProcessorConfig):
     Apply a given mask onto a set of sequences
 
     Attributes:
-        mask (str):
-            the feature column name containing the mask to apply
-        sequences (str | list[str]):
-            the feature column name(s) to apply the mask to
+        mask (FeatureKey):
+            the feature key refering to the mask to apply
+        sequences (dict[str, FeatureKey]):
+            Collection of feature keys referring to the sequences
+            to which to apply the mask. The mask is applied to each
+            features referenced by the given keys. The resulting
+            masked sequence will be stored under the dictionary key.
     """
 
     t: Literal[
         "hyped.data.processors.sequence.apply_mask"
     ] = "hyped.data.processors.sequence.apply_mask"
 
-    mask: str = None
-    sequences: str | list[str] = None
+    mask: FeatureKey = None
+    sequences: dict[str, FeatureKey] = None
 
 
 class ApplyMask(BaseDataProcessor[ApplyMaskConfig]):
@@ -40,15 +47,6 @@ class ApplyMask(BaseDataProcessor[ApplyMaskConfig]):
 
     Apply a given mask onto a set of sequences
     """
-
-    @property
-    def sequences(self) -> list[str]:
-        """Sequence feature names"""
-        return (
-            [self.config.sequences]
-            if isinstance(self.config.sequences, str)
-            else self.config.sequences
-        )
 
     def map_features(self, features: Features) -> Features:
         """Check mask and sequence features and overwrite sequence
@@ -61,38 +59,34 @@ class ApplyMask(BaseDataProcessor[ApplyMaskConfig]):
             out (Features): sequence features to overwrite
         """
         # check mask feature exists and is a sequence of booleans
-        raise_feature_exists(self.config.mask, features)
-        raise_feature_is_sequence(
-            self.config.mask, features[self.config.mask], Value("bool")
-        )
+        mask = get_feature_at_key(features, self.config.mask)
+        raise_feature_is_sequence(self.config.mask, mask, Value("bool"))
         # get the length of the mask
-        length = get_sequence_length(features[self.config.mask])
+        length = get_sequence_length(mask)
 
+        out_features = Features()
         # check each sequence feature
-        for seq in self.sequences:
+        for name, key in self.config.sequences.items():
             # make sure it exists and is a sequence
-            raise_feature_exists(seq, features)
-            raise_feature_is_sequence(seq, features[seq])
+            seq = get_feature_at_key(features, key)
+            raise_feature_is_sequence(key, seq)
             # it has to be of the same size as the mask
-            if length != get_sequence_length(features[seq]):
+            if length != get_sequence_length(seq):
                 raise TypeError(
                     "Length mismatch between mask sequence `%s` and "
                     "sequence `%s`, got %i != %i"
                     % (
                         self.config.mask,
-                        seq,
+                        key,
                         length,
-                        get_sequence_length(features[seq]),
+                        get_sequence_length(seq),
                     )
                 )
+            # add sequence feature to output features
+            out_features[name] = Sequence(get_sequence_feature(seq))
 
-        # build new feature mapping that overwrites the sequences
-        return Features(
-            {
-                seq: Sequence(get_sequence_feature(features[seq]))
-                for seq in self.sequences
-            }
-        )
+        # return all collected output features
+        return out_features
 
     def process(
         self, example: dict[str, Any], index: int, rank: int
@@ -109,20 +103,20 @@ class ApplyMask(BaseDataProcessor[ApplyMaskConfig]):
         """
 
         # get the mask
-        mask = example[self.config.mask]
+        mask = get_value_at_key(example, self.config.mask)
 
         out = {}
         # apply mask to each sequence
-        for seq_name in self.sequences:
-            seq = example[seq_name]
+        for name, key in self.config.sequences.items():
+            seq = get_value_at_key(example, key)
             # check length
             if len(seq) != len(mask):
                 raise ValueError(
                     "Length mismatch between mask sequence `%s` and "
                     "sequence `%s`, got %i != %i"
-                    % (self.config.mask, seq_name, len(mask), len(seq))
+                    % (self.config.mask, key, len(mask), len(seq))
                 )
             # apply mask to sequence
-            out[seq_name] = list(compress(seq, mask))
+            out[name] = list(compress(seq, mask))
 
         return out

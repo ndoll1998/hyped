@@ -28,6 +28,7 @@ class FilterFeaturesConfig(BaseDataProcessorConfig):
     # don't keep input features
     keep_input_features: bool = False
     # feature keys to keep or remove
+    # TODO: these should support FeatureKeys
     keep: None | str | list[str] = None
     remove: None | str | list[str] = None
 

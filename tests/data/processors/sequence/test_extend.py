@@ -1,13 +1,13 @@
 from tests.data.processors.base import BaseTestDataProcessor
-from hyped.data.processors.sequence.update import (
-    UpdateSequence,
-    UpdateSequenceConfig,
+from hyped.data.processors.sequence.extend import (
+    ExtendSequence,
+    ExtendSequenceConfig,
 )
 from datasets import Features, Sequence, Value
 import pytest
 
 
-class TestUpdateSequence(BaseTestDataProcessor):
+class TestExtendSequence(BaseTestDataProcessor):
     @pytest.fixture(
         params=[
             {
@@ -90,9 +90,12 @@ class TestUpdateSequence(BaseTestDataProcessor):
 
     @pytest.fixture
     def processor(self, append, prepend):
-        return UpdateSequence(
-            UpdateSequenceConfig(
-                sequence="sequence", append=append, prepend=prepend
+        return ExtendSequence(
+            ExtendSequenceConfig(
+                sequence="sequence",
+                output="sequence",
+                append=append,
+                prepend=prepend,
             )
         )
 

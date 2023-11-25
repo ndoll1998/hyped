@@ -29,7 +29,9 @@ class TestApplyMask(BaseTestDataProcessor):
     @pytest.fixture
     def processor(self):
         return ApplyMask(
-            ApplyMaskConfig(mask="mask", sequences=["seqA", "seqB"])
+            ApplyMaskConfig(
+                mask="mask", sequences={"seqA": "seqA", "seqB": "seqB"}
+            )
         )
 
     @pytest.fixture
@@ -83,7 +85,9 @@ class TestApplyMaskPreparationErrors(BaseTestDataProcessor):
     @pytest.fixture
     def processor(self):
         return ApplyMask(
-            ApplyMaskConfig(mask="mask", sequences=["seqA", "seqB"])
+            ApplyMaskConfig(
+                mask="mask", sequences={"seqA": "seqA", "seqB": "seqB"}
+            )
         )
 
     @pytest.fixture
@@ -105,7 +109,9 @@ class TestApplyMaskProcessErrors(BaseTestDataProcessor):
     @pytest.fixture
     def processor(self):
         return ApplyMask(
-            ApplyMaskConfig(mask="mask", sequences=["seqA", "seqB"])
+            ApplyMaskConfig(
+                mask="mask", sequences={"seqA": "seqA", "seqB": "seqB"}
+            )
         )
 
     @pytest.fixture

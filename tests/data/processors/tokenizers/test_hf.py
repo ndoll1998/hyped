@@ -151,6 +151,89 @@ class TestHuggingFaceTokenizer(BaseTestDataProcessor):
         return features
 
 
+class TestHuggingFaceTokenizerNestedInputs(TestHuggingFaceTokenizer):
+    @pytest.fixture
+    def in_features(self):
+        return Features(
+            {
+                "text": Value("string"),
+                "nested": {"text": Value("string")},
+            }
+        )
+
+    @pytest.fixture
+    def batch(self):
+        return {
+            # these are only used to build the expected output batch
+            "text": [
+                "Apple Inc. is expected to announce a new product at the "
+                "upcoming conference in San Francisco.",
+                "The United States President, Joe Biden, addressed the "
+                "nation on climate change and economic policies.",
+                "Scientists at NASA are conducting experiments to explore "
+                "the possibility of life on Mars.",
+                "The film, directed by Christopher Nolan, received critical "
+                "acclaim and won several awards.",
+                "Researchers from Oxford University published a "
+                "groundbreaking study on artificial intelligence last month.",
+            ],
+            # these go into the processor
+            "nested": [
+                {
+                    "text": (
+                        "Apple Inc. is expected to announce a new product "
+                        "at the upcoming conference in San Francisco."
+                    )
+                },
+                {
+                    "text": (
+                        "The United States President, Joe Biden, addressed "
+                        "the nation on climate change and economic policies."
+                    )
+                },
+                {
+                    "text": (
+                        "Scientists at NASA are conducting experiments to "
+                        "explore the possibility of life on Mars."
+                    )
+                },
+                {
+                    "text": (
+                        "The film, directed by Christopher Nolan, received "
+                        "critical acclaim and won several awards."
+                    )
+                },
+                {
+                    "text": (
+                        "Researchers from Oxford University published a "
+                        "groundbreaking study on artificial intelligence "
+                        "last month."
+                    )
+                },
+            ],
+        }
+
+    @pytest.fixture
+    def processor(self, tokenizer, max_length, return_options):
+        if max_length > 0:
+            return HuggingFaceTokenizer(
+                HuggingFaceTokenizerConfig(
+                    text=("nested", "text"),
+                    max_length=max_length,
+                    padding="max_length",
+                    truncation=True,
+                    tokenizer=tokenizer,
+                    **return_options
+                )
+            )
+        else:
+            return HuggingFaceTokenizer(
+                HuggingFaceTokenizerConfig(
+                    tokenizer=tokenizer, **return_options
+                )
+            )
+
+
 class TestHuggingFaceTokenizerPreparationErrors(BaseTestDataProcessor):
     @pytest.fixture
     def in_features(self):

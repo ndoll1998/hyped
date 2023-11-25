@@ -7,6 +7,15 @@ from hyped.utils.feature_checks import (
     get_sequence_length,
     get_sequence_feature,
 )
+from hyped.utils.feature_access import (
+    FeatureKey,
+    raise_is_simple_key,
+    get_feature_at_key,
+    get_value_at_key,
+    build_collection_from_keys,
+    iter_keys_in_features,
+    key_cutoff_at_slice
+)
 from datasets import Features, Sequence
 from dataclasses import dataclass
 from typing import Literal
@@ -36,7 +45,7 @@ class FlattenFeaturesConfig(FormatFeaturesConfig):
         "hyped.data.processors.features.flatten"
     ] = "hyped.data.processors.features.flatten"
 
-    to_flatten: None | list[str] = None
+    to_flatten: None | list[FeatureKey] = None
     delimiter: str = ":"
     max_seq_length_to_unpack: int = 8
 
@@ -76,48 +85,47 @@ class FlattenFeatures(FormatFeatures):
                 UserWarning,
             )
 
-        # make sure all features are present
         if self.config.to_flatten is not None:
+            # make sure all keys are simple
             for k in self.config.to_flatten:
-                raise_feature_exists(k, features)
+                raise_is_simple_key(k)
 
-        def _build_feature_paths(_features):
-            if isinstance(_features, (dict, Features)):
-                # recursivly flatten all features in mapping
-                return [
-                    (k,) + path
-                    for k, v in _features.items()
-                    for path in _build_feature_paths(v)
-                ]
-
-            # only unpack sequences of fixed length
-            if isinstance(_features, Sequence):
-                length = get_sequence_length(_features)
-
-                if 0 < length < self.config.max_seq_length_to_unpack:
-                    # add to flat feature mapping
-                    return [
-                        (i,) + path
-                        for path in _build_feature_paths(
-                            get_sequence_feature(_features)
-                        )
-                        for i in range(length)
-                    ]
-
-            # all other feature types are considered already flat
-            return [tuple()]
-
-        # get features to flatten
+        # get features to flatten, default to all features
+        # in the feature mapping
         to_flatten = (
             self.config.to_flatten
             if self.config.to_flatten is not None
             else list(features.keys())
         )
-        to_flatten = {k: features[k] for k in to_flatten}
-        # build feature mapping
-        paths = _build_feature_paths(to_flatten)
-        self.config.output_format = {
-            self.config.delimiter.join(map(str, p)): p for p in paths
-        }
-        # map features
+
+        to_flatten = [
+            k if isinstance(k, tuple) else (k,)
+            for k in to_flatten
+        ]
+
+        collection = build_collection_from_keys(to_flatten)
+
+        for key in to_flatten:
+            # get the feature to flatten and the key collection
+            # to add the flattened features into
+            feature = get_feature_at_key(features, key)
+            sub_collection = get_value_at_key(collection, key[:-1])
+            assert key[-1] in sub_collection
+            # flatten features
+            flat_collection = {
+                self.config.delimiter.join(map(str, k)): key[:-1] + k
+                for k in map(
+                    (key[-1],).__add__,
+                    map(
+                        # TODO: can we flatten after slice?
+                        key_cutoff_at_slice,
+                        iter_keys_in_features(feature)
+                    )
+                )
+            }
+
+            sub_collection.pop(key[-1])
+            sub_collection.update(flat_collection)
+
+        self.config.output_format = collection
         return super(FlattenFeatures, self).map_features(features)

@@ -5,11 +5,15 @@ from hyped.data.processors.base import (
 )
 from hyped.utils.feature_checks import (
     INDEX_TYPES,
-    raise_feature_exists,
     raise_feature_equals,
     raise_feature_is_sequence,
     get_sequence_length,
     get_sequence_feature,
+)
+from hyped.utils.feature_access import (
+    FeatureKey,
+    get_feature_at_key,
+    get_value_at_key,
 )
 from hyped.utils.spans import make_spans_exclusive
 from enum import StrEnum
@@ -42,20 +46,20 @@ class RelExTaggerConfig(BaseDataProcessorConfig):
             marker used to indicate the begging of the target entity.
         target_end_marker (str | int):
             marker used to indicate the end of the target entity.
-        input_sequence (str):
-            column containing the input sequence in which to mark
+        input_sequence (FeatureKey):
+            feature containing the input sequence in which to mark
             the related entities
-        source_span_begin (str):
-            column containing the begin value of the source entity span wrt.
+        source_span_begin (FeatureKey):
+            feature containing the begin value of the source entity span wrt.
             the input sequence
-        source_span_end (str):
-            column containing the end value of the source entity span wrt.
+        source_span_end (FeatureKey):
+            feature containing the end value of the source entity span wrt.
             the input sequence
-        target_span_begin (str):
-            column containing the begin value of the target entity span wrt.
+        target_span_begin (FeatureKey):
+            feature containing the begin value of the target entity span wrt.
             the input sequence
-        target_span_end (str):
-            column containing the end value of the target entity span wrt.
+        target_span_end (FeatureKey):
+            feature containing the end value of the target entity span wrt.
             the input sequence
         source_span_inclusive (bool):
             whether the end coordinate of the source span is
@@ -81,13 +85,13 @@ class RelExTaggerConfig(BaseDataProcessorConfig):
     target_begin_marker: str | int = None
     target_end_marker: str | int = None
 
-    input_sequence: str = None
+    input_sequence: FeatureKey = None
     # source entity span
-    source_span_begin: str = None
-    source_span_end: str = None
+    source_span_begin: FeatureKey = None
+    source_span_end: FeatureKey = None
     # target entity span
-    target_span_begin: str = None
-    target_span_end: str = None
+    target_span_begin: FeatureKey = None
+    target_span_end: FeatureKey = None
 
     # span inclusive or not
     source_span_inclusive: bool = False
@@ -113,9 +117,7 @@ class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
     Marks source and target entities in the input sequence.
     """
 
-    def _marked_sequence_feature(self, features: Features) -> Sequence:
-        sequence = features[self.config.input_sequence]
-
+    def _marked_sequence_feature(self, sequence: Sequence) -> Sequence:
         # increase length by four to account for the entity markers
         length = get_sequence_length(sequence)
         length = -1 if length == -1 else (length + 4)
@@ -181,10 +183,10 @@ class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
         value_type = self._get_sequence_value_type()
 
         # make sure input feature exists
-        raise_feature_exists(self.config.input_sequence, features)
+        sequence = get_feature_at_key(features, self.config.input_sequence)
         raise_feature_is_sequence(
             self.config.input_sequence,
-            features[self.config.input_sequence],
+            sequence,
             value_type,
         )
 
@@ -195,12 +197,12 @@ class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
             self.config.target_span_end,
         ]:
             # make sure span exists and is of expected type
-            raise_feature_exists(key, features)
-            raise_feature_equals(key, features[key], INDEX_TYPES)
+            feature = get_feature_at_key(features, key)
+            raise_feature_equals(key, feature, INDEX_TYPES)
 
         return {
             RelExTaggerOutputs.MARKED_SEQUENCE: self._marked_sequence_feature(
-                features
+                sequence
             )
         }
 
@@ -208,17 +210,18 @@ class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
         self, example: dict[str, Any], index: int, rank: int
     ) -> dict[str, Any]:
         # get input sequence from example
-        input_sequence = list(example[self.config.input_sequence])
+        input_sequence = get_value_at_key(example, self.config.input_sequence)
+        input_sequence = list(input_sequence)
         l = len(input_sequence)  # noqa: E741
 
         # get source and target spans
         src_span = (
-            example[self.config.source_span_begin],
-            example[self.config.source_span_end],
+            get_value_at_key(example, self.config.source_span_begin),
+            get_value_at_key(example, self.config.source_span_end),
         )
         tgt_span = (
-            example[self.config.target_span_begin],
-            example[self.config.target_span_end],
+            get_value_at_key(example, self.config.target_span_begin),
+            get_value_at_key(example, self.config.target_span_end),
         )
         # make spans exclusive, that is the end coordinate points
         # to the first item after the entity as the marker will be
