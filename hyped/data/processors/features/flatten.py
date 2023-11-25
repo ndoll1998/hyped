@@ -2,11 +2,6 @@ from hyped.data.processors.features.format import (
     FormatFeatures,
     FormatFeaturesConfig,
 )
-from hyped.utils.feature_checks import (
-    raise_feature_exists,
-    get_sequence_length,
-    get_sequence_feature,
-)
 from hyped.utils.feature_access import (
     FeatureKey,
     raise_is_simple_key,
@@ -14,9 +9,9 @@ from hyped.utils.feature_access import (
     get_value_at_key,
     build_collection_from_keys,
     iter_keys_in_features,
-    key_cutoff_at_slice
+    key_cutoff_at_slice,
 )
-from datasets import Features, Sequence
+from datasets import Features
 from dataclasses import dataclass
 from typing import Literal
 import warnings
@@ -36,6 +31,10 @@ class FlattenFeaturesConfig(FormatFeaturesConfig):
             dataset features to flatten. By default flattens all features
             present in the source feature mapping
         delimiter (str): delimiter used to join nested keys, defaults to ':'
+        depth (int):
+            when set to a positive integer, the nested structure
+            of the feature mapping will only be flattened to the
+            specified depth. Defaults to -1.
         max_seq_length_to_unpack (int):
             upper threshold of length to unpack sequences. If the sequence
             length exceeds this threshold, the sequence will not be unpacked
@@ -47,6 +46,7 @@ class FlattenFeaturesConfig(FormatFeaturesConfig):
 
     to_flatten: None | list[FeatureKey] = None
     delimiter: str = ":"
+    depth: int = -1
     max_seq_length_to_unpack: int = 8
 
 
@@ -98,10 +98,7 @@ class FlattenFeatures(FormatFeatures):
             else list(features.keys())
         )
 
-        to_flatten = [
-            k if isinstance(k, tuple) else (k,)
-            for k in to_flatten
-        ]
+        to_flatten = [k if isinstance(k, tuple) else (k,) for k in to_flatten]
 
         collection = build_collection_from_keys(to_flatten)
 
@@ -119,8 +116,12 @@ class FlattenFeatures(FormatFeatures):
                     map(
                         # TODO: can we flatten after slice?
                         key_cutoff_at_slice,
-                        iter_keys_in_features(feature)
-                    )
+                        iter_keys_in_features(
+                            feature,
+                            self.config.depth,
+                            self.config.max_seq_length_to_unpack,
+                        ),
+                    ),
                 )
             }
 
