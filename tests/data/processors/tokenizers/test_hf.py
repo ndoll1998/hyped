@@ -21,7 +21,7 @@ class TestHuggingFaceTokenizer(BaseTestDataProcessor):
         return Features({"text": Value("string")})
 
     @pytest.fixture
-    def batch(self):
+    def in_batch(self):
         return {
             "text": [
                 "Apple Inc. is expected to announce a new product at the "
@@ -64,7 +64,7 @@ class TestHuggingFaceTokenizer(BaseTestDataProcessor):
         return {option: True for option in request.param}
 
     @pytest.fixture
-    def expected_out_batch(self, processor, batch):
+    def expected_out_batch(self, processor, in_batch):
         config = processor.config
         tokenize = partial(
             # use the tokenizer of the processor
@@ -85,7 +85,7 @@ class TestHuggingFaceTokenizer(BaseTestDataProcessor):
         )
         # apply to each text
         out_batch = defaultdict(list)
-        for enc in map(tokenize, batch["text"]):
+        for enc in map(tokenize, in_batch["text"]):
             # add to output batch
             for key, val in enc.items():
                 # length is a list of a single item
@@ -162,7 +162,7 @@ class TestHuggingFaceTokenizerNestedInputs(TestHuggingFaceTokenizer):
         )
 
     @pytest.fixture
-    def batch(self):
+    def in_batch(self):
         return {
             # these are only used to build the expected output batch
             "text": [

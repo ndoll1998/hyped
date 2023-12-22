@@ -138,7 +138,7 @@ class TestLocalToGlobalOffsets(BaseTestDataProcessor):
         )
 
     @pytest.fixture
-    def batch(self):
+    def in_batch(self):
         return {
             "local_offsets_begin": [[0, 4, 6, 0, 3, 5, 0, 3]],
             "local_offsets_end": [[4, 6, 9, 3, 5, 9, 3, 7]],
@@ -185,7 +185,7 @@ class TestLocalToGlobalOffsetsWithGlobalOffsets(BaseTestDataProcessor):
         )
 
     @pytest.fixture
-    def batch(self):
+    def in_batch(self):
         return {
             "local_offsets_begin": [[0, 4, 6, 0, 3, 5, 0, 3]],
             "local_offsets_end": [[4, 6, 9, 3, 5, 9, 3, 7]],

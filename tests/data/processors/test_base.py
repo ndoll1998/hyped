@@ -63,7 +63,7 @@ class BaseTestSetup(BaseTestDataProcessor):
     @pytest.fixture
     def in_batch(self):
         return {"X": ["example %i" % i for i in range(10)]}
-    
+
 
 class TestDataProcessor(BaseTestSetup):
     @pytest.fixture
@@ -85,6 +85,7 @@ class TestDataProcessor(BaseTestSetup):
     @pytest.fixture
     def expected_out_batch(self):
         return {"A": ["B"] * 10}
+
 
 class TestDataProcessorWithOutputFormat(BaseTestSetup):
     @pytest.fixture
@@ -131,14 +132,16 @@ class TestDataProcessorWithComplexOutputFormat(BaseTestSetup):
         assert not p.is_prepared
         # return processor
         return p
-    
+
     @pytest.fixture
     def expected_out_features(self):
         return {
             "custom_A": Value("string"),
             "seq_A": Sequence(Value("string"), length=2),
             "dict_A": {"A1": Value("string"), "A2": Value("string")},
-            "nest_A": Sequence({"A3": {"A4": Sequence(Value("string"), length=1)}}, length=1)
+            "nest_A": Sequence(
+                {"A3": {"A4": Sequence(Value("string"), length=1)}}, length=1
+            ),
         }
 
     @pytest.fixture
@@ -175,4 +178,3 @@ class TestGeneratorDataProcessor(BaseTestSetup):
     @pytest.fixture
     def expected_out_batch(self, n):
         return {"A": ["B"] * 10 * n}
-

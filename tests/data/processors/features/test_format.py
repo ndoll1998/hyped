@@ -15,7 +15,7 @@ class BaseTestFormatFlatFeatures(BaseTestDataProcessor):
         )
 
     @pytest.fixture
-    def batch(self):
+    def in_batch(self):
         return {
             "X": list(range(0, 12)),
             "Y": list(range(12, 24)),
@@ -40,10 +40,10 @@ class TestRenameFlatFeatures(BaseTestFormatFlatFeatures):
         )
 
     @pytest.fixture
-    def expected_out_batch(self, batch):
+    def expected_out_batch(self, in_batch):
         return {
-            "new_X": batch["X"],
-            "new_Y": batch["Y"],
+            "new_X": in_batch["X"],
+            "new_Y": in_batch["Y"],
         }
 
 
@@ -59,8 +59,8 @@ class TestPackFlatFeaturesInSequence(BaseTestFormatFlatFeatures):
         return Features({"XY": Sequence(Value("int32"), length=2)})
 
     @pytest.fixture
-    def expected_out_batch(self, batch):
-        return {"XY": list(map(list, zip(batch["X"], batch["Y"])))}
+    def expected_out_batch(self, in_batch):
+        return {"XY": list(map(list, zip(in_batch["X"], in_batch["Y"])))}
 
 
 class TestErrorOnPackDifferentTypesInSequence(BaseTestFormatFlatFeatures):
@@ -97,11 +97,11 @@ class TestPackFlatFeaturesInDict(BaseTestFormatFlatFeatures):
         )
 
     @pytest.fixture
-    def expected_out_batch(self, batch):
+    def expected_out_batch(self, in_batch):
         return {
             "XYA": [
                 {"X": x, "YA": {"Y": y, "A": a}}
-                for x, y, a in zip(batch["X"], batch["Y"], batch["A"])
+                for x, y, a in zip(in_batch["X"], in_batch["Y"], in_batch["A"])
             ]
         }
 
@@ -129,14 +129,14 @@ class TestPackFlatFeaturesInListOfDicts(BaseTestFormatFlatFeatures):
         return f
 
     @pytest.fixture
-    def expected_out_batch(self, batch):
+    def expected_out_batch(self, in_batch):
         return {
             "XYA": [
                 [
                     {"XorY": x, "A": a},
                     {"XorY": y, "A": a},
                 ]
-                for x, y, a in zip(batch["X"], batch["Y"], batch["A"])
+                for x, y, a in zip(in_batch["X"], in_batch["Y"], in_batch["A"])
             ]
         }
 
@@ -156,7 +156,7 @@ class BaseTestFormatNestedFeatures(BaseTestDataProcessor):
         )
 
     @pytest.fixture
-    def batch(self):
+    def in_batch(self):
         return {
             "X": list(range(0, 12)),
             "Y": [[i + 1, i + 2, i + 3] for i in range(0, 12)],
@@ -199,10 +199,10 @@ class TestAccessNestedSequence(BaseTestFormatNestedFeatures):
         return Features({"new_X": Value("int32"), "Y.0": Value("int32")})
 
     @pytest.fixture
-    def expected_out_batch(self, batch):
+    def expected_out_batch(self, in_batch):
         return {
-            "new_X": batch["X"],
-            "Y.0": [x for x, _, _ in batch["Y"]],
+            "new_X": in_batch["X"],
+            "Y.0": [x for x, _, _ in in_batch["Y"]],
         }
 
 
@@ -250,11 +250,11 @@ class TestAccessNestedMapping(BaseTestFormatNestedFeatures):
         )
 
     @pytest.fixture
-    def expected_out_batch(self, batch):
+    def expected_out_batch(self, in_batch):
         return {
-            "new_X": batch["X"],
-            "A.x": [item["x"] for item in batch["A"]],
-            "A.y": [item["y"] for item in batch["A"]],
+            "new_X": in_batch["X"],
+            "A.x": [item["x"] for item in in_batch["A"]],
+            "A.y": [item["y"] for item in in_batch["A"]],
         }
 
 
@@ -303,12 +303,12 @@ class TestAccessNestedFeatures(BaseTestFormatNestedFeatures):
         )
 
     @pytest.fixture
-    def expected_out_batch(self, batch):
+    def expected_out_batch(self, in_batch):
         return {
-            "new_X": batch["X"],
-            "A.x": [item["x"] for item in batch["A"]],
-            "A.y.0": [item["y"][0] for item in batch["A"]],
-            "A.y.1": [item["y"][1] for item in batch["A"]],
+            "new_X": in_batch["X"],
+            "A.x": [item["x"] for item in in_batch["A"]],
+            "A.y.0": [item["y"][0] for item in in_batch["A"]],
+            "A.y.1": [item["y"][1] for item in in_batch["A"]],
         }
 
 
@@ -323,7 +323,7 @@ class TestFormatSliceFeatures(BaseTestDataProcessor):
         )
 
     @pytest.fixture
-    def batch(self):
+    def in_batch(self):
         return {
             "X": list(range(0, 12)),
             "A": [

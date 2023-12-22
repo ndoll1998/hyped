@@ -135,7 +135,7 @@ class TestCoveredIndexSpans(BaseTestDataProcessor):
         )
 
     @pytest.fixture
-    def batch(
+    def in_batch(
         self,
         num_annotations,
         is_queries_inclusive,
@@ -216,7 +216,7 @@ class TestSingleCoveredIndexSpan(TestCoveredIndexSpans):
         )
 
     @pytest.fixture
-    def batch(self, is_queries_inclusive, is_spans_inclusive):
+    def in_batch(self, is_queries_inclusive, is_spans_inclusive):
         a = int(is_queries_inclusive)
         b = int(is_spans_inclusive)
 

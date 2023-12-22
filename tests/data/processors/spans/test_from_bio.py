@@ -54,7 +54,7 @@ class TestTokenSpansFromBioTags(BaseTestDataProcessor):
         return Features({"bio_tags": Sequence(tags_feature)})
 
     @pytest.fixture
-    def batch(self, spans, tags_feature):
+    def in_batch(self, spans, tags_feature):
         tags = ["O"] * 32
         # add entity spans
         for b, e, label in spans:
@@ -158,7 +158,7 @@ class TestTokenSpansFromBioTagsInvalidTagSequence(TestTokenSpansFromBioTags):
         return request.param
 
     @pytest.fixture
-    def batch(self, spans, tags_feature):
+    def in_batch(self, spans, tags_feature):
         tags = ["O"] * 32
         # add entity spans
         for b, e, label in spans:

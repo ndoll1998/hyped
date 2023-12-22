@@ -25,7 +25,7 @@ class TestTokenSpansFromWordIds(BaseTestDataProcessor):
         return Features({"word_ids": Sequence(Value("int32"))})
 
     @pytest.fixture
-    def batch(self, spans):
+    def in_batch(self, spans):
         # create initial word ids sequence of all -1
         length = max(e for _, e in spans)
         word_ids = [-1] * length
@@ -72,7 +72,7 @@ class TestTokenSpansFromWordIdsWithMask(TestTokenSpansFromWordIds):
         )
 
     @pytest.fixture
-    def batch(self, spans):
+    def in_batch(self, spans):
         # create initial word ids sequence of all -1
         length = max(e for _, e in spans)
         word_ids = [-1] * (length + 2)

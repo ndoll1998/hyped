@@ -100,7 +100,7 @@ class TestExtendSequence(BaseTestDataProcessor):
         )
 
     @pytest.fixture
-    def batch(self, sequence):
+    def in_batch(self, sequence):
         return {"sequence": [sequence]}
 
     @pytest.fixture

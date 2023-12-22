@@ -3,6 +3,7 @@ from hyped.data.processors.base import (
     BaseDataProcessorConfig,
 )
 from hyped.utils.feature_checks import raise_feature_exists
+from hyped.utils.feature_access import FeatureKey
 from datasets import Features
 from dataclasses import dataclass
 from typing import Literal, Any
@@ -28,9 +29,8 @@ class FilterFeaturesConfig(BaseDataProcessorConfig):
     # don't keep input features
     keep_input_features: bool = False
     # feature keys to keep or remove
-    # TODO: these should support FeatureKeys
-    keep: None | str | list[str] = None
-    remove: None | str | list[str] = None
+    keep: None | FeatureKey | list[FeatureKey] = None
+    remove: None | FeatureKey | list[FeatureKey] = None
 
 
 class FilterFeatures(BaseDataProcessor[FilterFeaturesConfig]):
@@ -67,14 +67,21 @@ class FilterFeatures(BaseDataProcessor[FilterFeaturesConfig]):
             )
 
         if keep is not None:
-            keep = [keep] if isinstance(keep, str) else keep
+            keep = [keep] if not isinstance(keep, list) else keep
 
         if remove is not None:
-            remove = [remove] if isinstance(remove, str) else remove
+            remove = [remove] if not isinstance(remove, list) else remove
 
         # make sure all features exist
         for k in keep if keep is not None else remove:
             raise_feature_exists(k, features)
+
+            # TODO: currently only supports string keys
+            if not isinstance(k, str):
+                raise NotImplementedError(
+                    "Currently only simple string keys are "
+                    "supported by the filter processor"
+                )
 
         if keep is not None:
             # collect features

@@ -35,7 +35,7 @@ class TestApplyMask(BaseTestDataProcessor):
         )
 
     @pytest.fixture
-    def batch(self, mask, length):
+    def in_batch(self, mask, length):
         return {
             "mask": [mask],
             "seqA": [list(range(length))],
@@ -115,7 +115,7 @@ class TestApplyMaskProcessErrors(BaseTestDataProcessor):
         )
 
     @pytest.fixture
-    def batch(self):
+    def in_batch(self):
         return {"mask": [[True] * 10], "seqA": [[1] * 8], "seqB": [["a"] * 6]}
 
     @pytest.fixture

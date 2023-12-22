@@ -51,7 +51,7 @@ class TestResolveSpanOverlaps(BaseTestDataProcessor):
         )
 
     @pytest.fixture
-    def batch(self, spans):
+    def in_batch(self, spans):
         begins, ends = ([], []) if len(spans) == 0 else zip(*spans)
         return {
             "spans_begin": [list(begins)],

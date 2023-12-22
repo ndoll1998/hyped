@@ -147,7 +147,7 @@ class TestRelExTagger(BaseTestDataProcessor):
         )
 
     @pytest.fixture
-    def batch(
+    def in_batch(
         self,
         value_type,
         example,

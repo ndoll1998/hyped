@@ -37,7 +37,7 @@ class TestApplyIndexSpans(BaseTestDataProcessor):
         )
 
     @pytest.fixture
-    def batch(
+    def in_batch(
         self,
         num_annotations,
         is_idx_spans_inclusive,
@@ -118,7 +118,7 @@ class TestApplySingleIndexSpan(TestApplyIndexSpans):
         )
 
     @pytest.fixture
-    def batch(
+    def in_batch(
         self,
         is_idx_spans_inclusive,
         is_spans_inclusive,

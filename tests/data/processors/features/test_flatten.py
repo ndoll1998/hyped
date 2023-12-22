@@ -22,7 +22,7 @@ class BaseTestFlattenFeatures(BaseTestDataProcessor):
         )
 
     @pytest.fixture()
-    def batch(self):
+    def in_batch(self):
         return {
             "X": list(range(0, 12)),
             "Y": [[i + 1, i + 2, i + 3] for i in range(0, 12)],
@@ -52,15 +52,15 @@ class TestFlattenAllFeatures(BaseTestFlattenFeatures):
         )
 
     @pytest.fixture
-    def expected_out_batch(self, batch):
+    def expected_out_batch(self, in_batch):
         return {
-            "X": batch["X"],
-            "Y.0": [x for x, _, _ in batch["Y"]],
-            "Y.1": [x for _, x, _ in batch["Y"]],
-            "Y.2": [x for _, _, x in batch["Y"]],
-            "A.x": [item["x"] for item in batch["A"]],
-            "A.y.0": [item["y"][0] for item in batch["A"]],
-            "A.y.1": [item["y"][1] for item in batch["A"]],
+            "X": in_batch["X"],
+            "Y.0": [x for x, _, _ in in_batch["Y"]],
+            "Y.1": [x for _, x, _ in in_batch["Y"]],
+            "Y.2": [x for _, _, x in in_batch["Y"]],
+            "A.x": [item["x"] for item in in_batch["A"]],
+            "A.y.0": [item["y"][0] for item in in_batch["A"]],
+            "A.y.1": [item["y"][1] for item in in_batch["A"]],
         }
 
 
@@ -102,21 +102,21 @@ class TestFlattenSelectedFeatures(BaseTestFlattenFeatures):
         return features
 
     @pytest.fixture
-    def expected_out_batch(self, batch, processor):
+    def expected_out_batch(self, in_batch, processor):
         out_batch = {}
 
         if "X" in processor.config.to_flatten:
-            out_batch["X"] = batch["X"]
+            out_batch["X"] = in_batch["X"]
 
         if "Y" in processor.config.to_flatten:
-            out_batch["Y.0"] = [x for x, _, _ in batch["Y"]]
-            out_batch["Y.1"] = [x for _, x, _ in batch["Y"]]
-            out_batch["Y.2"] = [x for _, _, x in batch["Y"]]
+            out_batch["Y.0"] = [x for x, _, _ in in_batch["Y"]]
+            out_batch["Y.1"] = [x for _, x, _ in in_batch["Y"]]
+            out_batch["Y.2"] = [x for _, _, x in in_batch["Y"]]
 
         if "A" in processor.config.to_flatten:
-            out_batch["A.x"] = [item["x"] for item in batch["A"]]
-            out_batch["A.y.0"] = [item["y"][0] for item in batch["A"]]
-            out_batch["A.y.1"] = [item["y"][1] for item in batch["A"]]
+            out_batch["A.x"] = [item["x"] for item in in_batch["A"]]
+            out_batch["A.y.0"] = [item["y"][0] for item in in_batch["A"]]
+            out_batch["A.y.1"] = [item["y"][1] for item in in_batch["A"]]
 
         return out_batch
 
@@ -133,11 +133,11 @@ class TestFlattenNestedFeatures(BaseTestFlattenFeatures):
         return Features({"A": {"y.0": Value("int32"), "y.1": Value("int32")}})
 
     @pytest.fixture
-    def expected_out_batch(self, batch):
+    def expected_out_batch(self, in_batch):
         return {
             "A": [
                 {"y.0": item["y"][0], "y.1": item["y"][1]}
-                for item in batch["A"]
+                for item in in_batch["A"]
             ]
         }
 
