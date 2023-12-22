@@ -3,7 +3,7 @@ from hyped.data.processors.base import (
     BaseDataProcessorConfig,
     BaseDataProcessor,
 )
-from datasets import Features, Value
+from datasets import Features, Sequence, Value
 from dataclasses import dataclass
 import pytest
 
@@ -61,19 +61,9 @@ class BaseTestSetup(BaseTestDataProcessor):
         return Features({"X": Value("string")})
 
     @pytest.fixture
-    def batch(self):
+    def in_batch(self):
         return {"X": ["example %i" % i for i in range(10)]}
-
-    @pytest.fixture
-    def out_features(self, keep_inputs):
-        # add new column added by processor
-        features = {"X": Value("string")}
-        # add input features if needed
-        if keep_inputs:
-            features["A"] = Value("string")
-
-        return Features(features)
-
+    
 
 class TestDataProcessor(BaseTestSetup):
     @pytest.fixture
@@ -89,15 +79,12 @@ class TestDataProcessor(BaseTestSetup):
         return p
 
     @pytest.fixture
-    def out_batch(self, keep_inputs, batch):
-        # new values added by processor
-        out_batch = {"A": ["B"] * 10}
-        # keep input features if needed
-        if keep_inputs:
-            out_batch["X"] = batch["X"]
+    def expected_out_features(self):
+        return {"A": Value("string")}
 
-        return out_batch
-
+    @pytest.fixture
+    def expected_out_batch(self):
+        return {"A": ["B"] * 10}
 
 class TestDataProcessorWithOutputFormat(BaseTestSetup):
     @pytest.fixture
@@ -116,14 +103,12 @@ class TestDataProcessorWithOutputFormat(BaseTestSetup):
         return p
 
     @pytest.fixture
-    def out_batch(self, keep_inputs, batch):
-        # new values added by processor
-        out_batch = {"costum_A": ["B"] * 10}
-        # keep input features if needed
-        if keep_inputs:
-            out_batch["X"] = batch["X"]
+    def expected_out_features(self):
+        return {"custom_A": Value("string")}
 
-        return out_batch
+    @pytest.fixture
+    def expected_out_batch(self):
+        return {"custom_A": ["B"] * 10}
 
 
 class TestDataProcessorWithComplexOutputFormat(BaseTestSetup):
@@ -146,21 +131,24 @@ class TestDataProcessorWithComplexOutputFormat(BaseTestSetup):
         assert not p.is_prepared
         # return processor
         return p
+    
+    @pytest.fixture
+    def expected_out_features(self):
+        return {
+            "custom_A": Value("string"),
+            "seq_A": Sequence(Value("string"), length=2),
+            "dict_A": {"A1": Value("string"), "A2": Value("string")},
+            "nest_A": Sequence({"A3": {"A4": Sequence(Value("string"), length=1)}}, length=1)
+        }
 
     @pytest.fixture
-    def out_batch(self, keep_inputs, batch):
-        # new values added by processor
-        out_batch = {
-            "costum_A": ["B"] * 10,
-            "seq_A": [["B"] * 10, ["B"] * 10],
-            "dict_A": {"A1": ["B"] * 10, "A2": ["B"] * 10},
-            "nest_A": [{"A3": {"A4": [["B"] * 10]}}],
+    def expected_out_batch(self):
+        return {
+            "custom_A": ["B"] * 10,
+            "seq_A": [["B", "B"]] * 10,
+            "dict_A": [{"A1": "B", "A2": "B"}] * 10,
+            "nest_A": [[{"A3": {"A4": ["B"]}}]] * 10,
         }
-        # keep input features if needed
-        if keep_inputs:
-            out_batch["X"] = batch["X"]
-
-        return out_batch
 
 
 class TestGeneratorDataProcessor(BaseTestSetup):
@@ -181,11 +169,10 @@ class TestGeneratorDataProcessor(BaseTestSetup):
         return p
 
     @pytest.fixture
-    def out_batch(self, keep_inputs, batch, n):
-        # new values added by processor
-        out_batch = {"A": ["B"] * 10 * n}
-        # keep input features if needed
-        if keep_inputs:
-            out_batch["X"] = [x for x in batch["X"] for _ in range(n)]
+    def expected_out_features(self):
+        return {"A": Value("string")}
 
-        return out_batch
+    @pytest.fixture
+    def expected_out_batch(self, n):
+        return {"A": ["B"] * 10 * n}
+
