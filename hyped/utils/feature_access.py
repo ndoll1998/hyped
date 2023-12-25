@@ -8,13 +8,13 @@ from hyped.utils.feature_checks import (
 )
 from datasets.features.features import Features, FeatureType, Sequence
 from itertools import chain
-from typing import Any, Iterable
+from typing import Any, Iterable, NewType
 
 # TODO: write tests
 
 # a feature key must either be a string or a path represented
 # by a tuple of keys to follow in the feature mapping
-FeatureKey = str | tuple[str | int | slice]
+FeatureKey = NewType("FeatureKey", str | tuple[str | int | slice])
 # a feature collection is a collection of feature keys
 # either in form of a list or in form of a dictionary
 FeatureKeyCollection = (
@@ -22,6 +22,24 @@ FeatureKeyCollection = (
     | list["FeatureKeyCollection"]
     | dict[str, "FeatureKeyCollection"]
 )
+
+
+def is_feature_key(key: FeatureKey) -> bool:
+    """Test whether a given candidate matches the `FeatureKey` type.
+
+    Arguments:
+        key (FeatureKey): key candidate
+
+    Returns:
+        is_key (bool):
+            boolean indicating whether the candidate matches the type
+    """
+
+    return isinstance(key, str) or (
+        # or a path of only string keys
+        isinstance(key, tuple)
+        and all(isinstance(k, str | int | slice) for k in key)
+    )
 
 
 def is_simple_key(key: FeatureKey) -> bool:

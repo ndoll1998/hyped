@@ -3,8 +3,9 @@ from hyped.data.processors.base import (
     BaseDataProcessorConfig,
     BaseDataProcessor,
 )
+from hyped.utils.feature_access import FeatureKey
 from datasets import Features, Sequence, Value
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import pytest
 
 
@@ -49,6 +50,58 @@ class ConstantGeneratorDataProcessor(ConstantDataProcessor):
     def process(self, example, *args, **kwargs):
         for _ in range(self.config.n):
             yield super().process(example, *args, **kwargs)
+
+
+class TestDataProcessorConfig(object):
+    def test_extract_feature_keys(self):
+        @dataclass
+        class Config(BaseDataProcessorConfig):
+            # simple keys
+            a: FeatureKey = "a"
+            b: FeatureKey = "b"
+            c: None | FeatureKey = None
+            # list and dict of keys
+            l: list[FeatureKey] = field(
+                default_factory=lambda: ["1", "2", "3"]
+            )
+            d: dict[str, FeatureKey] = field(
+                default_factory=lambda: {"key1": "d1", "key2": "d2"}
+            )
+            # nested variations
+            ll: list[list[FeatureKey]] = field(
+                default_factory=lambda: [["11", "12"], ["21", "22", "23"]]
+            )
+            ld: list[dict[str, FeatureKey]] = field(
+                default_factory=lambda: [{"k1": "k1"}, {"k2": "k2"}]
+            )
+            dl: dict[str, list[FeatureKey]] = field(
+                default_factory=lambda: {"k1": ["h", "i"], "k2": ["j"]}
+            )
+            # no feature keys
+            x: str = "x"
+            y: None | int = "y"
+            z: tuple[str] = field(default_factory=lambda: ("z",))
+
+        assert set(list(Config().required_feature_keys)) == {
+            "a",
+            "b",
+            "1",
+            "2",
+            "3",
+            "d1",
+            "d2",
+            "11",
+            "12",
+            "21",
+            "22",
+            "23",
+            "k1",
+            "k2",
+            "h",
+            "i",
+            "j",
+        }
+        assert "c" in set(list(Config(c="c").required_feature_keys))
 
 
 class BaseTestSetup(BaseTestDataProcessor):

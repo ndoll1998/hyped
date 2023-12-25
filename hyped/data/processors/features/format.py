@@ -4,7 +4,7 @@ from hyped.data.processors.base import (
 )
 from datasets import Features
 from dataclasses import dataclass
-from typing import Literal, Any
+from typing import Literal, Any, ClassVar
 
 
 @dataclass
@@ -23,6 +23,9 @@ class FormatFeaturesConfig(BaseDataProcessorConfig):
             of existing dataset features or paths (i.e. tuples) in case
             of nested features.
     """
+
+    # include output format when parsing for required feature keys
+    _IGNORE_KEYS_FROM_FIELDS: ClassVar[list[str]] = []
 
     t: Literal[
         "hyped.data.processors.features.format"

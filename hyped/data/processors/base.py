@@ -1,16 +1,29 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from datasets import Features
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from hyped.base.config import BaseConfig, BaseConfigurable
 from hyped.utils.feature_access import (
+    FeatureKey,
     FeatureKeyCollection,
+    is_feature_key,
     collect_features,
     collect_values,
     iter_batch,
 )
+from itertools import chain
 from types import GeneratorType
-from typing import Literal, Any, TypeVar, Generator
+from typing import (
+    ClassVar,
+    Literal,
+    Any,
+    TypeVar,
+    Generator,
+    _UnionGenericAlias,
+    GenericAlias,
+    get_args,
+    get_origin,
+)
 
 
 @dataclass
@@ -26,6 +39,11 @@ class BaseDataProcessorConfig(BaseConfig):
             of the new features computed by the data processor
     """
 
+    # specify fields that will not be parsed for feature keys
+    # by default the output format is ignored as the feature keys
+    # refer to output features and not required input features
+    _IGNORE_KEYS_FROM_FIELDS: ClassVar[list[str]] = ["output_format"]
+
     t: Literal["hyped.data.processor.base"] = "hyped.data.processor.base"
     # attributes
     keep_input_features: bool = True
@@ -38,6 +56,67 @@ class BaseDataProcessorConfig(BaseConfig):
             raise TypeError(
                 "Output format must be a dictionary, got %s"
                 % str(self.output_format)
+            )
+
+    @property
+    def required_feature_keys(self) -> Generator[FeatureKey, None, None]:
+        """Iterator over all feature keys required for execution of the
+        corresponding data processor.
+
+        By default, the required feature keys are identified by the type
+        annotations of the dataclass. That is every field that is annotated
+        as a feature key is extracted in this routine. This also includes
+        lists and dictionaries of feature keys.
+        """
+
+        def _yield_from_collection(
+            t: type[FeatureKeyCollection], v: FeatureKeyCollection
+        ):
+            # direct feature key mentions
+            if (
+                # required
+                t is FeatureKey
+                or
+                # optional
+                (
+                    isinstance(t, _UnionGenericAlias)
+                    and FeatureKey in get_args(t)
+                )
+            ):
+                # make sure the corresponding value is set
+                if is_feature_key(v):
+                    yield v
+
+            # nested feature key mentions
+            elif isinstance(t, GenericAlias):
+                origin = get_origin(t)
+                args = get_args(t)
+                # list of keys
+                if origin is list:
+                    if len(args) > 1:
+                        raise NotImplementedError
+                    if args[0] is FeatureKey:
+                        yield from v
+                    else:
+                        yield from chain.from_iterable(
+                            (_yield_from_collection(args[0], i) for i in v)
+                        )
+                # dict of keys
+                elif origin is dict:
+                    print(args[1] is FeatureKey, v.values())
+                    yield from chain.from_iterable(
+                        (
+                            _yield_from_collection(args[1], i)
+                            for i in v.values()
+                        )
+                    )
+
+        for field in fields(self):
+            if field.name in type(self)._IGNORE_KEYS_FROM_FIELDS:
+                continue
+
+            yield from _yield_from_collection(
+                field.type, getattr(self, field.name)
             )
 
 
@@ -114,6 +193,17 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
             assert isinstance(self._new_features, Features)
         # return output features
         return self.out_features
+
+    @property
+    def required_feature_keys(self) -> set[FeatureKey]:
+        """Input dataset feature keys required for execution of the processor.
+
+        These must be contained in the `in_features`.
+
+        Returns:
+            feature_keys (list[FeatureKey]): list of required feature keys
+        """
+        return set(list(self.config.required_feature_keys))
 
     @property
     def in_features(self) -> Features:
