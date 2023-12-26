@@ -19,8 +19,8 @@ class FilterFeaturesConfig(BaseDataProcessorConfig):
     Type Identifier: `hyped.data.processors.features.format`
 
     Attributes:
-        keep (None | str | list[str]): features to keep
-        remove (None | str | list[str]): features to remove
+        keep (None | list[FeatureKey]): features to keep
+        remove (None | list[FeatureKey]): features to remove
     """
 
     t: Literal[
@@ -29,8 +29,8 @@ class FilterFeaturesConfig(BaseDataProcessorConfig):
     # don't keep input features
     keep_input_features: bool = False
     # feature keys to keep or remove
-    keep: None | FeatureKey | list[FeatureKey] = None
-    remove: None | FeatureKey | list[FeatureKey] = None
+    keep: None | list[FeatureKey] = None
+    remove: None | list[FeatureKey] = None
 
 
 class FilterFeatures(BaseDataProcessor[FilterFeaturesConfig]):
@@ -65,12 +65,6 @@ class FilterFeatures(BaseDataProcessor[FilterFeaturesConfig]):
                 "Please specify either the `keep` or the `remove` filter "
                 "but not both"
             )
-
-        if keep is not None:
-            keep = [keep] if not isinstance(keep, list) else keep
-
-        if remove is not None:
-            remove = [remove] if not isinstance(remove, list) else remove
 
         # make sure all features exist
         for k in keep if keep is not None else remove:

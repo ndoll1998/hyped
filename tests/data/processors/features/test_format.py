@@ -7,6 +7,14 @@ from datasets import Features, Sequence, Value
 import pytest
 
 
+class TestFormatFeaturesConfig(object):
+    def test_required_features(self):
+        config = FormatFeaturesConfig(
+            output_format={"new_X": "X", "new_Y": "Y"}
+        )
+        assert set(list(config.required_feature_keys)) == {"X", "Y"}
+
+
 class BaseTestFormatFlatFeatures(BaseTestDataProcessor):
     @pytest.fixture
     def in_features(self):

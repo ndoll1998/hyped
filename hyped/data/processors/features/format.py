@@ -2,8 +2,9 @@ from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
 )
+from hyped.utils.feature_access import FeatureKeyCollection
 from datasets import Features
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, Any, ClassVar
 
 
@@ -30,6 +31,10 @@ class FormatFeaturesConfig(BaseDataProcessorConfig):
     t: Literal[
         "hyped.data.processors.features.format"
     ] = "hyped.data.processors.features.format"
+
+    output_format: dict[str, FeatureKeyCollection] = field(
+        default_factory=dict
+    )
 
 
 class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):

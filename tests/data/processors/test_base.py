@@ -64,8 +64,14 @@ class TestDataProcessorConfig(object):
             l: list[FeatureKey] = field(
                 default_factory=lambda: ["1", "2", "3"]
             )
+            ol: None | list[FeatureKey] = field(
+                default_factory=lambda: ["4", "5", "6"]
+            )
             d: dict[str, FeatureKey] = field(
                 default_factory=lambda: {"key1": "d1", "key2": "d2"}
+            )
+            od: dict[str, FeatureKey] = field(
+                default_factory=lambda: {"key1": "d3", "key2": "d4"}
             )
             # nested variations
             ll: list[list[FeatureKey]] = field(
@@ -88,8 +94,13 @@ class TestDataProcessorConfig(object):
             "1",
             "2",
             "3",
+            "4",
+            "5",
+            "6",
             "d1",
             "d2",
+            "d3",
+            "d4",
             "11",
             "12",
             "21",

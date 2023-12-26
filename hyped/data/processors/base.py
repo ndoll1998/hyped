@@ -12,14 +12,14 @@ from hyped.utils.feature_access import (
     iter_batch,
 )
 from itertools import chain
-from types import GeneratorType
+from types import GeneratorType, UnionType
 from typing import (
+    Union,
     ClassVar,
     Literal,
     Any,
     TypeVar,
     Generator,
-    _UnionGenericAlias,
     GenericAlias,
     get_args,
     get_origin,
@@ -72,38 +72,62 @@ class BaseDataProcessorConfig(BaseConfig):
         def _yield_from_collection(
             t: type[FeatureKeyCollection], v: FeatureKeyCollection
         ):
+            # handle optionals
+            if isinstance(t, UnionType) or (get_origin(t) is Union):
+                args = get_args(t)
+
+                if (
+                    (len(args) == 2)
+                    and (type(None) in args)
+                    and (v is not None)
+                ):
+                    t = args[0] if args[1] is None else args[1]
+
+                elif v is None:
+                    return
+
             # direct feature key mentions
-            if (
-                # required
-                t is FeatureKey
-                or
-                # optional
-                (
-                    isinstance(t, _UnionGenericAlias)
-                    and FeatureKey in get_args(t)
-                )
-            ):
-                # make sure the corresponding value is set
-                if is_feature_key(v):
-                    yield v
+            if t is FeatureKey:
+                yield v
+
+            # feature collection
+            elif t is FeatureKeyCollection:
+                if isinstance(v, list) and (len(v) > 0):
+                    yield from _yield_from_collection(
+                        list[
+                            FeatureKey
+                            if is_feature_key(v[0])
+                            else FeatureKeyCollection
+                        ],
+                        v,
+                    )
+                elif isinstance(v, dict) and (len(v) > 0):
+                    yield from _yield_from_collection(
+                        dict[
+                            str,
+                            FeatureKey
+                            if is_feature_key(next(iter(v.values())))
+                            else FeatureKeyCollection,
+                        ],
+                        v,
+                    )
+                else:
+                    yield from _yield_from_collection(FeatureKey, v)
 
             # nested feature key mentions
             elif isinstance(t, GenericAlias):
                 origin = get_origin(t)
                 args = get_args(t)
+
                 # list of keys
                 if origin is list:
                     if len(args) > 1:
                         raise NotImplementedError
-                    if args[0] is FeatureKey:
-                        yield from v
-                    else:
-                        yield from chain.from_iterable(
-                            (_yield_from_collection(args[0], i) for i in v)
-                        )
+                    yield from chain.from_iterable(
+                        (_yield_from_collection(args[0], i) for i in v)
+                    )
                 # dict of keys
                 elif origin is dict:
-                    print(args[1] is FeatureKey, v.values())
                     yield from chain.from_iterable(
                         (
                             _yield_from_collection(args[1], i)
