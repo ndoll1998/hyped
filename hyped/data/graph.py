@@ -45,7 +45,6 @@ class EdgeAttribute(StrEnum):
     the source node of the edge to the target node."""
 
 
-# TODO: test graph construction
 class ProcessGraph(nx.DiGraph):
     """Process Graph
 
