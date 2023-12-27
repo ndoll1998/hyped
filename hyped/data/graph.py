@@ -1,3 +1,5 @@
+import re
+import numpy as np
 import networkx as nx
 from datasets import Features
 from enum import StrEnum
@@ -14,6 +16,35 @@ class NodeType(StrEnum):
     DATA_PROCESSOR = "data_processor"
 
 
+class NodeAttribute(StrEnum):
+    """Enumeration of node attributes"""
+
+    TYPE = "node_type"
+    """The type of the node. Values to this attribute are defined by the
+    `NodeType` enumeration."""
+
+    LABEL = "node_label"
+    """The label of the node, for features this refers to the feature name,
+    for processors it is the processor class name"""
+
+    LAYER = "node_layer"
+    """The layer of the node, indicating the path length from the input
+    features at layer 0 to the given node"""
+
+    EXECUTION_INDEX = "node_execution_index"
+    """The execution index of the node, for processors this refers to the
+    order in which processors are executed in the pipeline. For feature
+    nodes, the execution index is undefined (set to -1)."""
+
+
+class EdgeAttribute(StrEnum):
+    """Enumeration of edge attributes"""
+
+    FEATURES = "edge_features"
+    """A list of feature keys refering to the features that are passed from
+    the source node of the edge to the target node."""
+
+
 # TODO: test graph construction
 class ProcessGraph(nx.DiGraph):
     """Process Graph
@@ -22,21 +53,8 @@ class ProcessGraph(nx.DiGraph):
     output features as well as the processors that process the input to the
     output features. Edges show the information flow between processors.
 
-    For valid node types see the `NodeType` enumeration.
-
-    Node Arguments:
-        label (str):
-            the label of the node, for features this is the feature name,
-            for processors it is the processor class name
-        type (NodeType): the type of the node
-        layer (int):
-            layer of the node, indicating the path length from the input
-            features to the given node
-
-    Edge Attributes:
-        label (str):
-            comma separated list of all features passed from the source
-            to the target node of the edge
+    Nodes and edges have a set of attributes. See `NodeAttributes` and
+    `EdgeAttributes` for more details.
 
     Arguments:
         features (Features): input features to be processed by the data pipe
@@ -68,9 +86,10 @@ class ProcessGraph(nx.DiGraph):
                 (
                     i,
                     {
-                        "label": "[%s]" % k,
-                        "type": NodeType.INPUT_FEATURE,
-                        "layer": layers[k],
+                        NodeAttribute.TYPE: NodeType.INPUT_FEATURE,
+                        NodeAttribute.LABEL: k,
+                        NodeAttribute.LAYER: layers[k],
+                        NodeAttribute.EXECUTION_INDEX: -1,
                     },
                 )
                 for k, i in nodes.items()
@@ -78,7 +97,7 @@ class ProcessGraph(nx.DiGraph):
         )
 
         # add all processor nodes
-        for p in pipe:
+        for i, p in enumerate(pipe, 0):
             req_keys = [
                 k[0] if isinstance(k, tuple) else k
                 for k in p.required_feature_keys
@@ -90,9 +109,12 @@ class ProcessGraph(nx.DiGraph):
             # add node to graph
             self.add_node(
                 node_id,
-                label=type(p).__name__,
-                type=NodeType.DATA_PROCESSOR,
-                layer=layer,
+                **{
+                    NodeAttribute.TYPE: NodeType.DATA_PROCESSOR,
+                    NodeAttribute.LABEL: type(p).__name__,
+                    NodeAttribute.LAYER: layer,
+                    NodeAttribute.EXECUTION_INDEX: i,
+                },
             )
 
             # group required inputs by the node that provides them
@@ -100,7 +122,11 @@ class ProcessGraph(nx.DiGraph):
             group = groupby(group, key=lambda k: nodes[k])
             # add incoming edges
             for src_node_id, keys in group:
-                self.add_edge(src_node_id, node_id, label="\n".join(keys))
+                self.add_edge(
+                    src_node_id,
+                    node_id,
+                    **{EdgeAttribute.FEATURES: list(keys)},
+                )
 
             # update current features
             if not p.config.keep_input_features:
@@ -114,12 +140,36 @@ class ProcessGraph(nx.DiGraph):
             node_id = next(counter)
             self.add_node(
                 node_id,
-                label="[%s]" % k,
-                type=NodeType.OUTPUT_FEATURE,
-                layer=layers[k] + 1,
+                **{
+                    NodeAttribute.TYPE: NodeType.OUTPUT_FEATURE,
+                    NodeAttribute.LABEL: k,
+                    NodeAttribute.LAYER: layers[k] + 1,
+                    NodeAttribute.EXECUTION_INDEX: -1,
+                },
             )
-            # TODO: create string representation of complex keys
-            self.add_edge(src_node_id, node_id, label=k)
+            self.add_edge(
+                src_node_id, node_id, **{EdgeAttribute.FEATURES: [k]}
+            )
+
+    @property
+    def num_layers(self) -> int:
+        """The total number of layers in the graph.
+
+        It is computed by finding the maximum value of the
+        `NodeAttribute.LAYER` attributes of the nodes.
+        """
+        return (
+            max(nx.get_node_attributes(self, NodeAttribute.LAYER).values()) + 1
+        )
+
+    @property
+    def max_width(self) -> int:
+        """The maximum number of nodes contained in a single layer."""
+        # group nodes by their layer
+        layers = nx.get_node_attributes(self, NodeAttribute.LAYER)
+        layers = groupby(sorted(self, key=layers.get), key=layers.get)
+        # find larges layer in graph
+        return max(len(list(layer)) for _, layer in layers)
 
     def plot(
         self,
@@ -139,7 +189,7 @@ class ProcessGraph(nx.DiGraph):
             pos (None | dict[str, list[float]]):
                 positions of the nodes, when set to None (default) the node
                 positions are computed using `networkx.multipartite_layout`
-                based on the `layer` attribute of the nodes.
+                based on the `NodeAttribute.LAYER` attribute of the nodes.
             color_map (dict[NodeType, str]):
                 indicate custom color scheme based on node type
             with_labels (bool): plot node labels
@@ -147,9 +197,15 @@ class ProcessGraph(nx.DiGraph):
             font_size (int): font size used for labels
             node_size (int): size of nodes
             arrowsize (int): size of arrows
-            ax (plt.Axes): axes to plot in
+            ax (None | plt.Axes): axes to plot in
             **kwargs: arguments forwarded to networkx.draw
+
+        Returns:
+            ax (plt.Axes): axes containing plot of the graph
         """
+
+        # limit the maximum number of character in a single line in nodes
+        max_node_line_length = node_size // (font_size * 65)
 
         # build full color map
         default_color_map = {
@@ -160,29 +216,66 @@ class ProcessGraph(nx.DiGraph):
         color_map = default_color_map | color_map
 
         # get node and edge attributes
-        node_labels = nx.get_node_attributes(self, "label")
-        edge_labels = nx.get_edge_attributes(self, "label")
-        node_types = nx.get_node_attributes(self, "type")
+        node_types = nx.get_node_attributes(self, NodeAttribute.TYPE)
+        node_index = nx.get_node_attributes(
+            self, NodeAttribute.EXECUTION_INDEX
+        )
+        node_labels = nx.get_node_attributes(self, NodeAttribute.LABEL)
+        edge_features = nx.get_edge_attributes(self, EdgeAttribute.FEATURES)
         # convert node types to colors
         node_color = [color_map.get(node_types[node], "red") for node in self]
 
+        def add_line_breaks(mixed_case_string: str, max_line_length: int):
+            # split string into words
+            words = re.split(r"(?<=[a-z])(?=[A-Z])", mixed_case_string)
+            # group words such that each group has a limited number of
+            # characers
+            lengths = np.cumsum(list(map(len, words))) // max_line_length
+            groups = groupby(range(len(words)), key=lengths.__getitem__)
+            # join groups with newlines inbetween
+            return "\n".join(
+                ["".join([words[i] for i in group]) for _, group in groups]
+            )
+
+        def get_node_label(node):
+            if node_types[node] is NodeType.DATA_PROCESSOR:
+                formatted_label = add_line_breaks(
+                    node_labels[node], max_node_line_length
+                )
+                return "[%i]\n%s" % (node_index[node], formatted_label)
+            if node_types[node] in (
+                NodeType.INPUT_FEATURE,
+                NodeType.OUTPUT_FEATURE,
+            ):
+                return "[%s]" % node_labels[node]
+
+        def get_edge_label(edge):
+            # TODO: create string representation of complex keys
+            return "\n".join(edge_features[edge])
+
         # create a plot axes
         if ax is None:
-            _, ax = plt.subplots(1, 1)
+            _, ax = plt.subplots(
+                1, 1, figsize=(self.num_layers * 5, self.max_width * 5)
+            )
 
         # compute node positions when not provided
         pos = (
             pos
             if pos is not None
-            else nx.multipartite_layout(self, subset_key="layer")
+            else nx.multipartite_layout(self, subset_key=NodeAttribute.LAYER)
         )
 
+        # build display labels for nodes
+        node_display_labels = {
+            node: get_node_label(node) for node in self.nodes
+        }
         # draw graph
         nx.draw(
             self,
             pos,
             with_labels=with_labels,
-            labels=node_labels,
+            labels=node_display_labels,
             node_color=node_color,
             node_size=node_size,
             font_size=font_size,
@@ -190,10 +283,18 @@ class ProcessGraph(nx.DiGraph):
             ax=ax,
             **kwargs,
         )
+
         # add edge labels
         if with_edge_labels:
+            edge_display_labels = {
+                edge: get_edge_label(edge) for edge in self.edges
+            }
             nx.draw_networkx_edge_labels(
-                self, pos, edge_labels=edge_labels, ax=ax, font_size=font_size
+                self,
+                pos,
+                edge_labels=edge_display_labels,
+                ax=ax,
+                font_size=font_size,
             )
 
         return ax
