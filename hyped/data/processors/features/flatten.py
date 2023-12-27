@@ -79,7 +79,7 @@ class FlattenFeatures(FormatFeatures):
             out (Features): flattened feature mapping
         """
         # overwriting feature mapping in config
-        if self.config.output_format is not None:
+        if len(self.config.output_format) != 0:
             warnings.warn(
                 "Feature mapping is not None and will be overwritten",
                 UserWarning,
