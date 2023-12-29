@@ -1,6 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from datasets import Features
+from inspect import get_annotations
 from dataclasses import dataclass, fields
 from hyped.base.config import BaseConfig, BaseConfigurable
 from hyped.utils.feature_access import (
@@ -85,7 +86,7 @@ class BaseDataProcessorConfig(BaseConfig):
 
                 elif v is None:
                     return
-
+        
             # direct feature key mentions
             if t is FeatureKey:
                 yield v
@@ -135,12 +136,20 @@ class BaseDataProcessorConfig(BaseConfig):
                         )
                     )
 
-        for field in fields(self):
-            if field.name in type(self)._IGNORE_KEYS_FROM_FIELDS:
+        # collect all valid fields
+        valid_fields = {field.name for field in fields(self)}
+        # iterate over fields and get their type annotations
+        # use inspect's get_annotations function as it resolves
+        # string type annotations
+        for field, t in get_annotations(type(self), eval_str=True).items():
+            if (
+                (field in type(self)._IGNORE_KEYS_FROM_FIELDS) or
+                (field not in valid_fields)
+            ):
                 continue
 
             yield from _yield_from_collection(
-                field.type, getattr(self, field.name)
+                t, getattr(self, field)
             )
 
 
@@ -210,7 +219,11 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
         # copy as preparation might disturb features inplace
         self._raw_features = self.map_features(features.copy())
         # apply output scheme to new features
-        if self.config.output_format is not None:
+        if (
+            (self.config.output_format is not None)
+            and isinstance(self.config.output_format, dict)
+            and (len(self.config.output_format) > 0)
+        ):
             self._new_features = collect_features(
                 self._raw_features, self.config.output_format
             )
