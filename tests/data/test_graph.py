@@ -3,6 +3,8 @@ import networkx as nx
 from datasets import Features, Sequence, ClassLabel, Value
 from hyped.data.graph import ProcessGraph, NodeAttribute, NodeType
 from hyped.data.pipe import DataPipe
+from hyped.data.processors.base import BaseDataProcessor
+from hyped.data.processors.statistics.base import BaseDataStatistic
 from hyped.data.processors.tokenizers.hf import (
     HuggingFaceTokenizer,
     HuggingFaceTokenizerConfig,
@@ -37,7 +39,9 @@ from hyped.data.processors.taggers.bio import (
     BioTaggerConfig,
     BioTaggerOutputs,
 )
+from hyped.data.processors.statistics.value.mean_and_std import MeanAndStdConfig, MeanAndStd
 from itertools import chain
+import warnings
 
 
 class BaseTestProcessGraph(object):
@@ -63,31 +67,42 @@ class BaseTestProcessGraph(object):
 
     @pytest.fixture
     def G(self, features, pipe) -> ProcessGraph:
-        return ProcessGraph(features, pipe)
+        # ignore warning that no statistics report is active
+        with warnings.catch_warnings(category=UserWarning, action="ignore"):
+            return ProcessGraph(features, pipe)
 
     def test_nodes(self, G, features, pipe):
-        # make sure the pipe is prepared with the features
-        pipe.prepare(features)
+
+        # ignore warning that no statistics report is active
+        with warnings.catch_warnings(category=UserWarning, action="ignore"):
+            # make sure the pipe is prepared with the features
+            pipe.prepare(features)
+
         # get node attributes
         node_types = nx.get_node_attributes(G, NodeAttribute.TYPE)
         node_label = nx.get_node_attributes(G, NodeAttribute.LABEL)
         node_index = nx.get_node_attributes(G, NodeAttribute.EXECUTION_INDEX)
-        # map execution index to the corresponding node and
-        # filter out all feature nodes with index -1
-        index_to_node = {i: n for n, i in node_index.items() if i != -1}
 
         # separate node types
         processors = [n for n in G if node_types[n] is NodeType.DATA_PROCESSOR]
+        statistics = [n for n in G if node_types[n] is NodeType.DATA_STATISTIC]
         in_features = [n for n in G if node_types[n] is NodeType.INPUT_FEATURE]
         out_features = [
             n for n in G if node_types[n] is NodeType.OUTPUT_FEATURE
         ]
         # make sure all data processors are present
-        assert len(pipe) == len(processors)
-        for i, p in enumerate(pipe):
-            assert i in index_to_node
-            node = index_to_node[i]
-            assert node_label[node] == type(p).__name__
+        assert len(pipe) == len(processors) + len(statistics)
+        # test all processors
+        for node in processors:
+            idx = node_index[node]
+            assert node_label[node] == type(pipe[idx]).__name__
+            assert isinstance(pipe[idx], BaseDataProcessor)
+            assert not isinstance(pipe[idx], BaseDataStatistic)
+        # test all statistics
+        for node in statistics:
+            idx = node_index[node]
+            assert node_label[node] == type(pipe[idx]).__name__
+            assert isinstance(pipe[idx], BaseDataStatistic)
 
         # make sure all input features are present
         assert len(features) == len(in_features)
@@ -323,3 +338,46 @@ class TestNerGraph(BaseTestProcessGraph):
                 (5, 9),
             ]
         )
+
+
+class TestSimpleTreeWithStatistic(BaseTestProcessGraph):
+    @pytest.fixture
+    def features(self) -> Features:
+        return Features({"x": Value("int32")})
+
+    @pytest.fixture
+    def pipe(self) -> DataPipe:
+        return DataPipe(
+            [
+                FormatFeatures(
+                    FormatFeaturesConfig(
+                        output_format={"y": "x", "z": "x"},
+                        keep_input_features=True,
+                    )
+                ),
+                FormatFeatures(
+                    FormatFeaturesConfig(
+                        output_format={"x": "y", "a": "z"},
+                        keep_input_features=True,
+                    )
+                ),
+                MeanAndStd(
+                    MeanAndStdConfig(
+                        feature_key="y",
+                        statistic_key="y.mean_and_std"
+                    )
+                )
+            ]
+        )
+
+    @pytest.fixture
+    def num_layers(self) -> int:
+        return 4
+
+    @pytest.fixture
+    def max_width(self) -> int:
+        return 4
+
+    @pytest.fixture
+    def graph(self) -> nx.DiGraph:
+        return nx.DiGraph([(0, 1), (1, 2), (1, 3), (1, 4), (4, 5), (4, 6), (1, 7)])

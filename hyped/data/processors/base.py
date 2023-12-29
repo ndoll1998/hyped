@@ -245,6 +245,7 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
         Returns:
             feature_keys (list[FeatureKey]): list of required feature keys
         """
+        # TODO: make list unique
         return list(self.config.required_feature_keys)
 
     @property

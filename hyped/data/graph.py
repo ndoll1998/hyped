@@ -3,9 +3,11 @@ import numpy as np
 import networkx as nx
 from datasets import Features
 from enum import StrEnum
+from matplotlib import colormaps
 from matplotlib import pyplot as plt
 from itertools import count, groupby
-from .pipe import DataPipe
+from hyped.data.pipe import DataPipe
+from hyped.data.processors.statistics.base import BaseDataStatistic
 
 
 class NodeType(StrEnum):
@@ -14,6 +16,7 @@ class NodeType(StrEnum):
     INPUT_FEATURE = "input_feature"
     OUTPUT_FEATURE = "output_feature"
     DATA_PROCESSOR = "data_processor"
+    DATA_STATISTIC = "data_statistic"
 
 
 class NodeAttribute(StrEnum):
@@ -109,7 +112,11 @@ class ProcessGraph(nx.DiGraph):
             self.add_node(
                 node_id,
                 **{
-                    NodeAttribute.TYPE: NodeType.DATA_PROCESSOR,
+                    NodeAttribute.TYPE: (
+                        NodeType.DATA_STATISTIC
+                        if isinstance(p, BaseDataStatistic) else
+                        NodeType.DATA_PROCESSOR
+                    ),
                     NodeAttribute.LABEL: type(p).__name__,
                     NodeAttribute.LAYER: layer,
                     NodeAttribute.EXECUTION_INDEX: i,
@@ -206,11 +213,13 @@ class ProcessGraph(nx.DiGraph):
         # limit the maximum number of character in a single line in nodes
         max_node_line_length = node_size // (font_size * 65)
 
+        cmap = colormaps.get_cmap("Pastel1")
         # build full color map
         default_color_map = {
-            NodeType.INPUT_FEATURE: "lightpink",
-            NodeType.OUTPUT_FEATURE: "lightpink",
-            NodeType.DATA_PROCESSOR: "lightblue",
+            NodeType.INPUT_FEATURE: cmap.colors[0],
+            NodeType.OUTPUT_FEATURE: cmap.colors[0],
+            NodeType.DATA_PROCESSOR: cmap.colors[1],
+            NodeType.DATA_STATISTIC: cmap.colors[2]
         }
         color_map = default_color_map | color_map
 
@@ -237,7 +246,10 @@ class ProcessGraph(nx.DiGraph):
             )
 
         def get_node_label(node):
-            if node_types[node] is NodeType.DATA_PROCESSOR:
+            if node_types[node] in (
+                NodeType.DATA_PROCESSOR,
+                NodeType.DATA_STATISTIC
+            ):
                 formatted_label = add_line_breaks(
                     node_labels[node], max_node_line_length
                 )
