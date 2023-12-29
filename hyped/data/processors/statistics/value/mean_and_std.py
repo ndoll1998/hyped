@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 from datasets import Features
 from hyped.utils.feature_access import (
@@ -17,12 +18,54 @@ from hyped.data.processors.statistics.base import (
     BaseDataStatisticConfig,
 )
 from dataclasses import dataclass
-from collections import namedtuple
 from typing import Any, Literal
 from math import sqrt
 
 
-MeanAndStdTuple = namedtuple("MeanAndStdTuple", ("mean", "std", "n"))
+@dataclass
+class MeanAndStdTuple(object):
+    """Mean and Standard Deviation Container
+
+    Packs the mean and standard deviation values into a statistic
+    container.
+
+    Attributes:
+        mean (float): mean value
+        std (float): standard deviation value
+        n (int): total number of samples
+    """
+    mean: float = 0.0
+    std: float = 0.0
+    n: int = 0
+
+    @staticmethod
+    def incremental_mean_and_std(
+        a: MeanAndStdTuple,
+        b: MeanAndStdTuple,
+    ) -> MeanAndStdTuple:
+        """Implementations for the incremental Mean and Standard Deviation
+        formulas. Computes the combined mean and standard deviation of two
+        seperate instances.
+       
+        Arguments:
+            a (MeanAndStdTuple): mean and standard deviation of distribution a
+            b (MeanAndStdTuple): mean and standard deviation of distribution b
+
+        Returns:
+            s (MeanAndStdTuple):
+                mean and standard deviation of joined distribution ab
+        """
+        # unpack current value and compute values for given batch
+        m1, s1, n1 = a.mean, a.std, a.n
+        m2, s2, n2 = b.mean, b.std, b.n
+        # batch incremental mean and std formulas
+        m_new = (m1 * n1 + m2 * n2) / (n1 + n2)
+        s_new = sqrt(
+            (s1 * s1 * n1 + s2 * s2 * n2) / (n1 + n2)
+            + (n1 * n2 * (m1 - m2) ** 2) / ((n1 + n2) ** 2)
+        )
+        # pack new values
+        return MeanAndStdTuple(m_new, s_new, n1 + n2)
 
 
 @dataclass
@@ -57,35 +100,6 @@ class MeanAndStd(BaseDataStatistic[MeanAndStdConfig, MeanAndStdTuple]):
     feature.
     """
 
-    @staticmethod
-    def incremental_mean_and_std(
-        a: MeanAndStdTuple,
-        b: MeanAndStdTuple,
-    ) -> MeanAndStdTuple:
-        """Implementations for the incremental Mean and Standard Deviation
-        formulas. Computes the combined mean and standard deviation of two
-        seperate instances.
-       
-        Arguments:
-            a (MeanAndStdTuple): mean and standard deviation of distribution a
-            b (MeanAndStdTuple): mean and standard deviation of distribution b
-
-        Returns:
-            s (MeanAndStdTuple):
-                mean and standard deviation of combined distribution ab
-        """
-        # unpack current value and compute values for given batch
-        m1, s1, n1 = a.mean, a.std, a.n
-        m2, s2, n2 = b.mean, b.std, b.n
-        # batch incremental mean and std formulas
-        m_new = (m1 * n1 + m2 * n2) / (n1 + n2)
-        s_new = sqrt(
-            (s1 * s1 * n1 + s2 * s2 * n2) / (n1 + n2)
-            + (n1 * n2 * (m1 - m2) ** 2) / ((n1 + n2) ** 2)
-        )
-        # pack new values
-        return MeanAndStdTuple(m_new, s_new, n1 + n2)
-
     def initial_value(self, features: Features) -> MeanAndStdTuple:
         """Initial value for mean and standard deviation statistic
 
@@ -95,7 +109,7 @@ class MeanAndStd(BaseDataStatistic[MeanAndStdConfig, MeanAndStdTuple]):
         Returns:
             init_val (MeanAndStdTuple): inital value of all zeros
         """
-        return MeanAndStdTuple(0, 0, 0)
+        return MeanAndStdTuple()
 
     def check_features(self, features: Features) -> None:
         """Check input features.
@@ -157,4 +171,4 @@ class MeanAndStd(BaseDataStatistic[MeanAndStdConfig, MeanAndStdTuple]):
         Returns:
             new_val (MeanAndStdTuple): combined mean and standard deviation
         """
-        return type(self).incremental_mean_and_std(val, ext)
+        return MeanAndStdTuple.incremental_mean_and_std(val, ext)
