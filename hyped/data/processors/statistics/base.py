@@ -1,0 +1,194 @@
+from abc import abstractmethod
+from hyped.data.processors.base import (
+    BaseDataProcessor,
+    BaseDataProcessorConfig,
+)
+from datasets import Features
+from dataclasses import dataclass
+from typing import Literal, Any, TypeVar, Generic
+
+from hyped.data.processors.statistics.report import statistics_report_manager
+
+
+@dataclass
+class BaseDataStatisticConfig(BaseDataProcessorConfig):
+    """Base Statistic Data Processor Config
+
+    Attributes:
+        statistic_key (str):
+            key under which the statistic is stored in reports.
+            See `StatisticsReport` for more information.
+    """
+
+    t: Literal[
+        "hyped.data.processors.statistics.base"
+    ] = "hyped.data.processors.statistics.base"
+
+    statistic_key: str = None
+
+    def __post_init__(self) -> None:
+        assert self.keep_input_features
+        assert self.output_format is None
+
+
+T = TypeVar("T", bound=BaseDataStatisticConfig)
+U = TypeVar("U")
+
+
+class BaseDataStatistic(BaseDataProcessor[T], Generic[T, U]):
+    """Abstract Base Statistic Data Processor
+
+    Provides basic functionality to implement data statistics
+    as data processors. Sub-types need to define the abstract
+    `initial_value`, `check_features` and `update_statistic`
+    functions.
+
+    Arguments:
+        config (BaseDataStatisticConfig): data statistic configuration
+    """
+
+    def internal_batch_process(
+        self, examples: dict[str, list[Any]], index: list[int], rank: int
+    ) -> tuple[dict[str, list[Any]], list[int]]:
+        """Internal batch process
+
+        Updates the statistic in all active reports given the batch of
+        examples. The actual computations are outsourced to the
+        `update_statistic` function.
+
+        The return values of this function are constant, reflecting that
+        statistic computations do not change the example values.
+
+        Arguments:
+            examples (dict[str, list[Any]]): batch of examples to process
+            index (list[int]): dataset indices of the examples
+            rank (int): execution process rank
+
+        Returns:
+            out_batch (dict[str, list[Any]]): empty dictionary
+            src_index (list[int]): enumeration of input examples
+        """
+
+        extracted_value = self.extract(examples, index, rank)
+        # update reports
+        for report in statistics_report_manager.reports:
+            # make sure the statistic is registered
+            if self.config.statistic_key not in report:
+                raise RuntimeError(
+                    "Statistic not registered, make sure to prepare all "
+                    "statistic processors after activating all reports"
+                )
+            # update statistic
+            with report.get_lock_for(self.config.statistic_key):
+                report[self.config.statistic_key] = self.update(
+                    report[self.config.statistic_key],
+                    extracted_value,
+                    index,
+                    rank,
+                )
+
+        # do nothing to the examples
+        return {}, range(len(index))
+
+    def map_features(self, features: Features) -> Features:
+        """Map features function
+
+        This function checks the input features and registers the
+        statistic key to all active reports. The statistic key is
+        specified in the configuration.
+
+        As a statistic does not compute any features, the return
+        value of this function is an empty feature dictionary.
+
+        Arguments:
+            features (Features): input dataset features
+
+        Returns:
+            out (Features): empty feature dictionary
+        """
+        # check input features
+        self.check_features(features)
+        # register statistic to all active reports
+        for report in statistics_report_manager.reports:
+            report.register(
+                self.config.statistic_key, self.initial_value(features)
+            )
+
+        return Features()
+
+    @abstractmethod
+    def check_features(self, features: Features) -> None:
+        """Abstract check features function. Checks validity of input features
+
+        Arguments:
+            features (Features): input dataset features
+        """
+        ...
+
+    @abstractmethod
+    def initial_value(self, features: Features) -> U:
+        """Abstract initial value function. Computes the initial value for
+        the statistic.
+
+        Arguments:
+            features (Features): input dataset features
+
+        Returns:
+            init_val (Any): value used to initialize the statistic
+        """
+        ...
+
+    def extract(
+        self,
+        examples: dict[str, list[Any]],
+        index: list[int],
+        rank: int,
+    ) -> Any:
+        """Extract relevant values from the batch of examples.
+
+        This function is ment to handle all the preparation of the batch
+        of examples. It returns all the extracted values required to update
+        the statistic. These values are directly piped to the update function.
+
+        The preparation logic is separated from the actual update to the
+        statistic as the preparation can be done in parallel. The update
+        requires the statistic to be locked.
+
+        By default, the extract function returns the batch of examples.
+        This way all logic is implemented in the `update` function, which
+        might lead to longer execution times due to blocking.
+
+        Arguments:
+            examples (dict[str, list[Any]]): batch of examples
+            index (list[int]): dataset indices of the batch of examples
+            rank (int): execution process rank
+
+        Returns:
+            ext (Any): extracted values relevant for the update
+        """
+        return examples
+
+    @abstractmethod
+    def update(
+        self,
+        val: U,
+        ext: Any,
+        index: list[int],
+        rank: int,
+    ) -> U:
+        """Abstract update statistic function. Updates the statistic value
+        given a batch of examples.
+
+        Arguments:
+            val (Any): current statistic value
+            ext (Any):
+                the output of the `extract` function. Defaults to
+                the batch of examples.
+            index (list[int]): dataset indices of the batch of examples
+            rank (int): execution process rank
+
+        Returns:
+            new_val (Any): new statistic value
+
+        """
+        ...
