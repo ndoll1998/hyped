@@ -48,13 +48,23 @@ class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):
     """
 
     def map_features(self, features: Features) -> Features:
-        """Pass through features, formatting is handled by
-        base data processor"""
-        return features
+        """Pass through all features requested for reformatting.
+        The actual formatting is done by the base data processor
+        """
+        keys = {
+            key[0] if isinstance(key, tuple) else key
+            for key in self.required_feature_keys
+        }
+        return Features({k: v for k, v in features.items() if k in keys})
 
     def internal_batch_process(
         self, examples: dict[str, list[Any]], index: list[int], rank: int
     ) -> tuple[dict[str, list[Any]], list[int]]:
-        """Pass through batch of examples, formatting is handled by
-        base data processor"""
-        return examples, list(range(len(index)))
+        """Pass through all features requested for reformatting.
+        The actual formatting is done by the base data processor
+        """
+        keys = set(self.raw_features.keys())
+        return (
+            {k: v for k, v in examples.items() if k in keys},
+            list(range(len(index)))
+        )

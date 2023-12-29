@@ -1,7 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from datasets import Features
-from inspect import get_annotations
 from dataclasses import dataclass, fields
 from hyped.base.config import BaseConfig, BaseConfigurable
 from hyped.utils.feature_access import (
@@ -73,6 +72,7 @@ class BaseDataProcessorConfig(BaseConfig):
         def _yield_from_collection(
             t: type[FeatureKeyCollection], v: FeatureKeyCollection
         ):
+        
             # handle optionals
             if isinstance(t, UnionType) or (get_origin(t) is Union):
                 args = get_args(t)
@@ -82,11 +82,12 @@ class BaseDataProcessorConfig(BaseConfig):
                     and (type(None) in args)
                     and (v is not None)
                 ):
-                    t = args[0] if args[1] is None else args[1]
 
-                elif v is None:
-                    return
-        
+                    if v is None:
+                        return
+
+                    t = args[0] if args[1] is None else args[1]
+            
             # direct feature key mentions
             if t is FeatureKey:
                 yield v
@@ -97,7 +98,7 @@ class BaseDataProcessorConfig(BaseConfig):
                     yield from _yield_from_collection(
                         list[
                             FeatureKey
-                            if is_feature_key(v[0])
+                            if all(map(is_feature_key, v))
                             else FeatureKeyCollection
                         ],
                         v,
@@ -107,7 +108,7 @@ class BaseDataProcessorConfig(BaseConfig):
                         dict[
                             str,
                             FeatureKey
-                            if is_feature_key(next(iter(v.values())))
+                            if all(map(is_feature_key, v.values()))
                             else FeatureKeyCollection,
                         ],
                         v,
@@ -136,20 +137,24 @@ class BaseDataProcessorConfig(BaseConfig):
                         )
                     )
 
-        # collect all valid fields
-        valid_fields = {field.name for field in fields(self)}
         # iterate over fields and get their type annotations
-        # use inspect's get_annotations function as it resolves
-        # string type annotations
-        for field, t in get_annotations(type(self), eval_str=True).items():
-            if (
-                (field in type(self)._IGNORE_KEYS_FROM_FIELDS) or
-                (field not in valid_fields)
-            ):
+        for field in fields(self):
+            # ignore selected fields
+            if (field.name in type(self)._IGNORE_KEYS_FROM_FIELDS):
                 continue
 
+            # resolve string type annotations which occur when
+            # using __future__.annotations
+            if isinstance(field.type, str):
+                field.type = eval(
+                    field.type,
+                    getattr(self, '__globals__', None),
+                    None
+                )
+
+            # yield feature keys present in field
             yield from _yield_from_collection(
-                t, getattr(self, field)
+                field.type, getattr(self, field.name)
             )
 
 
@@ -232,7 +237,7 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
         return self.out_features
 
     @property
-    def required_feature_keys(self) -> set[FeatureKey]:
+    def required_feature_keys(self) -> list[FeatureKey]:
         """Input dataset feature keys required for execution of the processor.
 
         These must be contained in the `in_features`.
@@ -240,7 +245,7 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
         Returns:
             feature_keys (list[FeatureKey]): list of required feature keys
         """
-        return set(list(self.config.required_feature_keys))
+        return list(self.config.required_feature_keys)
 
     @property
     def in_features(self) -> Features:
