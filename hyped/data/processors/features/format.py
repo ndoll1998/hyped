@@ -66,5 +66,5 @@ class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):
         keys = set(self.raw_features.keys())
         return (
             {k: v for k, v in examples.items() if k in keys},
-            list(range(len(index)))
+            list(range(len(index))),
         )

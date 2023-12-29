@@ -114,8 +114,8 @@ class ProcessGraph(nx.DiGraph):
                 **{
                     NodeAttribute.TYPE: (
                         NodeType.DATA_STATISTIC
-                        if isinstance(p, BaseDataStatistic) else
-                        NodeType.DATA_PROCESSOR
+                        if isinstance(p, BaseDataStatistic)
+                        else NodeType.DATA_PROCESSOR
                     ),
                     NodeAttribute.LABEL: type(p).__name__,
                     NodeAttribute.LAYER: layer,
@@ -219,7 +219,7 @@ class ProcessGraph(nx.DiGraph):
             NodeType.INPUT_FEATURE: cmap.colors[0],
             NodeType.OUTPUT_FEATURE: cmap.colors[0],
             NodeType.DATA_PROCESSOR: cmap.colors[1],
-            NodeType.DATA_STATISTIC: cmap.colors[2]
+            NodeType.DATA_STATISTIC: cmap.colors[2],
         }
         color_map = default_color_map | color_map
 
@@ -248,7 +248,7 @@ class ProcessGraph(nx.DiGraph):
         def get_node_label(node):
             if node_types[node] in (
                 NodeType.DATA_PROCESSOR,
-                NodeType.DATA_STATISTIC
+                NodeType.DATA_STATISTIC,
             ):
                 formatted_label = add_line_breaks(
                     node_labels[node], max_node_line_length

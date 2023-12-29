@@ -175,7 +175,7 @@ class StatisticsReportManager(object):
                 "No active statistic reports found. Computed statistics will "
                 "not be tracked. Active a `StatisticReport` instance to "
                 "track statistics.",
-                UserWarning
+                UserWarning,
             )
         # iterate over active reports
         return iter(self._active_reports)
@@ -231,6 +231,7 @@ class StatisticsReport(object):
 
     Can be used as a context manager.
     """
+
     def __init__(self) -> None:
         self.storage = statistics_report_manager.new_statistic_report_storage()
 
@@ -253,7 +254,7 @@ class StatisticsReport(object):
     def activate(self) -> None:
         """Activate the report"""
         statistics_report_manager.activate(self.storage)
-        
+
     def deactivate(self) -> None:
         """Deactivate the report"""
         statistics_report_manager.deactivate(self.storage)

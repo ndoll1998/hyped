@@ -72,7 +72,6 @@ class BaseDataProcessorConfig(BaseConfig):
         def _yield_from_collection(
             t: type[FeatureKeyCollection], v: FeatureKeyCollection
         ):
-        
             # handle optionals
             if isinstance(t, UnionType) or (get_origin(t) is Union):
                 args = get_args(t)
@@ -82,12 +81,11 @@ class BaseDataProcessorConfig(BaseConfig):
                     and (type(None) in args)
                     and (v is not None)
                 ):
-
                     if v is None:
                         return
 
                     t = args[0] if args[1] is None else args[1]
-            
+
             # direct feature key mentions
             if t is FeatureKey:
                 yield v
@@ -140,16 +138,14 @@ class BaseDataProcessorConfig(BaseConfig):
         # iterate over fields and get their type annotations
         for field in fields(self):
             # ignore selected fields
-            if (field.name in type(self)._IGNORE_KEYS_FROM_FIELDS):
+            if field.name in type(self)._IGNORE_KEYS_FROM_FIELDS:
                 continue
 
             # resolve string type annotations which occur when
             # using __future__.annotations
             if isinstance(field.type, str):
                 field.type = eval(
-                    field.type,
-                    getattr(self, '__globals__', None),
-                    None
+                    field.type, getattr(self, "__globals__", None), None
                 )
 
             # yield feature keys present in field

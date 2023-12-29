@@ -39,7 +39,10 @@ from hyped.data.processors.taggers.bio import (
     BioTaggerConfig,
     BioTaggerOutputs,
 )
-from hyped.data.processors.statistics.value.mean_and_std import MeanAndStdConfig, MeanAndStd
+from hyped.data.processors.statistics.value.mean_and_std import (
+    MeanAndStdConfig,
+    MeanAndStd,
+)
 from itertools import chain
 import warnings
 
@@ -72,7 +75,6 @@ class BaseTestProcessGraph(object):
             return ProcessGraph(features, pipe)
 
     def test_nodes(self, G, features, pipe):
-
         # ignore warning that no statistics report is active
         with warnings.catch_warnings(category=UserWarning, action="ignore"):
             # make sure the pipe is prepared with the features
@@ -95,13 +97,13 @@ class BaseTestProcessGraph(object):
         # test all processors
         for node in processors:
             idx = node_index[node]
-            assert node_label[node] == type(pipe[idx]).__name__
+            assert node_label[node] == type(pipe[idx]).__name__  # noqa: E721
             assert isinstance(pipe[idx], BaseDataProcessor)
             assert not isinstance(pipe[idx], BaseDataStatistic)
         # test all statistics
         for node in statistics:
             idx = node_index[node]
-            assert node_label[node] == type(pipe[idx]).__name__
+            assert node_label[node] == type(pipe[idx]).__name__  # noqa: E721
             assert isinstance(pipe[idx], BaseDataStatistic)
 
         # make sure all input features are present
@@ -217,6 +219,50 @@ class TestSimpleTree(BaseTestProcessGraph):
     @pytest.fixture
     def graph(self) -> nx.DiGraph:
         return nx.DiGraph([(0, 1), (1, 2), (1, 3), (1, 4), (4, 5), (4, 6)])
+
+
+class TestTreeWithStatistic(BaseTestProcessGraph):
+    @pytest.fixture
+    def features(self) -> Features:
+        return Features({"x": Value("int32")})
+
+    @pytest.fixture
+    def pipe(self) -> DataPipe:
+        return DataPipe(
+            [
+                FormatFeatures(
+                    FormatFeaturesConfig(
+                        output_format={"y": "x", "z": "x"},
+                        keep_input_features=True,
+                    )
+                ),
+                FormatFeatures(
+                    FormatFeaturesConfig(
+                        output_format={"x": "y", "a": "z"},
+                        keep_input_features=True,
+                    )
+                ),
+                MeanAndStd(
+                    MeanAndStdConfig(
+                        feature_key="y", statistic_key="y.mean_and_std"
+                    )
+                ),
+            ]
+        )
+
+    @pytest.fixture
+    def num_layers(self) -> int:
+        return 4
+
+    @pytest.fixture
+    def max_width(self) -> int:
+        return 4
+
+    @pytest.fixture
+    def graph(self) -> nx.DiGraph:
+        return nx.DiGraph(
+            [(0, 1), (1, 2), (1, 3), (1, 4), (4, 5), (4, 6), (1, 7)]
+        )
 
 
 class TestNerGraph(BaseTestProcessGraph):
@@ -338,46 +384,3 @@ class TestNerGraph(BaseTestProcessGraph):
                 (5, 9),
             ]
         )
-
-
-class TestSimpleTreeWithStatistic(BaseTestProcessGraph):
-    @pytest.fixture
-    def features(self) -> Features:
-        return Features({"x": Value("int32")})
-
-    @pytest.fixture
-    def pipe(self) -> DataPipe:
-        return DataPipe(
-            [
-                FormatFeatures(
-                    FormatFeaturesConfig(
-                        output_format={"y": "x", "z": "x"},
-                        keep_input_features=True,
-                    )
-                ),
-                FormatFeatures(
-                    FormatFeaturesConfig(
-                        output_format={"x": "y", "a": "z"},
-                        keep_input_features=True,
-                    )
-                ),
-                MeanAndStd(
-                    MeanAndStdConfig(
-                        feature_key="y",
-                        statistic_key="y.mean_and_std"
-                    )
-                )
-            ]
-        )
-
-    @pytest.fixture
-    def num_layers(self) -> int:
-        return 4
-
-    @pytest.fixture
-    def max_width(self) -> int:
-        return 4
-
-    @pytest.fixture
-    def graph(self) -> nx.DiGraph:
-        return nx.DiGraph([(0, 1), (1, 2), (1, 3), (1, 4), (4, 5), (4, 6), (1, 7)])

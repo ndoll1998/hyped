@@ -34,6 +34,7 @@ class MeanAndStdTuple(object):
         std (float): standard deviation value
         n (int): total number of samples
     """
+
     mean: float = 0.0
     std: float = 0.0
     n: int = 0
@@ -46,7 +47,7 @@ class MeanAndStdTuple(object):
         """Implementations for the incremental Mean and Standard Deviation
         formulas. Computes the combined mean and standard deviation of two
         seperate instances.
-       
+
         Arguments:
             a (MeanAndStdTuple): mean and standard deviation of distribution a
             b (MeanAndStdTuple): mean and standard deviation of distribution b
@@ -74,10 +75,10 @@ class MeanAndStdConfig(BaseDataStatisticConfig):
 
     Compute the mean and standard deviation of a given
     feature.
-    
+
     Type Identifier: "hyped.data.processors.statistics.value.mean_and_std"
 
-    Attributes: 
+    Attributes:
         statistic_key (str):
             key under which the statistic is stored in reports.
             See `StatisticsReport` for more information.
@@ -89,7 +90,7 @@ class MeanAndStdConfig(BaseDataStatisticConfig):
     t: Literal[
         "hyped.data.processors.statistics.value.mean_and_std"
     ] = "hyped.data.processors.statistics.value.mean_and_std"
-    
+
     feature_key: FeatureKey = None
 
 
@@ -135,7 +136,7 @@ class MeanAndStd(BaseDataStatistic[MeanAndStdConfig, MeanAndStdTuple]):
     ) -> MeanAndStdTuple:
         """Extract mean and standard deviation from batch of examples
 
-        Arguments: 
+        Arguments:
             examples (dict[str, list[Any]]): batch of examples
             index (list[int]): dataset indices of the batch of examples
             rank (int): execution process rank
