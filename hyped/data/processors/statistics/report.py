@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
-import multiprocessing as mp
 import warnings
+import multiprocessing as mp
 from copy import deepcopy
 from typing import Any, Iterable
 from hyped.utils.executor import SubprocessExecutor
@@ -33,12 +33,10 @@ class StatisticsReportStorage(object):
         self.registered_keys: set[str] = set()
 
     def _getter(self, d: dict[str, Any], k: str) -> Any:
-        return self.executor(f=lambda d, k: d.get(k), args=(d, k))
+        return self.executor(f=d.__getitem__, args=(k,))
 
     def _setter(self, d: dict[str, Any], k: str, v: Any) -> None:
-        return self.executor(
-            f=lambda d, k, v: d.__setitem__(k, v), args=(d, k, v)
-        )
+        return self.executor(f=d.__setitem__, args=(k, v), return_output=False)
 
     def register(self, key: str, init_val: Any) -> None:
         """Register a statistic key to the storage
@@ -103,7 +101,7 @@ class StatisticsReportStorage(object):
         # key not registered
         if key not in self:
             raise KeyError(
-                "Error while getting lock for statistic: "
+                "Error while getting value for statistic: "
                 "Statistic key `%s` not registered" % key
             )
         # get statistic value for key
@@ -119,7 +117,7 @@ class StatisticsReportStorage(object):
         # key not registered
         if key not in self:
             raise KeyError(
-                "Error while getting lock for statistic: "
+                "Error while setting value for statistic: "
                 "Statistic key `%s` not registered" % key
             )
         # update value in statistics dict
@@ -180,7 +178,7 @@ class StatisticsReportManager(object):
         # iterate over active reports
         return iter(self._active_reports)
 
-    def new_statistic_report_storage(self) -> StatisticsReportStorage:
+    def new_statistics_report_storage(self) -> StatisticsReportStorage:
         """Create a new statistic report storage
 
         Returns:
@@ -233,7 +231,9 @@ class StatisticsReport(object):
     """
 
     def __init__(self) -> None:
-        self.storage = statistics_report_manager.new_statistic_report_storage()
+        self.storage = (
+            statistics_report_manager.new_statistics_report_storage()
+        )
 
     @property
     def registered_keys(self) -> set[str]:
@@ -261,6 +261,9 @@ class StatisticsReport(object):
 
     def __getitem__(self, key: str) -> Any:
         return self.get(key)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.registered_keys
 
     def __enter__(self) -> StatisticsReport:
         self.activate()
