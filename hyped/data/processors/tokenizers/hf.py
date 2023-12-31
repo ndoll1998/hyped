@@ -57,7 +57,7 @@ class HuggingFaceTokenizerOutputs(StrEnum):
     """Output column containing the special tokens mask. Only available when
     `return_special_tokens_mask=True` in the configuration."""
 
-    OFFSETS_MAPPING = "offsets_mapping"
+    OFFSETS_MAPPING = "offset_mapping"
     """Output column containing the character offsets of each token. Only
     available when `return_offsets_mapping=True` in the configuration."""
 
@@ -404,9 +404,15 @@ class HuggingFaceTokenizer(BaseDataProcessor[HuggingFaceTokenizerConfig]):
         enc = self.tokenizer(**kwargs)
         # add word ids to output
         if self.config.return_word_ids:
-            enc[HuggingFaceTokenizerOutputs.WORD_IDS] = [
+            enc[HuggingFaceTokenizerOutputs.WORD_IDS.value] = [
                 [(i if i is not None else -1) for i in enc.word_ids(j)]
                 for j in range(len(index))
+            ]
+        # convert offset mapping items to lists instead of tuples
+        if self.config.return_offsets_mapping:
+            enc[HuggingFaceTokenizerOutputs.OFFSETS_MAPPING.value] = [
+                list(map(list, item))
+                for item in enc[HuggingFaceTokenizerOutputs.OFFSETS_MAPPING]
             ]
         # convert to dict and return
         return dict(enc), list(range(len(index)))

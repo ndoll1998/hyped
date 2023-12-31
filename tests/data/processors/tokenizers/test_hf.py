@@ -92,6 +92,11 @@ class TestHuggingFaceTokenizer(BaseTestDataProcessor):
                 # when only a single element is passed
                 if key == "length":
                     val = val[0]
+                # offset mapping items are typically returned
+                # as tuples, however the processor returns
+                # a list of lists
+                if key == "offset_mapping":
+                    val = list(map(list, val))
                 # collect features
                 out_batch[key].append(val)
             # add word ids
