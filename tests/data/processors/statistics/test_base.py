@@ -1,3 +1,4 @@
+from tests.data.processors.statistics.base import BaseTestDataStatistic
 from hyped.data.processors.statistics.base import (
     BaseDataStatistic,
     BaseDataStatisticConfig,
@@ -7,6 +8,7 @@ from hyped.data.processors.statistics.report import (
 )
 from datasets import Features, Value
 from dataclasses import dataclass
+from typing import Any
 import pytest
 
 from tests.data.processors.statistics.test_report import is_lock_acquired
@@ -48,13 +50,29 @@ class ConstantStatistic(BaseDataStatistic[ConstantStatisticConfig, int]):
         return self.config.val
 
 
-class TestDataStatistic(object):
+class TestDataStatistic(BaseTestDataStatistic):
     @pytest.fixture
-    def report(self):
-        return StatisticsReport()
+    def in_features(self, request) -> Features:
+        return Features({"A": Value("int32")})
+
+    @pytest.fixture
+    def batch(self, request) -> None | dict[str, list[Any]]:
+        return {"A": list(range(10))}
+
+    @pytest.fixture
+    def statistic(self, request, report) -> BaseDataStatistic:
+        return ConstantStatistic(ConstantStatisticConfig(), report)
+
+    @pytest.fixture
+    def expected_stat_value(self, statistic) -> None | Any:
+        return statistic.config.val
+
+    @pytest.fixture
+    def expected_init_value(self, statistic) -> None | Any:
+        return statistic.config.init_val
 
     def test_basic(self, report):
-        with report:
+        with StatisticsReport() as report:
             # create statistic processor and make sure key is not registered
             stat = ConstantStatistic(ConstantStatisticConfig(), report)
             assert stat.config.statistic_key not in report
