@@ -12,7 +12,7 @@ import pytest
 class TestMeanAndStd(BaseTestDataStatistic):
     @pytest.fixture
     def in_features(self):
-        return Features({"A": Value("float32")})
+        return Features({"A": Value("float64")})
 
     @pytest.fixture(
         params=[
@@ -22,7 +22,7 @@ class TestMeanAndStd(BaseTestDataStatistic):
             np.random.uniform(0, 1, size=5000).tolist(),
         ]
     )
-    def batch(self, request):
+    def in_batch(self, request):
         return {"A": request.param}
 
     @pytest.fixture
@@ -36,7 +36,9 @@ class TestMeanAndStd(BaseTestDataStatistic):
         return MeanAndStdTuple()
 
     @pytest.fixture
-    def expected_stat_value(self, batch):
+    def expected_stat_value(self, in_batch):
         return MeanAndStdTuple(
-            mean=np.mean(batch["A"]), std=np.std(batch["A"]), n=len(batch["A"])
+            mean=np.mean(in_batch["A"]),
+            std=np.std(in_batch["A"]),
+            n=len(in_batch["A"]),
         )

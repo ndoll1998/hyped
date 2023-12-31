@@ -39,6 +39,13 @@ class MeanAndStdTuple(object):
     std: float = 0.0
     n: int = 0
 
+    def __eq__(self, other) -> bool:
+        return (
+            (self.n == other.n)
+            and abs((self.mean - other.mean) < 1e-8)
+            and abs((self.std - other.std) < 1e-8)
+        )
+
     @staticmethod
     def incremental_mean_and_std(
         a: MeanAndStdTuple,

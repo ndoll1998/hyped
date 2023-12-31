@@ -22,8 +22,11 @@ class BaseTestDataStatistic(BaseTestDataProcessor):
         return None
 
     @pytest.fixture
-    def report(self):
-        return StatisticsReport()
+    def report(self) -> StatisticsReport:
+        report = StatisticsReport()
+        with report:
+            yield report
+        del report
 
     @pytest.fixture
     def processor(self, statistic) -> BaseDataStatistic:
@@ -36,6 +39,14 @@ class BaseTestDataStatistic(BaseTestDataProcessor):
     @pytest.fixture
     def expected_out_batch(self) -> dict[str, Any]:
         return {}
+
+    @pytest.fixture(params=[10, 100, 1000])
+    def batch_size(self, request):
+        return request.param
+
+    @pytest.fixture(params=[1, 2, 5])
+    def num_proc(self, request):
+        return request.param
 
     @pytest.fixture
     def kwargs_for_post_prepare_checks(
@@ -93,27 +104,10 @@ class BaseTestDataStatistic(BaseTestDataProcessor):
                 report[statistic.config.statistic_key] == expected_stat_value
             )
 
-    def test_case(
-        self,
-        report,
-        statistic,
-        in_features,
-        batch,
-        expected_err_on_prepare,
-        expected_err_on_process,
-        kwargs_for_post_prepare_checks,
-        kwargs_for_post_process_checks,
-    ):
-        with report:
-            # statistic should not be registered yet
-            assert statistic.config.statistic_key not in report
-            # run processor tests
-            super(BaseTestDataStatistic, self).test_case(
-                statistic,
-                in_features,
-                batch,
-                expected_err_on_prepare,
-                expected_err_on_process,
-                kwargs_for_post_prepare_checks,
-                kwargs_for_post_process_checks,
-            )
+    @pytest.fixture(params=[10, 100, 1000])
+    def map_batch_size(self, request):
+        return request.param
+
+    @pytest.fixture(params=[1, 2, 5])
+    def map_num_proc(self, request):
+        return request.param

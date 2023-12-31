@@ -35,6 +35,15 @@ class SubprocessExecutor(mp.Process):
 
     def __init__(self, *args, **kwargs):
         self.parent_pid = os.getpid()
+        # save arguments for process initializer
+        self.args = args
+        self.kwargs = kwargs
+        # flag to keep track if process is running
+        self.status = Status.NOT_STARTED
+
+    def init(self):
+        # mark process as running
+        self.status = Status.RUNNING
         # queues
         self.tasks = mp.Queue(maxsize=1)
         self.outs = mp.Queue(maxsize=1)
@@ -43,10 +52,10 @@ class SubprocessExecutor(mp.Process):
         self.done = mp.Event()
         self.err = mp.Event()
         # initialize process
-        super(SubprocessExecutor, self).__init__(*args, **kwargs)
+        super(SubprocessExecutor, self).__init__(*self.args, **self.kwargs)
         self.daemon = True
-        # flag to keep track if process is running
-        self.status = Status.NOT_STARTED
+        # start process
+        self.start()
 
     def run(self) -> None:
         """Worker function executed in process"""
@@ -81,8 +90,7 @@ class SubprocessExecutor(mp.Process):
 
         # start process
         if self.status == Status.NOT_STARTED:
-            self.start()
-            self.status = Status.RUNNING
+            self.init()
 
         # clear events
         self.done.clear()
@@ -103,8 +111,14 @@ class SubprocessExecutor(mp.Process):
     def stop(self) -> None:
         if self.status == Status.RUNNING:
             self.status = Status.STOPPED
-            self.tasks.put(STOP_SIGNAL)
-            self.join()
+
+            try:
+                # try to send stop signal, might fail when
+                # object is deleted at interpreter shutdown
+                self.tasks.put(STOP_SIGNAL)
+                self.join()
+            except RuntimeError:
+                pass
 
     def __del__(self) -> None:
         self.stop()
@@ -113,6 +127,7 @@ class SubprocessExecutor(mp.Process):
         return self.execute(*args, **kwargs)
 
     def __enter__(self) -> SubprocessExecutor:
+        self.init()
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback) -> None:

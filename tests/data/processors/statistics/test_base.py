@@ -56,7 +56,7 @@ class TestDataStatistic(BaseTestDataStatistic):
         return Features({"A": Value("int32")})
 
     @pytest.fixture
-    def batch(self, request) -> None | dict[str, list[Any]]:
+    def in_batch(self, request) -> None | dict[str, list[Any]]:
         return {"A": list(range(10))}
 
     @pytest.fixture
@@ -71,7 +71,7 @@ class TestDataStatistic(BaseTestDataStatistic):
     def expected_init_value(self, statistic) -> None | Any:
         return statistic.config.init_val
 
-    def test_basic(self, report):
+    def test_basic(self):
         with StatisticsReport() as report:
             # create statistic processor and make sure key is not registered
             stat = ConstantStatistic(ConstantStatisticConfig(), report)
@@ -90,3 +90,7 @@ class TestDataStatistic(BaseTestDataStatistic):
             # check output batch and final statistic value
             assert out_batch == batch
             assert report[stat.config.statistic_key] == stat.config.val
+
+    @pytest.fixture
+    def map_num_proc(self):
+        return 1

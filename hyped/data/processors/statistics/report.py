@@ -32,6 +32,11 @@ class StatisticsReportStorage(object):
         # keep track of all registered keys
         self.registered_keys: set[str] = set()
 
+    def __del__(self) -> None:
+        # make sure to stop the executor when the storage is deleted
+        if hasattr(self, "executor"):
+            self.executor.stop()
+
     def _getter(self, d: dict[str, Any], k: str) -> Any:
         return self.executor(f=d.__getitem__, args=(k,))
 

@@ -94,14 +94,6 @@ class BaseTestDataProcessor(ABC):
                 prepared_batch = {
                     k: [v[i] for i in index] for k, v in in_batch.items()
                 }
-
-                for k, v in out_batch.items():
-                    print(k)
-                    print(v == (prepared_batch | expected_out_batch)[k])
-                    print(v)
-                    print((prepared_batch | expected_out_batch)[k])
-                    print()
-
                 assert out_batch == (prepared_batch | expected_out_batch)
             else:
                 assert out_batch == expected_out_batch
@@ -140,7 +132,6 @@ class BaseTestDataProcessor(ABC):
             # create batch index
             batch_size = len(table)
             index = list(range(batch_size))
-
             # apply processor
             with self.err_handler(expected_err_on_process):
                 out_batch, index = processor.batch_process(
@@ -161,6 +152,14 @@ class BaseTestDataProcessor(ABC):
                 index, in_batch, out_batch, **kwargs_for_post_process_checks
             )
 
+    @pytest.fixture
+    def map_batch_size(self):
+        return 1000
+
+    @pytest.fixture
+    def map_num_proc(self):
+        return 1
+
     def test_case_with_pipe(
         self,
         processor,
@@ -169,6 +168,8 @@ class BaseTestDataProcessor(ABC):
         expected_err_on_prepare,
         expected_err_on_process,
         kwargs_for_post_process_checks,
+        map_batch_size,
+        map_num_proc,
     ):
         if (
             (expected_err_on_prepare is not None)
@@ -195,7 +196,11 @@ class BaseTestDataProcessor(ABC):
         ds = Dataset(pa.table(in_batch, schema=in_schema))
 
         # apply processor to dataset using data pipe
-        out_batch = DataPipe([processor]).apply(ds).to_dict()
+        out_batch = (
+            DataPipe([processor])
+            .apply(ds, batch_size=map_batch_size, num_proc=map_num_proc)
+            .to_dict()
+        )
 
         if processor.config.keep_input_features:
             # pop index features from input and output batch
