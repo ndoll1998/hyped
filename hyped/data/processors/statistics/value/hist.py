@@ -94,6 +94,17 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
             INT_TYPES + UINT_TYPES + FLOAT_TYPES,
         )
 
+    def compute_histogram(self, x: NDArray) -> tuple[NDArray, NDArray]:
+        # clip values in valid range
+        x = np.clip(x, self.config.low, self.config.high)
+        # find bin to each value
+        bin_size = (self.config.high - self.config.low) / (
+            self.config.num_bins - 1
+        )
+        bins = ((x - self.config.low) // bin_size).astype(np.int32)
+        # build histogram for current examples from bins
+        return np.unique(bins, return_counts=True)
+
     def extract(
         self,
         examples: dict[str, list[Any]],
@@ -111,16 +122,8 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
             bin_ids (NDArray): array of integers containing the bin ids
             bin_counts (NDArray): array of integers containing the bin counts
         """
-        # get batch of values from examples
         x = batch_get_value_at_key(examples, self.config.feature_key)
-        x = np.asarray(x)
-        # find bin to each value
-        bin_size = (self.config.high - self.config.low) / (
-            self.config.num_bins - 1
-        )
-        bins = ((x - self.config.low) // bin_size).astype(np.int32)
-        # build histogram for current examples from bins
-        return np.unique(bins, return_counts=True)
+        return self.compute_histogram(np.asarray(x))
 
     def compute(
         self,
