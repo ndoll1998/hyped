@@ -40,6 +40,7 @@ class SequenceValueHistogramConfig(HistogramConfig):
         high (float): upper end of the range of the histogram
         num_bins (int): number of bins of the histogram
     """
+
     t: Literal[
         "hyped.data.processors.statistics.sequence.seq_val_histogram"
     ] = "hyped.data.processors.statistics.sequence.seq_val_histogram"
@@ -50,6 +51,7 @@ class SequenceValueHistogram(Histogram):
 
     Build a histogram of the values of a given sequence feature.
     """
+
     # overwrite config type
     CONFIG_TYPE = SequenceValueHistogramConfig
 

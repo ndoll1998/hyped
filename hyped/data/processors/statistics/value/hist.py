@@ -59,6 +59,7 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
 
     Build a histogram of a given value feature.
     """
+
     def _compute_histogram(self, x: NDArray) -> tuple[NDArray, NDArray]:
         # clip values in valid range
         x = np.clip(x, self.config.low, self.config.high)

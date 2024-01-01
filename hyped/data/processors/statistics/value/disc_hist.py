@@ -32,7 +32,7 @@ class DiscreteHistogramConfig(BaseDataStatisticConfig):
     Build a histogram of a given discrete value feature,
     e.g. ClassLabel or string.
 
-    Type Identifier: "hyped.data.processors.statistics.value.discrete_histogram"
+    Type Identifier: "hyped.data.processors.statistics.value.disc_histogram"
 
     Attributes:
         statistic_key (str):
@@ -68,7 +68,7 @@ class DiscreteHistogram(
             return feature.int2str(vals)
 
         return vals
-    
+
     def _compute_histogram(self, x: list[Any]) -> dict[Any, int]:
         return dict(Counter(self._map_values(x)))
 

@@ -29,7 +29,8 @@ class DiscreteSequenceValueHistogramConfig(DiscreteHistogramConfig):
     Build a histogram of a given discrete sequence feature,
     e.g. ClassLabel or string.
 
-    Type Identifier: "hyped.data.processors.statistics.value.discrete_seq_val_histogram"
+    Type Identifier:
+        "hyped.data.processors.statistics.value.discrete_seq_val_histogram"
 
     Attributes:
         statistic_key (str):
@@ -39,6 +40,7 @@ class DiscreteSequenceValueHistogramConfig(DiscreteHistogramConfig):
             key to the dataset feature of which to build the
             histogram
     """
+
     t: Literal[
         "hyped.data.processors.statistics.sequence.discrete_seq_val_histogram"
     ] = "hyped.data.processors.statistics.sequence.discrete_seq_val_histogram"
@@ -50,6 +52,7 @@ class DiscreteSequenceValueHistogram(DiscreteHistogram):
     Build a histogram of a given discrete sequence feature,
     e.g. ClassLabel or string.
     """
+
     # overwrite config type
     CONFIG_TYPE = DiscreteSequenceValueHistogramConfig
 
