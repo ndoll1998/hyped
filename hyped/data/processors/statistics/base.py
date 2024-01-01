@@ -163,7 +163,8 @@ class BaseDataStatistic(BaseDataProcessor[T], Generic[T, U]):
 
         This function is ment to handle all the preparation of the batch
         of examples. It returns all the extracted values required to compute
-        the statistic. These values are directly piped to the ´compute´ function.
+        the statistic. These values are directly piped to the ´compute´
+        function.
 
         By default, the extract function returns the batch of examples.
         This way all logic is implemented in the `compute` function, which
@@ -186,8 +187,8 @@ class BaseDataStatistic(BaseDataProcessor[T], Generic[T, U]):
         ext: Any,
     ) -> U:
         """Abstract compute statistic function. Computes the updated statistic
-        value based on the values extracted from the examples using the `extract`
-        function.
+        value based on the values extracted from the examples using the
+        `extract` function.
 
         Arguments:
             val (Any): current statistic value

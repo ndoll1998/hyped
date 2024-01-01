@@ -1,7 +1,7 @@
 from tests.data.processors.statistics.base import BaseTestDataStatistic
 from hyped.data.processors.statistics.value.hist import (
     Histogram,
-    HistogramConfig
+    HistogramConfig,
 )
 from datasets import Features, Value
 import numpy as np
@@ -32,7 +32,7 @@ class TestHistogram(BaseTestDataStatistic):
                 feature_key="A",
                 low=min(in_batch["A"]),
                 high=max(in_batch["A"]),
-                num_bins=max(in_batch["A"]) - min(in_batch["A"]) + 1
+                num_bins=max(in_batch["A"]) - min(in_batch["A"]) + 1,
             )
         )
 

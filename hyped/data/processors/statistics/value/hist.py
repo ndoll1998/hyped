@@ -77,7 +77,7 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
             init_val (list[int]): inital histogram of all zeros
         """
         return manager.list([0] * self.config.num_bins)
-    
+
     def check_features(self, features: Features) -> None:
         """Check input features.
 
@@ -93,7 +93,7 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
             get_feature_at_key(features, self.config.feature_key),
             INT_TYPES + UINT_TYPES + FLOAT_TYPES,
         )
-    
+
     def extract(
         self,
         examples: dict[str, list[Any]],
@@ -115,7 +115,9 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
         x = batch_get_value_at_key(examples, self.config.feature_key)
         x = np.asarray(x)
         # find bin to each value
-        bin_size = (self.config.high - self.config.low) / (self.config.num_bins - 1)
+        bin_size = (self.config.high - self.config.low) / (
+            self.config.num_bins - 1
+        )
         bins = ((x - self.config.low) // bin_size).astype(np.int32)
         # build histogram for current examples from bins
         return np.unique(bins, return_counts=True)
@@ -144,7 +146,9 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
         bin_ids, bin_counts = ext
         return bin_ids, bin_counts + np.asarray([val[i] for i in bin_ids])
 
-    def update(self, report: StatisticsReportStorage, val: tuple[NDArray, NDArray]) -> None:
+    def update(
+        self, report: StatisticsReportStorage, val: tuple[NDArray, NDArray]
+    ) -> None:
         """Write the new histogram values to the report
 
         Arguments:
