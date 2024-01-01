@@ -161,6 +161,11 @@ class StatisticsReportManager(object):
         return self._manager
 
     @property
+    def is_empty(self) -> bool:
+        """Boolean indicating whether there are any reports active"""
+        return len(self._active_reports) == 0
+
+    @property
     def reports(self) -> Iterable[StatisticsReportStorage]:
         """Iterator over active report storages
 
@@ -172,7 +177,7 @@ class StatisticsReportManager(object):
         """
 
         # warn when no reports are active
-        if len(self._active_reports) == 0:
+        if self.is_empty:
             warnings.warn(
                 "No active statistic reports found. Computed statistics will "
                 "not be tracked. Active a `StatisticReport` instance to "

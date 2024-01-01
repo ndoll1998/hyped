@@ -1,7 +1,10 @@
+import warnings
 import datasets
 import pyarrow as pa
 from .processors.base import BaseDataProcessor
 from hyped.utils.arrow import convert_features_to_arrow_schema
+from hyped.data.processors.statistics.base import BaseDataStatistic
+from hyped.data.processors.statistics.report import statistics_report_manager
 from typing import Any
 
 
@@ -141,6 +144,26 @@ class DataPipe(list):
                 "Expected a `datasets.Dataset` or `datasets.DatasetDict`, "
                 "got %s" % type(data)
             )
+
+        # TODO: test this behavior
+        # check if the data pipe contains and statistics that are expected
+        # to be computed while running the data pipeline
+        if (
+            any(isinstance(p, BaseDataStatistic) for p in self)
+            and not statistics_report_manager.is_empty
+        ):
+            # load from cache file defaults to false
+            kwargs["load_from_cache_file"] = kwargs.get(
+                "load_from_cache_file", False
+            )
+            # warn it dataset is loaded from cache
+            if kwargs["load_from_cache_file"]:
+                warnings.warn(
+                    "Loading map result from cache file will not compute "
+                    "statistics, set `load_from_cache_file` to False to avoid "
+                    "this behavior.",
+                    UserWarning,
+                )
 
         # required settings
         kwargs["batched"] = True
