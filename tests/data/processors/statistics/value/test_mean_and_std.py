@@ -42,3 +42,23 @@ class TestMeanAndStd(BaseTestDataStatistic):
             std=np.std(in_batch["A"]),
             n=len(in_batch["A"]),
         )
+
+    @pytest.mark.parametrize("size", [10, 100, 1000])
+    @pytest.mark.parametrize("cutoff", [0.2, 0.5, 0.8])
+    @pytest.mark.parametrize("seed", [42, 1337, 314159])
+    def test_incremental_formulas(self, size, cutoff, seed):
+        # create random array
+        np.random.seed(seed)
+        x = np.random.uniform(size=size)
+        # separate into sub-arrays
+        n = int(size * cutoff)
+        x1, x2 = x[:n], x[n:]
+        # compute all means and standard deviations
+        mean_and_std = MeanAndStdTuple(x.mean(), x.std(), size)
+        mean_and_std_A = MeanAndStdTuple(x1.mean(), x1.std(), n)
+        mean_and_std_B = MeanAndStdTuple(x2.mean(), x2.std(), size - n)
+        # compare direct vs incremental formulas
+        assert mean_and_std == MeanAndStdTuple.incremental_mean_and_std(
+            mean_and_std_A,
+            mean_and_std_B,
+        )
