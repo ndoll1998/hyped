@@ -107,7 +107,3 @@ class BaseTestDataStatistic(BaseTestDataProcessor):
     @pytest.fixture(params=[10, 100, 1000])
     def map_batch_size(self, request):
         return request.param
-
-    @pytest.fixture(params=[1, 2, 5])
-    def map_num_proc(self, request):
-        return request.param

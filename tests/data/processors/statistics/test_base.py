@@ -90,7 +90,3 @@ class TestDataStatistic(BaseTestDataStatistic):
             # check output batch and final statistic value
             assert out_batch == batch
             assert report[stat.config.statistic_key] == stat.config.val
-
-    @pytest.fixture
-    def map_num_proc(self):
-        return 1

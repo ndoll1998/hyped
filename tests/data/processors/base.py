@@ -156,10 +156,6 @@ class BaseTestDataProcessor(ABC):
     def map_batch_size(self):
         return 1000
 
-    @pytest.fixture
-    def map_num_proc(self):
-        return 1
-
     def test_case_with_pipe(
         self,
         processor,
@@ -169,7 +165,6 @@ class BaseTestDataProcessor(ABC):
         expected_err_on_process,
         kwargs_for_post_process_checks,
         map_batch_size,
-        map_num_proc,
     ):
         if (
             (expected_err_on_prepare is not None)
@@ -196,9 +191,12 @@ class BaseTestDataProcessor(ABC):
         ds = Dataset(pa.table(in_batch, schema=in_schema))
 
         # apply processor to dataset using data pipe
+        # can only use one process for map in pytest session
+        # as the session is multi-threaded and forking a
+        # process might lead to deadlock in child
         out_batch = (
             DataPipe([processor])
-            .apply(ds, batch_size=map_batch_size, num_proc=map_num_proc)
+            .apply(ds, batch_size=map_batch_size, num_proc=1)
             .to_dict()
         )
 
