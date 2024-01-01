@@ -97,8 +97,6 @@ class BaseDataStatistic(BaseDataProcessor[T], Generic[T, U]):
                     self.compute(
                         report[self.config.statistic_key],
                         extracted_value,
-                        index,
-                        rank,
                     ),
                 )
 
@@ -186,8 +184,6 @@ class BaseDataStatistic(BaseDataProcessor[T], Generic[T, U]):
         self,
         val: U,
         ext: Any,
-        index: list[int],
-        rank: int,
     ) -> U:
         """Abstract compute statistic function. Computes the updated statistic
         value based on the values extracted from the examples using the `extract`
@@ -196,8 +192,6 @@ class BaseDataStatistic(BaseDataProcessor[T], Generic[T, U]):
         Arguments:
             val (Any): current statistic value
             ext (Any): the output of the `extract` function
-            index (list[int]): dataset indices of the batch of examples
-            rank (int): execution process rank
 
         Returns:
             new_val (Any): new statistic value

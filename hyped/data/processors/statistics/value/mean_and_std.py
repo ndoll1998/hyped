@@ -164,8 +164,6 @@ class MeanAndStd(BaseDataStatistic[MeanAndStdConfig, MeanAndStdTuple]):
         self,
         val: MeanAndStdTuple,
         ext: MeanAndStdTuple,
-        index: list[int],
-        rank: int,
     ) -> MeanAndStdTuple:
         """Compute updated statistic
 
@@ -176,8 +174,6 @@ class MeanAndStd(BaseDataStatistic[MeanAndStdConfig, MeanAndStdTuple]):
         Arguments:
             val (MeanAndStdTuple): current statistic value
             ext (MeanAndStdTuple): extracted mean and standard deviation
-            index (list[int]): dataset indices of the batch of examples
-            rank (int): execution process rank
 
         Returns:
             new_val (MeanAndStdTuple): combined mean and standard deviation

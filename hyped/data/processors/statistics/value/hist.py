@@ -124,8 +124,6 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
         self,
         val: list[int],
         ext: tuple[NDArray, NDArray],
-        index: list[int],
-        rank: int,
     ) -> tuple[NDArray, NDArray]:
         """Compute the total sub-histogram for the current batch of examples.
 
@@ -136,8 +134,6 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
         Arguments:
             val (list[int]): current histogram
             ext (tuple[NDArray, NDArray]): extracted sub-histogram
-            index (list[int]): dataset indices of the batch of examples
-            rank (int): execution process rank
 
         Returns:
             bin_ids (NDArray): array of integers containing the bin ids
