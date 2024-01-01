@@ -33,7 +33,7 @@ class ConstantStatistic(BaseDataStatistic[ConstantStatisticConfig, int]):
     def check_features(self, features):
         return
 
-    def initial_value(self, features):
+    def initial_value(self, features, manager):
         return self.config.init_val
 
     def extract(self, examples, index, rank):
@@ -44,7 +44,10 @@ class ConstantStatistic(BaseDataStatistic[ConstantStatisticConfig, int]):
     def compute(self, val, ext, index, rank):
         # check extracted value and current statistic value
         assert ext == "EXTRACTED_VALUE"
-        assert val in {self.config.val, self.initial_value(self.in_features)}
+        assert val in {
+            self.config.val,
+            self.initial_value(self.in_features, self.report.storage.manager),
+        }
         # make sure lock is acquired for update
         assert is_lock_acquired(self.lock)
         return self.config.val

@@ -7,6 +7,7 @@ from datasets import Features
 from dataclasses import dataclass
 from typing import Literal, Any, TypeVar, Generic
 
+import multiprocessing as mp
 from hyped.data.processors.statistics.report import (
     StatisticsReportStorage,
     statistics_report_manager,
@@ -125,7 +126,8 @@ class BaseDataStatistic(BaseDataProcessor[T], Generic[T, U]):
         # register statistic to all active reports
         for report in statistics_report_manager.reports:
             report.register(
-                self.config.statistic_key, self.initial_value(features)
+                self.config.statistic_key,
+                self.initial_value(features, report.manager),
             )
 
         return Features()
@@ -140,12 +142,13 @@ class BaseDataStatistic(BaseDataProcessor[T], Generic[T, U]):
         ...
 
     @abstractmethod
-    def initial_value(self, features: Features) -> U:
+    def initial_value(self, features: Features, manager: mp.Manager) -> U:
         """Abstract initial value function. Computes the initial value for
         the statistic.
 
         Arguments:
             features (Features): input dataset features
+            manager (mp.Manager): multiprocessing manager
 
         Returns:
             init_val (Any): value used to initialize the statistic

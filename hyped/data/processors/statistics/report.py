@@ -2,7 +2,6 @@ from __future__ import annotations
 import os
 import warnings
 import multiprocessing as mp
-from copy import deepcopy
 from typing import Any, Iterable
 from hyped.utils.executor import SubprocessExecutor
 
@@ -71,7 +70,7 @@ class StatisticsReportStorage(object):
         # create lock for the statistic
         lock = self.manager.RLock()
         # write initial value and lock to dicts
-        self._setter(self.stats, key, deepcopy(init_val))
+        self._setter(self.stats, key, init_val)
         self._setter(self.locks, key, lock)
         # add key to registered keys
         self.registered_keys.add(key)

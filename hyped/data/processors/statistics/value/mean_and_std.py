@@ -1,5 +1,6 @@
 from __future__ import annotations
 import numpy as np
+import multiprocessing as mp
 from datasets import Features
 from hyped.utils.feature_access import (
     FeatureKey,
@@ -108,7 +109,9 @@ class MeanAndStd(BaseDataStatistic[MeanAndStdConfig, MeanAndStdTuple]):
     feature.
     """
 
-    def initial_value(self, features: Features) -> MeanAndStdTuple:
+    def initial_value(
+        self, features: Features, manager: mp.Manager
+    ) -> MeanAndStdTuple:
         """Initial value for mean and standard deviation statistic
 
         Arguments:

@@ -2,6 +2,7 @@ from abc import abstractmethod
 from tests.data.processors.base import BaseTestDataProcessor
 from hyped.data.processors.statistics.base import BaseDataStatistic
 from hyped.data.processors.statistics.report import StatisticsReport
+from multiprocessing.managers import BaseProxy
 from datasets import Features
 from typing import Any
 import pytest
@@ -80,9 +81,13 @@ class BaseTestDataStatistic(BaseTestDataProcessor):
         # make sure key is registered
         assert statistic.config.statistic_key in report
         if expected_init_value is not None:
-            assert (
-                report[statistic.config.statistic_key] == expected_init_value
-            )
+            # get value stored in report
+            val = report[statistic.config.statistic_key]
+            # get the actual value when the object is a proxy
+            if isinstance(val, BaseProxy):
+                val = val._getvalue()
+            # compare
+            assert val == expected_init_value
 
     def post_process_checks(
         self,
@@ -100,9 +105,13 @@ class BaseTestDataStatistic(BaseTestDataProcessor):
         )
         # test statistic value after execution
         if expected_stat_value is not None:
-            assert (
-                report[statistic.config.statistic_key] == expected_stat_value
-            )
+            # get value stored in report
+            val = report[statistic.config.statistic_key]
+            # get the actual value when the object is a proxy
+            if isinstance(val, BaseProxy):
+                val = val._getvalue()
+            # compare
+            assert val == expected_stat_value
 
     @pytest.fixture(params=[10, 100, 1000])
     def map_batch_size(self, request):
