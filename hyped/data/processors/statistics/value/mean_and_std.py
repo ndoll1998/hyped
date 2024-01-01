@@ -157,7 +157,7 @@ class MeanAndStd(BaseDataStatistic[MeanAndStdConfig, MeanAndStdTuple]):
         # compute mean and standard deviation and pack together
         return MeanAndStdTuple(x.mean(), x.std(), len(x))
 
-    def update(
+    def compute(
         self,
         val: MeanAndStdTuple,
         ext: MeanAndStdTuple,

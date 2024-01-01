@@ -7,7 +7,10 @@ from datasets import Features
 from dataclasses import dataclass
 from typing import Literal, Any, TypeVar, Generic
 
-from hyped.data.processors.statistics.report import statistics_report_manager
+from hyped.data.processors.statistics.report import (
+    StatisticsReportStorage,
+    statistics_report_manager,
+)
 
 
 @dataclass
@@ -40,8 +43,16 @@ class BaseDataStatistic(BaseDataProcessor[T], Generic[T, U]):
 
     Provides basic functionality to implement data statistics
     as data processors. Sub-types need to define the abstract
-    `initial_value`, `check_features` and `update_statistic`
-    functions.
+    `initial_value`, `check_features` and `compute` functions.
+
+    The computation of the statistic and the update to the
+    statistics report object is implemented through the
+    following pipeline:
+
+    `extract` -> (`lock.acquire`) -> `compute` -> `update` -> (`lock.release`)
+
+    Please refer to the documentation of the functions for
+    further information.
 
     Arguments:
         config (BaseDataStatisticConfig): data statistic configuration
@@ -80,11 +91,14 @@ class BaseDataStatistic(BaseDataProcessor[T], Generic[T, U]):
                 )
             # update statistic
             with report.get_lock_for(self.config.statistic_key):
-                report[self.config.statistic_key] = self.update(
-                    report[self.config.statistic_key],
-                    extracted_value,
-                    index,
-                    rank,
+                self.update(
+                    report,
+                    self.compute(
+                        report[self.config.statistic_key],
+                        extracted_value,
+                        index,
+                        rank,
+                    ),
                 )
 
         # do nothing to the examples
@@ -147,15 +161,11 @@ class BaseDataStatistic(BaseDataProcessor[T], Generic[T, U]):
         """Extract relevant values from the batch of examples.
 
         This function is ment to handle all the preparation of the batch
-        of examples. It returns all the extracted values required to update
-        the statistic. These values are directly piped to the update function.
-
-        The preparation logic is separated from the actual update to the
-        statistic as the preparation can be done in parallel. The update
-        requires the statistic to be locked.
+        of examples. It returns all the extracted values required to compute
+        the statistic. These values are directly piped to the ´compute´ function.
 
         By default, the extract function returns the batch of examples.
-        This way all logic is implemented in the `update` function, which
+        This way all logic is implemented in the `compute` function, which
         might lead to longer execution times due to blocking.
 
         Arguments:
@@ -169,21 +179,20 @@ class BaseDataStatistic(BaseDataProcessor[T], Generic[T, U]):
         return examples
 
     @abstractmethod
-    def update(
+    def compute(
         self,
         val: U,
         ext: Any,
         index: list[int],
         rank: int,
     ) -> U:
-        """Abstract update statistic function. Updates the statistic value
-        given a batch of examples.
+        """Abstract compute statistic function. Computes the updated statistic
+        value based on the values extracted from the examples using the `extract`
+        function.
 
         Arguments:
             val (Any): current statistic value
-            ext (Any):
-                the output of the `extract` function. Defaults to
-                the batch of examples.
+            ext (Any): the output of the `extract` function
             index (list[int]): dataset indices of the batch of examples
             rank (int): execution process rank
 
@@ -192,3 +201,15 @@ class BaseDataStatistic(BaseDataProcessor[T], Generic[T, U]):
 
         """
         ...
+
+    def update(self, report: StatisticsReportStorage, val: U) -> None:
+        """Update report storage with new value computed by `compute` function.
+
+        Overwrite to implement more complex behaviors.
+
+        Arguments:
+            report (StatisticsReportStorage):
+                report storage to update the statistic in
+            val (Any): new statistic value computed by `compute` function
+        """
+        report.set(self.config.statistic_key, val)

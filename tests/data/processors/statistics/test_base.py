@@ -41,7 +41,7 @@ class ConstantStatistic(BaseDataStatistic[ConstantStatisticConfig, int]):
         assert not is_lock_acquired(self.lock)
         return "EXTRACTED_VALUE"
 
-    def update(self, val, ext, index, rank):
+    def compute(self, val, ext, index, rank):
         # check extracted value and current statistic value
         assert ext == "EXTRACTED_VALUE"
         assert val in {self.config.val, self.initial_value(self.in_features)}
