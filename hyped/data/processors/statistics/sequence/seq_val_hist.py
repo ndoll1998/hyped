@@ -1,4 +1,3 @@
-import warnings
 import numpy as np
 from hyped.data.processors.statistics.value.hist import (
     Histogram,
@@ -16,18 +15,19 @@ from dataclasses import dataclass
 from numpy.typing import NDArray
 from typing import Any, Literal
 from datasets import Features
+from itertools import chain
 
 
-# TODO: write tests for sequence length histogram
+# TODO: write tests for sequence value histogram
 
 
 @dataclass
-class SequenceLengthHistogramConfig(HistogramConfig):
-    """Sequence Length Histogram Data Statistic Config
+class SequenceValueHistogramConfig(HistogramConfig):
+    """Sequence Value Histogram Data Statistic Config
 
-    Build a histogram over the lengths of a given sequence feature.
+    Build a histogram of the values of a given sequence feature.
 
-    Type Identifier: "hyped.data.processors.statistics.value.seq_len_histogram"
+    Type Identifier: "hyped.data.processors.statistics.value.seq_val_histogram"
 
     Attributes:
         statistic_key (str):
@@ -36,34 +36,22 @@ class SequenceLengthHistogramConfig(HistogramConfig):
         feature_key (FeatureKey):
             key to the dataset feature of which to build the
             histogram
-        max_length (int):
-            maximum sequence length, sequences exceeding this
-            threshold will be truncated for the statistics computation
+        low (float): lower end of the range of the histogram
+        high (float): upper end of the range of the histogram
+        num_bins (int): number of bins of the histogram
     """
-
     t: Literal[
-        "hyped.data.processors.statistics.sequence.seq_len_histogram"
-    ] = "hyped.data.processors.statistics.sequence.seq_len_histogram"
-
-    max_length: int = None
-
-    def __post_init__(self):
-        # set values
-        self.low = 0
-        self.high = self.max_length
-        self.num_bins = self.max_length
-        # call super function
-        super(SequenceLengthHistogramConfig, self).__post_init__()
+        "hyped.data.processors.statistics.sequence.seq_val_histogram"
+    ] = "hyped.data.processors.statistics.sequence.seq_val_histogram"
 
 
-class SequenceLengthHistogram(Histogram):
-    """Sequence Length Histogram Data Statistic
+class SequenceValueHistogram(Histogram):
+    """Sequence Value Histogram Data Statistic
 
-    Build a histogram over the lengths of a given sequence feature.
+    Build a histogram of the values of a given sequence feature.
     """
-
     # overwrite config type
-    CONFIG_TYPE = SequenceLengthHistogramConfig
+    CONFIG_TYPE = SequenceValueHistogramConfig
 
     def check_features(self, features: Features) -> None:
         """Check input features.
@@ -79,13 +67,10 @@ class SequenceLengthHistogram(Histogram):
         # make sure feature exists and is a sequence
         raise_feature_exists(self.config.feature_key, features)
         feature = get_feature_at_key(features, self.config.feature_key)
-        raise_feature_is_sequence(self.config.feature_key, feature)
-        # warn about fixed length sequences
-        if feature.length != -1:
-            warnings.warn(
-                "Computing sequence length histogram of fixed length sequence",
-                UserWarning,
-            )
+        raise_feature_is_sequence(
+            self.config.feature_key,
+            feature,
+        )
 
     def extract(
         self,
@@ -93,8 +78,8 @@ class SequenceLengthHistogram(Histogram):
         index: list[int],
         rank: int,
     ) -> tuple[NDArray, NDArray]:
-        """Compute the sequence length histogram for the given
-        batch of examples.
+        """Compute the sequence value histogram for the given batch
+        of examples.
 
         Arguments:
             examples (dict[str, list[Any]]): batch of examples
@@ -106,6 +91,6 @@ class SequenceLengthHistogram(Histogram):
             bin_counts (NDArray): array of integers containing the bin counts
         """
         x = batch_get_value_at_key(examples, self.config.feature_key)
-        lengths = list(map(len, x))
+        x = np.asarray(list(chain.from_iterable(x)))
 
-        return self._compute_histogram(np.asarray(lengths))
+        return self._compute_histogram(x)

@@ -1,4 +1,3 @@
-import numpy as np
 import multiprocessing as mp
 from hyped.utils.feature_access import (
     FeatureKey,
@@ -8,28 +7,32 @@ from hyped.utils.feature_access import (
 from hyped.utils.feature_checks import (
     raise_feature_exists,
     raise_feature_equals,
+    check_feature_equals,
     INT_TYPES,
     UINT_TYPES,
-    FLOAT_TYPES,
 )
 from hyped.data.processors.statistics.base import (
     BaseDataStatistic,
     BaseDataStatisticConfig,
 )
 from hyped.data.processors.statistics.report import StatisticsReportStorage
-from datasets import Features
+from datasets import Features, ClassLabel, Value
 from dataclasses import dataclass
+from collections import Counter
 from typing import Any, Literal
-from numpy.typing import NDArray
+
+
+# TODO: write tests for discrete sequence value histogram
 
 
 @dataclass
-class HistogramConfig(BaseDataStatisticConfig):
-    """Histogram Data Statistic Config
+class DiscreteHistogramConfig(BaseDataStatisticConfig):
+    """Discrete Histogram Data Statistic Config
 
-    Build a histogram of a given value feature.
+    Build a histogram of a given discrete value feature,
+    e.g. ClassLabel or string.
 
-    Type Identifier: "hyped.data.processors.statistics.value.histogram"
+    Type Identifier: "hyped.data.processors.statistics.value.discrete_histogram"
 
     Attributes:
         statistic_key (str):
@@ -38,44 +41,43 @@ class HistogramConfig(BaseDataStatisticConfig):
         feature_key (FeatureKey):
             key to the dataset feature of which to build the
             histogram
-        low (float): lower end of the range of the histogram
-        high (float): upper end of the range of the histogram
-        num_bins (int): number of bins of the histogram
     """
 
     t: Literal[
-        "hyped.data.processors.statistics.value.histogram"
-    ] = "hyped.data.processors.statistics.value.histogram"
+        "hyped.data.processors.statistics.value.discrete_histogram"
+    ] = "hyped.data.processors.statistics.value.discrete_histogram"
 
     feature_key: FeatureKey = None
-    # histogram range and number of bins
-    low: float = None
-    high: float = None
-    num_bins: int = None
 
 
-class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
-    """Histogram Data Statistic Config
+class DiscreteHistogram(
+    BaseDataStatistic[DiscreteHistogramConfig, dict[Any, int]]
+):
+    """Histogram Data Statistic
 
-    Build a histogram of a given value feature.
+    Build a histogram of a given discrete value feature,
+    e.g. ClassLabel or string.
     """
-    def _compute_histogram(self, x: NDArray) -> tuple[NDArray, NDArray]:
-        # clip values in valid range
-        x = np.clip(x, self.config.low, self.config.high)
-        # find bin to each value
-        bin_size = (self.config.high - self.config.low) / (
-            self.config.num_bins - 1
-        )
-        bins = ((x - self.config.low) // bin_size).astype(np.int32)
-        # build histogram for current examples from bins
-        return np.unique(bins, return_counts=True)
+
+    def _map_values(self, vals: list[Any]) -> list[Any]:
+        # get feature
+        feature = get_feature_at_key(self.in_features, self.config.feature_key)
+        # check if feature is a class label
+        if check_feature_equals(feature, ClassLabel):
+            # map class ids to names
+            return feature.int2str(vals)
+
+        return vals
+    
+    def _compute_histogram(self, x: list[Any]) -> dict[Any, int]:
+        return dict(Counter(self._map_values(x)))
 
     def initial_value(
         self, features: Features, manager: mp.Manager
-    ) -> list[int]:
-        """Initial histogram of all zeros.
+    ) -> dict[Any, int]:
+        """Initial histogram
 
-        The return value is a list proxy to allow to share
+        The return value is a dict proxy to allow to share
         it between processes instead of copying the whole
         histogram to each process.
 
@@ -83,15 +85,15 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
             features (Features): input dataset features
 
         Returns:
-            init_val (list[int]): inital histogram of all zeros
+            init_val (dict[Any, int]): inital histogram dictionary
         """
-        return manager.list([0] * self.config.num_bins)
+        return manager.dict()
 
     def check_features(self, features: Features) -> None:
         """Check input features.
 
         Makes sure the feature key specified in the configuration is present
-        in the features and the feature type is a scalar value.
+        in the features and the feature type is a discrete scalar value.
 
         Arguments:
             features (Features): input dataset features
@@ -100,7 +102,7 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
         raise_feature_equals(
             self.config.feature_key,
             get_feature_at_key(features, self.config.feature_key),
-            INT_TYPES + UINT_TYPES + FLOAT_TYPES,
+            INT_TYPES + UINT_TYPES + [ClassLabel, Value("string")],
         )
 
     def extract(
@@ -108,7 +110,7 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
         examples: dict[str, list[Any]],
         index: list[int],
         rank: int,
-    ) -> tuple[NDArray, NDArray]:
+    ) -> dict[Any, int]:
         """Compute the histogram for the given batch of examples
 
         Arguments:
@@ -117,17 +119,16 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
             rank (int): execution process rank
 
         Returns:
-            bin_ids (NDArray): array of integers containing the bin ids
-            bin_counts (NDArray): array of integers containing the bin counts
+            hist (dict[Any, str]): histogram of given batch of examples
         """
         x = batch_get_value_at_key(examples, self.config.feature_key)
-        return self._compute_histogram(np.asarray(x))
+        return self._compute_histogram(x)
 
     def compute(
         self,
-        val: list[int],
-        ext: tuple[NDArray, NDArray],
-    ) -> tuple[NDArray, NDArray]:
+        val: dict[Any, int],
+        ext: dict[Any, int],
+    ) -> dict[Any, int]:
         """Compute the total sub-histogram for the current batch of examples.
 
         The total sub-histogram is the sub-histogram computed by the `extract`
@@ -135,31 +136,26 @@ class Histogram(BaseDataStatistic[HistogramConfig, list[int]]):
         values of the current histogram.
 
         Arguments:
-            val (list[int]): current histogram
-            ext (tuple[NDArray, NDArray]): extracted sub-histogram
+            val (dict[Any, int]): current histogram
+            ext (dicz[Any, int]): extracted sub-histogram
 
         Returns:
-            bin_ids (NDArray): array of integers containing the bin ids
-            total_bin_counts (NDArray):
-                array of integers containing the total bin counts
+            total_hist (dict[Any, str]): total sub-histogram of current batch
         """
-        # add values of original histogram
-        bin_ids, bin_counts = ext
-        return bin_ids, bin_counts + np.asarray([val[i] for i in bin_ids])
+        return {k: v + val.get(k, 0) for k, v in ext.items()}
 
     def update(
-        self, report: StatisticsReportStorage, val: tuple[NDArray, NDArray]
+        self, report: StatisticsReportStorage, val: dict[Any, int]
     ) -> None:
         """Write the new histogram values to the report
 
         Arguments:
             report (StatisticsReportStorage):
                 report storage to update the statistic in
-            cal (tuple[NDArray, NDArray]): total sub-histogram
+            val (dict[Any, int]): total sub-histogram
         """
         # get histogram
         hist = report.get(self.config.statistic_key)
         # write new values to histogram
-        bin_ids, bin_counts = val
-        for i, c in zip(bin_ids, bin_counts):
-            hist[i] = c
+        for k, c in val.items():
+            hist[k] = c
