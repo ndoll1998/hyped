@@ -1,5 +1,8 @@
 from setuptools import setup, find_packages
 
+print(find_packages(exclude="tests"))
+exit()
+
 setup(
     name="hyped",
     version="0.1.0",
@@ -21,5 +24,6 @@ setup(
         "fsspec<=2023.9.2",
         "transformers>=4.36.2",
         "networkx>=3.1",
+        "matplotlib>=3.8.2"
     ],
 )
