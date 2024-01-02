@@ -44,6 +44,7 @@ class TestHuggingFaceTokenizer(BaseTestDataProcessor):
     @pytest.fixture(
         params=[
             [],
+            ["return_tokens"],
             ["return_token_type_ids"],
             ["return_attention_mask"],
             ["return_special_tokens_mask"],
@@ -51,6 +52,7 @@ class TestHuggingFaceTokenizer(BaseTestDataProcessor):
             ["return_length"],
             ["return_word_ids"],
             [
+                "return_tokens",
                 "return_token_type_ids",
                 "return_attention_mask",
                 "return_special_tokens_mask",
@@ -99,13 +101,18 @@ class TestHuggingFaceTokenizer(BaseTestDataProcessor):
                     val = list(map(list, val))
                 # collect features
                 out_batch[key].append(val)
+            # add tokens
+            if processor.config.return_tokens:
+                out_batch["tokens"].append(
+                    processor.tokenizer.convert_ids_to_tokens(enc.input_ids)
+                )
             # add word ids
             if processor.config.return_word_ids:
                 word_ids = enc.word_ids()
                 word_ids = [(i if i is not None else -1) for i in word_ids]
                 out_batch["word_ids"].append(word_ids)
 
-        return out_batch
+        return dict(out_batch)
 
     @pytest.fixture
     def processor(self, tokenizer, max_length, return_options):
@@ -132,6 +139,8 @@ class TestHuggingFaceTokenizer(BaseTestDataProcessor):
             {"input_ids": Sequence(Value("int32"), length=max_length)}
         )
 
+        if return_options.get("return_tokens", False):
+            features["tokens"] = Sequence(Value("string"), length=max_length)
         if return_options.get("return_token_type_ids", False):
             features["token_type_ids"] = Sequence(
                 Value("int32"), length=max_length

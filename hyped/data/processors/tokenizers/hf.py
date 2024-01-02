@@ -38,6 +38,9 @@ class HuggingFaceTokenizerOutputs(StrEnum):
     documentation.
     """
 
+    TOKENS = "tokens"
+    """Output column containing the token sequence"""
+
     INPUT_IDS = "input_ids"
     """Output column containing the input id sequence"""
 
@@ -125,6 +128,8 @@ class HuggingFaceTokenizerConfig(BaseDataProcessorConfig):
         pad_to_multiple_of (None | int):
             when set, the sequence will be padded to a multiple of
             the specified value
+        return_tokens (bool):
+            whether to return the token sequence
         return_token_type_ids (bool):
             whether to return the token type ids
         return_attention_mask (bool):
@@ -163,6 +168,7 @@ class HuggingFaceTokenizerConfig(BaseDataProcessorConfig):
     is_split_into_words: bool = False
     pad_to_multiple_of: None | int = None
     # output features
+    return_tokens: bool = False
     return_token_type_ids: bool = False
     return_attention_mask: bool = False
     return_special_tokens_mask: bool = False
@@ -320,25 +326,34 @@ class HuggingFaceTokenizer(BaseDataProcessor[HuggingFaceTokenizerConfig]):
         out_features = Features()
         # add all fixed-length integer sequence outputs to features
         for key in [
-            "input_ids",
-            "token_type_ids",
-            "attention_mask",
-            "special_tokens_mask",
-            "word_ids",
+            HuggingFaceTokenizerOutputs.INPUT_IDS.value,
+            HuggingFaceTokenizerOutputs.TOKEN_TYPE_IDS.value,
+            HuggingFaceTokenizerOutputs.ATTENTION_MASK.value,
+            HuggingFaceTokenizerOutputs.SPECIAL_TOKENS_MASK.value,
+            HuggingFaceTokenizerOutputs.WORD_IDS.value,
         ]:
-            if (key == "input_ids") or getattr(self.config, "return_%s" % key):
+            if (key == HuggingFaceTokenizerOutputs.INPUT_IDS.value) or getattr(
+                self.config, "return_%s" % key
+            ):
                 out_features[key] = Sequence(
                     Value(dtype="int32"), length=length
                 )
 
-        if self.config.return_offsets_mapping:
-            out_features["offset_mapping"] = Sequence(
-                Sequence(Value("int32"), length=2), length=length
+        if self.config.return_tokens:
+            out_features[HuggingFaceTokenizerOutputs.TOKENS] = Sequence(
+                Value(dtype="string"), length=length
             )
+
+        if self.config.return_offsets_mapping:
+            out_features[
+                HuggingFaceTokenizerOutputs.OFFSETS_MAPPING.value
+            ] = Sequence(Sequence(Value("int32"), length=2), length=length)
 
         if self.config.return_length:
             # length output is nested into a sequence of length one
-            out_features["length"] = Value("int32")
+            out_features[HuggingFaceTokenizerOutputs.LENGTH.value] = Value(
+                "int32"
+            )
 
         return out_features
 
@@ -402,6 +417,11 @@ class HuggingFaceTokenizer(BaseDataProcessor[HuggingFaceTokenizerConfig]):
         # apply tokenizer
         kwargs = self._build_kwargs(examples)
         enc = self.tokenizer(**kwargs)
+        # add tokens to output
+        if self.config.return_tokens:
+            enc[HuggingFaceTokenizerOutputs.TOKENS.value] = list(
+                map(self.tokenizer.convert_ids_to_tokens, enc.input_ids)
+            )
         # add word ids to output
         if self.config.return_word_ids:
             enc[HuggingFaceTokenizerOutputs.WORD_IDS.value] = [
