@@ -4,7 +4,7 @@ from typing import Sequence
 
 
 class ResolveOverlapsStrategy(StrEnum):
-    """Enum over strategies to apply when resolving overlapping strategies
+    """Enum of strategies to apply when resolving overlaps
     Used as an argument to `hyped.utils.resolve_overlaps`.
     """
 
