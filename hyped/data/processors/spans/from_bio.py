@@ -105,15 +105,17 @@ class TokenSpansFromBioTags(BaseDataProcessor[TokenSpansFromBioTagsConfig]):
             names = list(dict.fromkeys(names))
             # create label sequence feature
             return {
-                LabelledSpansOutputs.BEGINS: Sequence(Value("int32")),
-                LabelledSpansOutputs.ENDS: Sequence(Value("int32")),
-                LabelledSpansOutputs.LABELS: Sequence(ClassLabel(names=names)),
+                LabelledSpansOutputs.BEGINS.value: Sequence(Value("int32")),
+                LabelledSpansOutputs.ENDS.value: Sequence(Value("int32")),
+                LabelledSpansOutputs.LABELS.value: Sequence(
+                    ClassLabel(names=names)
+                ),
             }
 
         return {
-            LabelledSpansOutputs.BEGINS: Sequence(Value("int32")),
-            LabelledSpansOutputs.ENDS: Sequence(Value("int32")),
-            LabelledSpansOutputs.LABELS: Sequence(Value("string")),
+            LabelledSpansOutputs.BEGINS.value: Sequence(Value("int32")),
+            LabelledSpansOutputs.ENDS.value: Sequence(Value("int32")),
+            LabelledSpansOutputs.LABELS.value: Sequence(Value("string")),
         }
 
     def process(
@@ -188,7 +190,7 @@ class TokenSpansFromBioTags(BaseDataProcessor[TokenSpansFromBioTagsConfig]):
         assert len(spans_begin) == len(spans_end) == len(spans_label)
 
         return {
-            LabelledSpansOutputs.BEGINS: spans_begin,
-            LabelledSpansOutputs.ENDS: spans_end,
-            LabelledSpansOutputs.LABELS: spans_label,
+            LabelledSpansOutputs.BEGINS.value: spans_begin,
+            LabelledSpansOutputs.ENDS.value: spans_end,
+            LabelledSpansOutputs.LABELS.value: spans_label,
         }

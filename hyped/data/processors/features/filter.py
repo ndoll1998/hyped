@@ -16,11 +16,18 @@ class FilterFeaturesConfig(BaseDataProcessorConfig):
     Removes dataset features based on the specified filters,
     i.e. the list of features to keep or remove.
 
+    Make sure to specify exactly one of the filters.
+
     Type Identifier: `hyped.data.processors.features.format`
 
     Attributes:
         keep (None | list[FeatureKey]): features to keep
         remove (None | list[FeatureKey]): features to remove
+
+    Raises:
+        ValueError: when none of the attributes are specified
+        ValueError: when both `keep` and `remove` are specified
+
     """
 
     t: Literal[

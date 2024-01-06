@@ -169,8 +169,8 @@ class LocalToGlobalOffsets(BaseDataProcessor):
 
         return Features(
             {
-                SpansOutputs.BEGINS: local_offsets_begin,
-                SpansOutputs.ENDS: local_offsets_end,
+                SpansOutputs.BEGINS.value: local_offsets_begin,
+                SpansOutputs.ENDS.value: local_offsets_end,
             }
         )
 
@@ -232,6 +232,6 @@ class LocalToGlobalOffsets(BaseDataProcessor):
         )
         # return offsets
         return {
-            SpansOutputs.BEGINS: offsets_begin.tolist(),
-            SpansOutputs.ENDS: offsets_end.tolist(),
+            SpansOutputs.BEGINS.value: offsets_begin.tolist(),
+            SpansOutputs.ENDS.value: offsets_end.tolist(),
         }

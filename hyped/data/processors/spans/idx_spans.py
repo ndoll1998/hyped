@@ -155,8 +155,8 @@ class CoveredIndexSpans(BaseDataProcessor[CoveredIndexSpansConfig]):
 
         return Features(
             {
-                SpansOutputs.BEGINS: queries_begin,
-                SpansOutputs.ENDS: queries_end,
+                SpansOutputs.BEGINS.value: queries_begin,
+                SpansOutputs.ENDS.value: queries_end,
             }
         )
 
@@ -212,6 +212,6 @@ class CoveredIndexSpans(BaseDataProcessor[CoveredIndexSpansConfig]):
 
         # return index spans
         return {
-            SpansOutputs.BEGINS: idx_spans_begin,
-            SpansOutputs.ENDS: idx_spans_end,
+            SpansOutputs.BEGINS.value: idx_spans_begin,
+            SpansOutputs.ENDS.value: idx_spans_end,
         }

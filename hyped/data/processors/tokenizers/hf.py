@@ -134,8 +134,6 @@ class HuggingFaceTokenizerConfig(BaseDataProcessorConfig):
             whether to return the token type ids
         return_attention_mask (bool):
             whether to return the attention mask
-        return_overflowing_tokens (bool):
-            whether to return the overflowing tokens
         return_special_tokens_mask (bool):
             whether to return the special tokens mask
         return_offsets_mapping (bool):
@@ -340,7 +338,7 @@ class HuggingFaceTokenizer(BaseDataProcessor[HuggingFaceTokenizerConfig]):
                 )
 
         if self.config.return_tokens:
-            out_features[HuggingFaceTokenizerOutputs.TOKENS] = Sequence(
+            out_features[HuggingFaceTokenizerOutputs.TOKENS.value] = Sequence(
                 Value(dtype="string"), length=length
             )
 

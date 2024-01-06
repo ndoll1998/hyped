@@ -150,8 +150,8 @@ class ApplyIndexSpans(BaseDataProcessor[ApplyIndexSpansConfig]):
 
         return Features(
             {
-                SpansOutputs.BEGINS: idx_spans_begin,
-                SpansOutputs.ENDS: idx_spans_end,
+                SpansOutputs.BEGINS.value: idx_spans_begin,
+                SpansOutputs.ENDS.value: idx_spans_end,
             }
         )
 
@@ -194,4 +194,7 @@ class ApplyIndexSpans(BaseDataProcessor[ApplyIndexSpansConfig]):
             begins = begins[0]
             ends = ends[0]
 
-        return {SpansOutputs.BEGINS: begins, SpansOutputs.ENDS: ends}
+        return {
+            SpansOutputs.BEGINS.value: begins,
+            SpansOutputs.ENDS.value: ends,
+        }
