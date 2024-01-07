@@ -68,6 +68,9 @@ class BaseDataPipeManipulationTool(BaseTool, ABC):
             # manipulate data pipe
             self.manipulate_data_pipe(self.data_pipe, *args, **kwargs)
 
+            if len(self.data_pipe) == 0:
+                return self._build_response(self.in_features)
+
             try:
                 # try to prepare pipeline to check features
                 output_features = self.data_pipe.prepare(self.in_features)
