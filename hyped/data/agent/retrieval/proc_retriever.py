@@ -66,7 +66,7 @@ class DataProcessorsRetriever(BaseTool):
                 "response": DataProcessorTypeFormatter.build_desc(
                     processor_type
                 )
-            }
+            },
         )
 
     def _run(

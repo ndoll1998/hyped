@@ -51,7 +51,7 @@ class UpdateDataProcessorInPipe(BaseDataPipeManipulationTool):
             config = json.loads(config)
             cur_config.update(config)
             # build config object from dictionary
-            config = config_t.from_dict(config)
+            config = config_t.from_dict(cur_config)
         except json.JSONDecodeError as e:
             raise ToolException("JsonDecodeError: %s" % e.args[0])
         except TypeError as e:
