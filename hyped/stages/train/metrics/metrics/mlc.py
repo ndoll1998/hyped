@@ -42,6 +42,7 @@ class MlcMetric(HypedMetric):
     def compute(self, eval_pred:EvalPrediction) -> dict[str, float]:
 
         preds, labels = eval_pred
+        labels = (labels != 0)
         preds = (preds >= 0)
         # compute confusion matrix
         tp = (preds & labels).sum(axis=0)
