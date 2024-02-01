@@ -43,7 +43,7 @@ class MlcMetric(HypedMetric):
 
         preds, labels = eval_pred
         labels = (labels != 0)
-        preds = (preds >= 0)
+        preds = (preds >= 0.5)
         # compute confusion matrix
         tp = (preds & labels).sum(axis=0)
         fp = (preds & ~labels).sum(axis=0)
