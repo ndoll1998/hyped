@@ -157,7 +157,7 @@ class MultiLabelsCollator(LabelsCollator):
 
     def binarize(self, labels:list[list[int]]) -> torch.Tensor:
 
-        bin_labels = torch.zeros((len(labels), self.num_labels), dtype=torch.long)
+        bin_labels = torch.zeros((len(labels), self.num_labels), dtype=torch.float)
         # binarize labels
         for i, ids in enumerate(labels):
             bin_labels[i, ids] = 1
