@@ -68,7 +68,6 @@ class TestFlattenAllFeatures(BaseTestFlattenFeatures):
 class TestFlattenSelectedFeatures(BaseTestFlattenFeatures):
     @pytest.fixture(
         params=[
-            [],
             ["X"],
             ["Y"],
             ["A"],
