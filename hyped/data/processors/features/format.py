@@ -46,7 +46,7 @@ class FormatFeatures(BaseDataProcessor[FormatFeaturesConfig]):
     Arguments:
         config (FormatFeaturesConfig): formatting configuration
     """
-    
+
     def map_features(self, features: Features) -> Features:
         """Pass input features through. The actual formatting is
         done by the base data processor."""

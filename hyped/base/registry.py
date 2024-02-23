@@ -174,7 +174,7 @@ class RootedTypeRegistryView(object):
     def types(self) -> list[type]:
         """List of all registered types"""
         return list(self.type_register.values())
-    
+
     @property
     def concrete_types(self) -> list[type]:
         """List of all concrete (i.e. non-abstract) registered types"""

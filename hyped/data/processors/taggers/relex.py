@@ -200,11 +200,9 @@ class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
             feature = get_feature_at_key(features, key)
             raise_feature_equals(key, feature, INDEX_TYPES)
 
-        return {
-            RelExTaggerOutputs.MARKED_SEQUENCE.value: self._marked_sequence_feature(
-                sequence
-            )
-        }
+        # build output feature
+        out_feature = self._marked_sequence_feature(sequence)
+        return {RelExTaggerOutputs.MARKED_SEQUENCE.value: out_feature}
 
     def process(
         self, example: dict[str, Any], index: int, rank: int

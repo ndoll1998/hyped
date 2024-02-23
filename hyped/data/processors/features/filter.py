@@ -50,7 +50,7 @@ class FilterFeatures(BaseDataProcessor[FilterFeaturesConfig]):
     @property
     def required_feature_keys(self) -> list[FeatureKey]:
         # TODO: when remove is defined this should be input_features \ remove
-        if (self.remove is not None):
+        if self.remove is not None:
             raise NotImplementedError()
 
         return list(self.config.required_feature_keys)
