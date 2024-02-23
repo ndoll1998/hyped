@@ -182,7 +182,7 @@ class StatisticsReportManager(object):
         if self.is_empty:
             warnings.warn(
                 "No active statistic reports found. Computed statistics will "
-                "not be tracked. Active a `StatisticReport` instance to "
+                "not be tracked. Active a `StatisticsReport` instance to "
                 "track statistics.",
                 UserWarning,
             )
