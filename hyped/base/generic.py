@@ -1,4 +1,4 @@
-from typing import _GenericAlias, Generic, TypeVar, get_origin, get_args
+from typing import Generic, TypeVar, _GenericAlias, get_args, get_origin
 
 
 def _get_typevar_index(t: type, T: TypeVar) -> None | int:

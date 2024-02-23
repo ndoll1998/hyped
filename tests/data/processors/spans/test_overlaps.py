@@ -1,11 +1,13 @@
-from tests.data.processors.base import BaseTestDataProcessor
+from itertools import compress
+
+import pytest
+from datasets import Features, Sequence, Value
+
 from hyped.data.processors.spans.overlaps import (
     ResolveSpanOverlaps,
     ResolveSpanOverlapsConfig,
 )
-from datasets import Features, Sequence, Value
-from itertools import compress
-import pytest
+from tests.data.processors.base import BaseTestDataProcessor
 
 
 class TestResolveSpanOverlaps(BaseTestDataProcessor):

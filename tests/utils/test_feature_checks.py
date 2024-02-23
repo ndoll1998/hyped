@@ -1,18 +1,19 @@
+import pytest
+from datasets import Features, Sequence, Value
+
 from hyped.utils.feature_checks import (
-    check_feature_exists,
     check_feature_equals,
+    check_feature_exists,
     check_feature_is_sequence,
-    check_sequence_lengths_match,
     check_object_matches_feature,
-    get_sequence_length,
+    check_sequence_lengths_match,
     get_sequence_feature,
-    raise_feature_exists,
+    get_sequence_length,
     raise_feature_equals,
+    raise_feature_exists,
     raise_feature_is_sequence,
     raise_object_matches_feature,
 )
-from datasets import Features, Sequence, Value
-import pytest
 
 
 class TestFeatureExists:

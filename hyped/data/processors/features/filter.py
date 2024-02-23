@@ -1,12 +1,14 @@
+from dataclasses import dataclass
+from typing import Any, Literal
+
+from datasets import Features
+
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
 )
-from hyped.utils.feature_checks import raise_feature_exists
 from hyped.utils.feature_access import FeatureKey
-from datasets import Features
-from dataclasses import dataclass
-from typing import Literal, Any
+from hyped.utils.feature_checks import raise_feature_exists
 
 
 @dataclass

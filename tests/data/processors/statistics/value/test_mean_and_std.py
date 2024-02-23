@@ -1,12 +1,13 @@
-from tests.data.processors.statistics.base import BaseTestDataStatistic
+import numpy as np
+import pytest
+from datasets import Features, Value
+
 from hyped.data.processors.statistics.value.mean_and_std import (
     MeanAndStd,
     MeanAndStdConfig,
     MeanAndStdTuple,
 )
-from datasets import Features, Value
-import numpy as np
-import pytest
+from tests.data.processors.statistics.base import BaseTestDataStatistic
 
 
 class TestMeanAndStd(BaseTestDataStatistic):

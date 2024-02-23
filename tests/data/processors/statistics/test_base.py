@@ -1,16 +1,15 @@
-from tests.data.processors.statistics.base import BaseTestDataStatistic
+from dataclasses import dataclass
+from typing import Any
+
+import pytest
+from datasets import Features, Value
+
 from hyped.data.processors.statistics.base import (
     BaseDataStatistic,
     BaseDataStatisticConfig,
 )
-from hyped.data.processors.statistics.report import (
-    StatisticsReport,
-)
-from datasets import Features, Value
-from dataclasses import dataclass
-from typing import Any
-import pytest
-
+from hyped.data.processors.statistics.report import StatisticsReport
+from tests.data.processors.statistics.base import BaseTestDataStatistic
 from tests.data.processors.statistics.test_report import is_lock_acquired
 
 

@@ -1,11 +1,13 @@
 from __future__ import annotations
+
 import json
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, asdict
-from typing import Literal, Any, TypeVar, Generic
-from .registry import RegisterTypes
-from .generic import solve_typevar
+from dataclasses import asdict, dataclass
+from typing import Any, Generic, Literal, TypeVar
+
 from .auto import BaseAutoClass
+from .generic import solve_typevar
+from .registry import RegisterTypes
 
 
 @dataclass

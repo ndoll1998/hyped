@@ -1,6 +1,25 @@
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Any, Literal
+
+from datasets import Features, Sequence, Value
+from transformers import (
+    AutoTokenizer,
+    LayoutXLMTokenizer,
+    PreTrainedTokenizer,
+    PreTrainedTokenizerFast,
+)
+from transformers.tokenization_utils_base import TruncationStrategy
+from transformers.utils import PaddingStrategy
+
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
+)
+from hyped.utils.feature_access import (
+    FeatureKey,
+    batch_get_value_at_key,
+    get_feature_at_key,
 )
 from hyped.utils.feature_checks import (
     INT_TYPES,
@@ -8,23 +27,6 @@ from hyped.utils.feature_checks import (
     raise_feature_equals,
     raise_feature_is_sequence,
 )
-from hyped.utils.feature_access import (
-    FeatureKey,
-    get_feature_at_key,
-    batch_get_value_at_key,
-)
-from transformers import (
-    PreTrainedTokenizer,
-    PreTrainedTokenizerFast,
-    AutoTokenizer,
-    LayoutXLMTokenizer,
-)
-from transformers.utils import PaddingStrategy
-from transformers.tokenization_utils_base import TruncationStrategy
-from datasets import Features, Sequence, Value
-from dataclasses import dataclass
-from enum import StrEnum
-from typing import Literal, Any
 
 
 class HuggingFaceTokenizerOutputs(StrEnum):

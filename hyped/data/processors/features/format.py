@@ -1,11 +1,13 @@
+from dataclasses import dataclass, field
+from typing import Any, ClassVar, Literal
+
+from datasets import Features
+
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
 )
 from hyped.utils.feature_access import FeatureKeyCollection
-from datasets import Features
-from dataclasses import dataclass, field
-from typing import Literal, Any, ClassVar
 
 
 @dataclass

@@ -1,11 +1,12 @@
-from tests.data.processors.base import BaseTestDataProcessor
-from hyped.data.processors.spans.outputs import LabelledSpansOutputs
+import pytest
+from datasets import ClassLabel, Features, Sequence, Value
+
 from hyped.data.processors.spans.from_bio import (
     TokenSpansFromBioTags,
     TokenSpansFromBioTagsConfig,
 )
-from datasets import Features, Sequence, Value, ClassLabel
-import pytest
+from hyped.data.processors.spans.outputs import LabelledSpansOutputs
+from tests.data.processors.base import BaseTestDataProcessor
 
 
 class TestTokenSpansFromBioTags(BaseTestDataProcessor):

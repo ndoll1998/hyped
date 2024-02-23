@@ -1,11 +1,12 @@
+from typing import Generic, TypeVar
+
+from .generic import solve_typevar
 from .registry import (
     Registrable,
-    TypeRegistry,
     RootedTypeRegistryView,
+    TypeRegistry,
     default_registry,
 )
-from .generic import solve_typevar
-from typing import Generic, TypeVar
 
 T = TypeVar("T", bound=Registrable)
 

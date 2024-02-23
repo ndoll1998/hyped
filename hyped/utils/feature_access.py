@@ -1,14 +1,16 @@
-from hyped.utils.feature_checks import (
-    raise_feature_is_sequence,
-    raise_feature_exists,
-    raise_feature_equals,
-    check_feature_equals,
-    get_sequence_length,
-    get_sequence_feature,
-)
-from datasets.features.features import Features, FeatureType, Sequence
 from itertools import chain
 from typing import Any, Iterable, NewType
+
+from datasets.features.features import Features, FeatureType, Sequence
+
+from hyped.utils.feature_checks import (
+    check_feature_equals,
+    get_sequence_feature,
+    get_sequence_length,
+    raise_feature_equals,
+    raise_feature_exists,
+    raise_feature_is_sequence,
+)
 
 # TODO: write tests
 

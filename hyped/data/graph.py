@@ -1,11 +1,13 @@
 import re
-import numpy as np
-import networkx as nx
-from datasets import Features
 from enum import StrEnum
+from itertools import count, groupby
+
+import networkx as nx
+import numpy as np
+from datasets import Features
 from matplotlib import colormaps
 from matplotlib import pyplot as plt
-from itertools import count, groupby
+
 from hyped.data.pipe import DataPipe
 from hyped.data.processors.statistics.base import BaseDataStatistic
 

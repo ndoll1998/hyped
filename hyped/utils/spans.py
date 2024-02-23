@@ -1,6 +1,7 @@
-import numpy as np
 from enum import StrEnum
 from typing import Sequence
+
+import numpy as np
 
 
 class ResolveOverlapsStrategy(StrEnum):

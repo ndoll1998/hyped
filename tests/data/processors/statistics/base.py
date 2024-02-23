@@ -1,11 +1,13 @@
 from abc import abstractmethod
-from tests.data.processors.base import BaseTestDataProcessor
+from multiprocessing.managers import BaseProxy
+from typing import Any
+
+import pytest
+from datasets import Features
+
 from hyped.data.processors.statistics.base import BaseDataStatistic
 from hyped.data.processors.statistics.report import StatisticsReport
-from multiprocessing.managers import BaseProxy
-from datasets import Features
-from typing import Any
-import pytest
+from tests.data.processors.base import BaseTestDataProcessor
 
 
 class BaseTestDataStatistic(BaseTestDataProcessor):

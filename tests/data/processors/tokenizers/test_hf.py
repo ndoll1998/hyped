@@ -1,13 +1,15 @@
-from tests.data.processors.base import BaseTestDataProcessor
+from collections import defaultdict
+from functools import partial
+
+import pytest
+from datasets import Features, Sequence, Value
+from transformers import AutoTokenizer
+
 from hyped.data.processors.tokenizers.hf import (
     HuggingFaceTokenizer,
     HuggingFaceTokenizerConfig,
 )
-from transformers import AutoTokenizer
-from datasets import Features, Sequence, Value
-from collections import defaultdict
-from functools import partial
-import pytest
+from tests.data.processors.base import BaseTestDataProcessor
 
 
 @pytest.fixture(params=["bert-base-uncased", "bert-base-german-cased"])
@@ -123,7 +125,7 @@ class TestHuggingFaceTokenizer(BaseTestDataProcessor):
                     padding="max_length",
                     truncation=True,
                     tokenizer=tokenizer,
-                    **return_options
+                    **return_options,
                 )
             )
         else:
@@ -256,7 +258,7 @@ class TestHuggingFaceTokenizerErrorOnSlowTokenizer:
                 tokenizer=AutoTokenizer.from_pretrained(
                     tokenizer, use_fast=True
                 ),
-                **kwargs
+                **kwargs,
             )
         )
 
@@ -268,7 +270,7 @@ class TestHuggingFaceTokenizerErrorOnSlowTokenizer:
                     tokenizer=AutoTokenizer.from_pretrained(
                         tokenizer, use_fast=False
                     ),
-                    **kwargs
+                    **kwargs,
                 )
             )
 
@@ -289,7 +291,7 @@ class TestHuggingFaceTokenizerErrorOnSlowTokenizer:
                 tokenizer=AutoTokenizer.from_pretrained(
                     tokenizer, use_fast=True
                 ),
-                **kwargs
+                **kwargs,
             )
         )
         # create data processor using slow tokenizer
@@ -298,6 +300,6 @@ class TestHuggingFaceTokenizerErrorOnSlowTokenizer:
                 tokenizer=AutoTokenizer.from_pretrained(
                     tokenizer, use_fast=False
                 ),
-                **kwargs
+                **kwargs,
             )
         )

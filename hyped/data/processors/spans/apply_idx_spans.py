@@ -1,25 +1,28 @@
-from .outputs import SpansOutputs
+from dataclasses import dataclass
+from typing import Any, Literal
+
+import numpy as np
+from datasets import Features
+
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
-)
-from hyped.utils.feature_checks import (
-    INDEX_TYPES,
-    raise_features_align,
-    raise_feature_is_sequence,
-    check_feature_equals,
-    check_feature_is_sequence,
 )
 from hyped.utils.feature_access import (
     FeatureKey,
     get_feature_at_key,
     get_value_at_key,
 )
+from hyped.utils.feature_checks import (
+    INDEX_TYPES,
+    check_feature_equals,
+    check_feature_is_sequence,
+    raise_feature_is_sequence,
+    raise_features_align,
+)
 from hyped.utils.spans import make_spans_exclusive
-import numpy as np
-from datasets import Features
-from dataclasses import dataclass
-from typing import Literal, Any
+
+from .outputs import SpansOutputs
 
 
 @dataclass

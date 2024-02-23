@@ -1,23 +1,24 @@
+from dataclasses import dataclass
+from itertools import chain
+from typing import Any, Literal
+
+from datasets import ClassLabel, Features, Value
+
 from hyped.data.processors.statistics.value.disc_hist import (
     DiscreteHistogram,
     DiscreteHistogramConfig,
 )
 from hyped.utils.feature_access import (
-    get_feature_at_key,
     batch_get_value_at_key,
+    get_feature_at_key,
 )
 from hyped.utils.feature_checks import (
-    raise_feature_exists,
-    raise_feature_is_sequence,
-    check_feature_is_sequence,
     INT_TYPES,
     UINT_TYPES,
+    check_feature_is_sequence,
+    raise_feature_exists,
+    raise_feature_is_sequence,
 )
-from dataclasses import dataclass
-from typing import Any, Literal
-from datasets import Features, ClassLabel, Value
-from itertools import chain
-
 
 # TODO: write tests for sequence value histogram
 

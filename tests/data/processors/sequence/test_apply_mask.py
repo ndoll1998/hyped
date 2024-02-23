@@ -1,10 +1,11 @@
-from tests.data.processors.base import BaseTestDataProcessor
+import pytest
+from datasets import Features, Sequence, Value
+
 from hyped.data.processors.sequence.apply_mask import (
     ApplyMask,
     ApplyMaskConfig,
 )
-from datasets import Features, Sequence, Value
-import pytest
+from tests.data.processors.base import BaseTestDataProcessor
 
 
 class TestApplyMask(BaseTestDataProcessor):

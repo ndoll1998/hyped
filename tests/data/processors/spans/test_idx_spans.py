@@ -1,11 +1,12 @@
-from tests.data.processors.base import BaseTestDataProcessor
-from hyped.data.processors.spans.outputs import SpansOutputs
+import pytest
+from datasets import Features, Sequence, Value
+
 from hyped.data.processors.spans.idx_spans import (
     CoveredIndexSpans,
     CoveredIndexSpansConfig,
 )
-from datasets import Features, Sequence, Value
-import pytest
+from hyped.data.processors.spans.outputs import SpansOutputs
+from tests.data.processors.base import BaseTestDataProcessor
 
 
 class TestCoveredIndexSpansErrors(BaseTestDataProcessor):

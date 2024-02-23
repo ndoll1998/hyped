@@ -1,28 +1,30 @@
+from dataclasses import dataclass
+from itertools import compress
+from typing import Any, Literal
+
+from datasets import Features, Sequence, Value
+
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
-)
-from hyped.utils.feature_checks import (
-    INDEX_TYPES,
-    raise_features_align,
-    raise_feature_is_sequence,
-    get_sequence_feature,
-    get_sequence_length,
 )
 from hyped.utils.feature_access import (
     FeatureKey,
     get_feature_at_key,
     get_value_at_key,
 )
+from hyped.utils.feature_checks import (
+    INDEX_TYPES,
+    get_sequence_feature,
+    get_sequence_length,
+    raise_feature_is_sequence,
+    raise_features_align,
+)
 from hyped.utils.spans import (
+    ResolveOverlapsStrategy,
     make_spans_exclusive,
     resolve_overlaps,
-    ResolveOverlapsStrategy,
 )
-from itertools import compress
-from datasets import Features, Sequence, Value
-from dataclasses import dataclass
-from typing import Literal, Any
 
 
 @dataclass

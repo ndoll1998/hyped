@@ -1,20 +1,23 @@
-from .outputs import LabelledSpansOutputs
+from dataclasses import dataclass
+from typing import Any, Literal
+
+from datasets import ClassLabel, Features, Sequence, Value
+
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
-)
-from hyped.utils.feature_checks import (
-    raise_feature_is_sequence,
-    get_sequence_feature,
 )
 from hyped.utils.feature_access import (
     FeatureKey,
     get_feature_at_key,
     get_value_at_key,
 )
-from datasets import Features, Sequence, Value, ClassLabel
-from dataclasses import dataclass
-from typing import Literal, Any
+from hyped.utils.feature_checks import (
+    get_sequence_feature,
+    raise_feature_is_sequence,
+)
+
+from .outputs import LabelledSpansOutputs
 
 
 @dataclass

@@ -1,9 +1,11 @@
 import os
+
 import cassis
 import datasets
 import pytest
-import hyped.data.datasets  # noqa: F401
 from cassis.typesystem import TYPE_NAME_STRING
+
+import hyped.data.datasets  # noqa: F401
 
 
 def build_typesystem(path):

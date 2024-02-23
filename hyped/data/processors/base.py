@@ -1,28 +1,31 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from datasets import Features
 from dataclasses import dataclass, fields
+from itertools import chain
+from types import GeneratorType, UnionType
+from typing import (
+    Any,
+    ClassVar,
+    Generator,
+    GenericAlias,
+    Literal,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+)
+
+from datasets import Features
+
 from hyped.base.config import BaseConfig, BaseConfigurable
 from hyped.utils.feature_access import (
     FeatureKey,
     FeatureKeyCollection,
-    is_feature_key,
     collect_features,
     collect_values,
+    is_feature_key,
     iter_batch,
-)
-from itertools import chain
-from types import GeneratorType, UnionType
-from typing import (
-    Union,
-    ClassVar,
-    Literal,
-    Any,
-    TypeVar,
-    Generator,
-    GenericAlias,
-    get_args,
-    get_origin,
 )
 
 

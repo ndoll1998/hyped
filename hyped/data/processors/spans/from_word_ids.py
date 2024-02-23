@@ -1,22 +1,22 @@
+from dataclasses import dataclass
+from typing import Any, Literal
+
 import numpy as np
-from .outputs import SpansOutputs
-from hyped.data.processors.tokenizers.hf import HuggingFaceTokenizerOutputs
+from datasets import Features, Sequence, Value
+
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
 )
-from hyped.utils.feature_checks import (
-    INDEX_TYPES,
-    raise_feature_is_sequence,
-)
+from hyped.data.processors.tokenizers.hf import HuggingFaceTokenizerOutputs
 from hyped.utils.feature_access import (
     FeatureKey,
     get_feature_at_key,
     get_value_at_key,
 )
-from datasets import Features, Sequence, Value
-from dataclasses import dataclass
-from typing import Literal, Any
+from hyped.utils.feature_checks import INDEX_TYPES, raise_feature_is_sequence
+
+from .outputs import SpansOutputs
 
 
 @dataclass

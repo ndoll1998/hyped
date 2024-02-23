@@ -1,15 +1,17 @@
 import json
+from copy import deepcopy
 from dataclasses import dataclass
+from typing import TypeVar
+
+import pytest
+
 from hyped.base.config import (
-    BaseConfig,
     AutoConfig,
-    BaseConfigurable,
     BaseAutoConfigurable,
+    BaseConfig,
+    BaseConfigurable,
 )
 from hyped.base.registry import default_registry
-from copy import deepcopy
-from typing import TypeVar
-import pytest
 
 T = TypeVar("T")
 

@@ -1,8 +1,9 @@
+import inspect
 from abc import ABC, ABCMeta
 from types import MappingProxyType
 from typing import ClassVar, Iterator
+
 from datasets.packaged_modules import _hash_python_lines
-import inspect
 
 
 class Registrable(ABC):

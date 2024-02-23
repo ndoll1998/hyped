@@ -1,13 +1,15 @@
 from __future__ import annotations
-import os
-import cassis
-import datasets
+
 import logging
 import multiprocessing as mp
-from itertools import chain
-from dataclasses import dataclass
+import os
 from collections import defaultdict
-from typing import Iterator, Any
+from dataclasses import dataclass
+from itertools import chain
+from typing import Any, Iterator
+
+import cassis
+import datasets
 
 logger = logging.getLogger(__name__)
 

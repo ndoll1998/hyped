@@ -1,18 +1,24 @@
-import pytest
+import warnings
+from itertools import chain
+
 import networkx as nx
-from datasets import Features, Sequence, ClassLabel, Value
-from hyped.data.graph import ProcessGraph, NodeAttribute, NodeType
+import pytest
+from datasets import ClassLabel, Features, Sequence, Value
+
+from hyped.data.graph import NodeAttribute, NodeType, ProcessGraph
 from hyped.data.pipe import DataPipe
 from hyped.data.processors.base import BaseDataProcessor
-from hyped.data.processors.statistics.base import BaseDataStatistic
-from hyped.data.processors.tokenizers.hf import (
-    HuggingFaceTokenizer,
-    HuggingFaceTokenizerConfig,
-    HuggingFaceTokenizerOutputs,
+from hyped.data.processors.features.filter import (
+    FilterFeatures,
+    FilterFeaturesConfig,
 )
-from hyped.data.processors.spans.outputs import (
-    SpansOutputs,
-    LabelledSpansOutputs,
+from hyped.data.processors.features.format import (
+    FormatFeatures,
+    FormatFeaturesConfig,
+)
+from hyped.data.processors.spans.apply_idx_spans import (
+    ApplyIndexSpans,
+    ApplyIndexSpansConfig,
 )
 from hyped.data.processors.spans.from_bio import (
     TokenSpansFromBioTags,
@@ -22,29 +28,25 @@ from hyped.data.processors.spans.from_word_ids import (
     TokenSpansFromWordIds,
     TokenSpansFromWordIdsConfig,
 )
-from hyped.data.processors.spans.apply_idx_spans import (
-    ApplyIndexSpans,
-    ApplyIndexSpansConfig,
+from hyped.data.processors.spans.outputs import (
+    LabelledSpansOutputs,
+    SpansOutputs,
 )
-from hyped.data.processors.features.format import (
-    FormatFeatures,
-    FormatFeaturesConfig,
-)
-from hyped.data.processors.features.filter import (
-    FilterFeatures,
-    FilterFeaturesConfig,
+from hyped.data.processors.statistics.base import BaseDataStatistic
+from hyped.data.processors.statistics.value.mean_and_std import (
+    MeanAndStd,
+    MeanAndStdConfig,
 )
 from hyped.data.processors.taggers.bio import (
     BioTagger,
     BioTaggerConfig,
     BioTaggerOutputs,
 )
-from hyped.data.processors.statistics.value.mean_and_std import (
-    MeanAndStdConfig,
-    MeanAndStd,
+from hyped.data.processors.tokenizers.hf import (
+    HuggingFaceTokenizer,
+    HuggingFaceTokenizerConfig,
+    HuggingFaceTokenizerOutputs,
 )
-from itertools import chain
-import warnings
 
 
 class BaseTestProcessGraph(object):

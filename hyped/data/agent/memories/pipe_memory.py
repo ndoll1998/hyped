@@ -1,9 +1,11 @@
+from typing import Any
+
+from datasets import Dataset
 from langchain.schema import BaseMemory
 from langchain_core.messages import SystemMessage
-from hyped.data.pipe import DataPipe
+
 from hyped.data.agent.format import DataPipeFormatter
-from datasets import Dataset
-from typing import Any
+from hyped.data.pipe import DataPipe
 
 
 class DataPipeMemory(BaseMemory):

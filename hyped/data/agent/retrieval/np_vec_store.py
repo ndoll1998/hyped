@@ -1,9 +1,10 @@
+from typing import Any, Iterable, Optional
+
 import numpy as np
-from numpy.typing import NDArray
 from langchain.schema import Document
-from langchain_core.vectorstores import VectorStore, VST
 from langchain_core.embeddings import Embeddings
-from typing import Iterable, Optional, Any
+from langchain_core.vectorstores import VST, VectorStore
+from numpy.typing import NDArray
 
 
 class NumpyVectorStore(VectorStore):

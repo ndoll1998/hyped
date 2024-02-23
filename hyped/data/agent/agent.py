@@ -1,23 +1,23 @@
-from langchain.memory import CombinedMemory
+from datasets import Dataset
 from langchain.agents import AgentExecutor, create_openai_functions_agent
+from langchain.memory import CombinedMemory
 from langchain_community.chat_models import ChatOpenAI
 from langchain_community.embeddings.openai import OpenAIEmbeddings
 from langchain_core.prompts.chat import (
     ChatPromptTemplate,
-    SystemMessage,
     HumanMessagePromptTemplate,
     MessagesPlaceholder,
+    SystemMessage,
 )
+
+from hyped.data.agent.memories.pipe_memory import DataPipeMemory
+from hyped.data.agent.memories.proc_memory import AvailableDataProcessorsMemory
+from hyped.data.agent.pipe_toolkit import DataPipeManipulationToolkit
+from hyped.data.agent.retrieval.proc_retriever import DataProcessorsRetriever
+from hyped.data.pipe import DataPipe
 
 # tools and memory
 from hyped.data.processors.base import BaseDataProcessor
-from hyped.data.agent.pipe_toolkit import DataPipeManipulationToolkit
-from hyped.data.agent.retrieval.proc_retriever import DataProcessorsRetriever
-from hyped.data.agent.memories.proc_memory import AvailableDataProcessorsMemory
-from hyped.data.agent.memories.pipe_memory import DataPipeMemory
-
-from datasets import Dataset
-from hyped.data.pipe import DataPipe
 
 
 class OpenAIDataAgent(AgentExecutor):
@@ -27,7 +27,7 @@ class OpenAIDataAgent(AgentExecutor):
         emb: OpenAIEmbeddings,
         data_pipe: DataPipe,
         sample_ds: Dataset,
-        **kwargs
+        **kwargs,
     ) -> None:
         # get the processors type registry containing
         # available processor types
@@ -56,7 +56,7 @@ class OpenAIDataAgent(AgentExecutor):
                     DataPipeMemory(data_pipe=data_pipe, sample_ds=sample_ds),
                 ]
             ),
-            **kwargs
+            **kwargs,
         )
 
     @property

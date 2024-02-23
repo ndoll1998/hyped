@@ -1,22 +1,23 @@
+from dataclasses import dataclass
+from itertools import chain
+from typing import Any, Literal
+
 import numpy as np
+from datasets import Features
+from numpy.typing import NDArray
+
 from hyped.data.processors.statistics.value.hist import (
     Histogram,
     HistogramConfig,
 )
 from hyped.utils.feature_access import (
-    get_feature_at_key,
     batch_get_value_at_key,
+    get_feature_at_key,
 )
 from hyped.utils.feature_checks import (
     raise_feature_exists,
     raise_feature_is_sequence,
 )
-from dataclasses import dataclass
-from numpy.typing import NDArray
-from typing import Any, Literal
-from datasets import Features
-from itertools import chain
-
 
 # TODO: write tests for sequence value histogram
 

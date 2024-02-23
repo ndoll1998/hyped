@@ -1,4 +1,5 @@
 import json
+
 import pyarrow as pa
 from datasets import Features, Sequence
 from datasets.features.features import FeatureType
@@ -11,11 +12,11 @@ def get_nested_type(schema: FeatureType) -> pa.DataType:
     It performs double-duty as the implementation of Features.type and
     handles the conversion of datasets.Feature->pa.struct
 
-    Source: https://github.com/huggingface/datasets/blob/1a598a0dfd699f7a7ebe9eb6273fb5ac4b9e519a/src/datasets/features/features.py#L1184  # noqa: E501
+    Source: https://github.com/huggingface/datasets/blob/1a598a0dfd699f7a7ebe9eb6273fb5ac4b9e519a/src/datasets/features/features.py#L1184
 
     Differs from the source in that it doesn't convert Sequence[dict]->dict[Sequence].
     Instead it follows the exact feature type provided.
-    """
+    """  # noqa: E501
     # Nested structures: we allow dict, list/tuples, sequences
     if isinstance(schema, Features):
         # Features is subclass of dict, and dict order is

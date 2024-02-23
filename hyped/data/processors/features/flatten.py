@@ -1,20 +1,22 @@
+import warnings
+from dataclasses import dataclass
+from typing import Literal
+
+from datasets import Features
+
 from hyped.data.processors.features.format import (
     FormatFeatures,
     FormatFeaturesConfig,
 )
 from hyped.utils.feature_access import (
     FeatureKey,
-    raise_is_simple_key,
+    build_collection_from_keys,
     get_feature_at_key,
     get_value_at_key,
-    build_collection_from_keys,
     iter_keys_in_features,
     key_cutoff_at_slice,
+    raise_is_simple_key,
 )
-from datasets import Features
-from dataclasses import dataclass
-from typing import Literal
-import warnings
 
 
 @dataclass

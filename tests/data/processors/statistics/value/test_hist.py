@@ -1,11 +1,12 @@
-from tests.data.processors.statistics.base import BaseTestDataStatistic
+import numpy as np
+import pytest
+from datasets import Features, Value
+
 from hyped.data.processors.statistics.value.hist import (
     Histogram,
     HistogramConfig,
 )
-from datasets import Features, Value
-import numpy as np
-import pytest
+from tests.data.processors.statistics.base import BaseTestDataStatistic
 
 
 class TestHistogram(BaseTestDataStatistic):

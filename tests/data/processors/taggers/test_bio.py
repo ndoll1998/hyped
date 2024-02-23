@@ -1,11 +1,10 @@
-from tests.data.processors.base import BaseTestDataProcessor
-from hyped.data.processors.taggers.bio import (
-    BioTagger,
-    BioTaggerConfig,
-)
-from datasets import Features, Sequence, Value, ClassLabel
 from itertools import permutations
+
 import pytest
+from datasets import ClassLabel, Features, Sequence, Value
+
+from hyped.data.processors.taggers.bio import BioTagger, BioTaggerConfig
+from tests.data.processors.base import BaseTestDataProcessor
 
 
 class TestBioTagger(BaseTestDataProcessor):

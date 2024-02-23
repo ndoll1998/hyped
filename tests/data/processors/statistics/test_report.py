@@ -1,12 +1,14 @@
+import multiprocessing as mp
+import warnings
+
+import pytest
+
 from hyped.data.processors.statistics.report import (
     StatisticsReport,
     StatisticsReportStorage,
     statistics_report_manager,
 )
 from hyped.utils.executor import SubprocessExecutor
-import multiprocessing as mp
-import warnings
-import pytest
 
 
 def _is_lock_acquired(lock):

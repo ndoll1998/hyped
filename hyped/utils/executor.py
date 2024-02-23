@@ -1,10 +1,10 @@
 from __future__ import annotations
-import os
-import multiprocessing as mp
-from enum import IntEnum
-from typing import Callable, Any
-from dataclasses import dataclass
 
+import multiprocessing as mp
+import os
+from dataclasses import dataclass
+from enum import IntEnum
+from typing import Any, Callable
 
 STOP_SIGNAL = "stop_signal"
 

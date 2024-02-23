@@ -1,21 +1,23 @@
+from dataclasses import dataclass
+from itertools import compress
+from typing import Any, Literal
+
+from datasets import Features, Sequence, Value
+
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
-)
-from hyped.utils.feature_checks import (
-    raise_feature_is_sequence,
-    get_sequence_length,
-    get_sequence_feature,
 )
 from hyped.utils.feature_access import (
     FeatureKey,
     get_feature_at_key,
     get_value_at_key,
 )
-from itertools import compress
-from datasets import Features, Sequence, Value
-from dataclasses import dataclass
-from typing import Literal, Any
+from hyped.utils.feature_checks import (
+    get_sequence_feature,
+    get_sequence_length,
+    raise_feature_is_sequence,
+)
 
 
 @dataclass

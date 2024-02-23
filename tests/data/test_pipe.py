@@ -1,10 +1,11 @@
 import datasets
+import pytest
+
 from hyped.data.pipe import DataPipe
 from tests.data.processors.test_base import (
     ConstantDataProcessor,
     ConstantDataProcessorConfig,
 )
-import pytest
 
 
 @pytest.fixture

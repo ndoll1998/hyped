@@ -1,11 +1,13 @@
-from tests.data.processors.base import BaseTestDataProcessor
+from itertools import chain, product
+
+import pytest
+from datasets import Features, Sequence, Value
+
 from hyped.data.processors.features.filter import (
     FilterFeatures,
     FilterFeaturesConfig,
 )
-from itertools import chain, product
-from datasets import Features, Sequence, Value
-import pytest
+from tests.data.processors.base import BaseTestDataProcessor
 
 FEATURES = Features(
     {

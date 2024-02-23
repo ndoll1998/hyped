@@ -1,10 +1,11 @@
+import pytest
+from datasets import Features, Sequence, Value
+
 from hyped.data.processors.features.format import (
-    FormatFeaturesConfig,
     FormatFeatures,
+    FormatFeaturesConfig,
 )
 from tests.data.processors.base import BaseTestDataProcessor
-from datasets import Features, Sequence, Value
-import pytest
 
 
 class TestFormatFeaturesConfig(object):

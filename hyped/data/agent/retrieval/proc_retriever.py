@@ -1,13 +1,15 @@
 import inspect
-from langchain.schema import Document
-from langchain_core.embeddings import Embeddings
-from langchain_core.vectorstores import VectorStoreRetriever
-from langchain_core.tools import BaseTool
-from langchain_core.pydantic_v1 import BaseModel, Field
+
 from langchain.callbacks.manager import (
     AsyncCallbackManagerForToolRun,
     CallbackManagerForToolRun,
 )
+from langchain.schema import Document
+from langchain_core.embeddings import Embeddings
+from langchain_core.pydantic_v1 import BaseModel, Field
+from langchain_core.tools import BaseTool
+from langchain_core.vectorstores import VectorStoreRetriever
+
 from hyped.base.registry import RootedTypeRegistryView
 from hyped.data.agent.format import DataProcessorTypeFormatter
 from hyped.data.agent.retrieval.np_vec_store import NumpyVectorStore
@@ -38,7 +40,7 @@ class DataProcessorsRetriever(BaseTool):
         self,
         type_registry: RootedTypeRegistryView,
         embedding: Embeddings,
-        **kwargs
+        **kwargs,
     ):
         # get all processor types
         assert issubclass(type_registry.root, BaseDataProcessor)

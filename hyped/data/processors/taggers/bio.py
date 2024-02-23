@@ -1,27 +1,27 @@
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Any, Literal
+
+import numpy as np
+from datasets import ClassLabel, Features, Sequence, Value
+
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
-)
-from hyped.utils.feature_checks import (
-    INDEX_TYPES,
-    raise_feature_is_sequence,
-    raise_features_align,
-    get_sequence_length,
-    get_sequence_feature,
 )
 from hyped.utils.feature_access import (
     FeatureKey,
     get_feature_at_key,
     get_value_at_key,
 )
-from hyped.utils.spans import (
-    make_spans_exclusive,
+from hyped.utils.feature_checks import (
+    INDEX_TYPES,
+    get_sequence_feature,
+    get_sequence_length,
+    raise_feature_is_sequence,
+    raise_features_align,
 )
-import numpy as np
-from enum import StrEnum
-from dataclasses import dataclass
-from datasets import Features, Sequence, ClassLabel, Value
-from typing import Any, Literal
+from hyped.utils.spans import make_spans_exclusive
 
 
 class BioTaggerOutputs(StrEnum):

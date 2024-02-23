@@ -1,13 +1,15 @@
-from hyped.utils.spans import (
-    make_spans_exclusive,
-    compute_spans_overlap_matrix,
-    resolve_overlaps,
-    ResolveOverlapsStrategy,
-)
 from contextlib import nullcontext
 from itertools import compress
+
 import numpy as np
 import pytest
+
+from hyped.utils.spans import (
+    ResolveOverlapsStrategy,
+    compute_spans_overlap_matrix,
+    make_spans_exclusive,
+    resolve_overlaps,
+)
 
 
 class TestMakeSpansExclusive:

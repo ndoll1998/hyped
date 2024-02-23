@@ -1,10 +1,11 @@
-from tests.data.processors.base import BaseTestDataProcessor
+import pytest
+from datasets import Features, Sequence, Value
+
 from hyped.data.processors.sequence.join_str_seq import (
     JoinStringSequence,
     JoinStringSequenceConfig,
 )
-from datasets import Features, Sequence, Value
-import pytest
+from tests.data.processors.base import BaseTestDataProcessor
 
 
 class TestJoinStringSequence(BaseTestDataProcessor):

@@ -1,8 +1,10 @@
 from __future__ import annotations
+
+import multiprocessing as mp
 import os
 import warnings
-import multiprocessing as mp
 from typing import Any, Iterable
+
 from hyped.utils.executor import SubprocessExecutor
 
 

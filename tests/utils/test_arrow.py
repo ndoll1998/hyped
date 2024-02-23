@@ -1,6 +1,7 @@
-from hyped.utils.arrow import convert_features_to_arrow_schema
-from datasets import Features, Sequence, Value
 import pytest
+from datasets import Features, Sequence, Value
+
+from hyped.utils.arrow import convert_features_to_arrow_schema
 
 
 @pytest.mark.parametrize(

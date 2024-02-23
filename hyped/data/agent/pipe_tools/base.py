@@ -1,14 +1,16 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from datasets import Dataset, Features
-from hyped.data.pipe import DataPipe
-from hyped.data.agent.format import DataPipeFormatter
-from langchain_core.tools import BaseTool, ToolException
-from langchain.pydantic_v1 import BaseModel, root_validator
+
+from datasets import Dataset
 from langchain.callbacks.manager import (
     AsyncCallbackManagerForToolRun,
     CallbackManagerForToolRun,
 )
+from langchain.pydantic_v1 import BaseModel
+from langchain_core.tools import BaseTool, ToolException
+
+from hyped.data.agent.format import DataPipeFormatter
+from hyped.data.pipe import DataPipe
 
 
 class BaseDataPipeManipulationTool(BaseTool, ABC):
@@ -60,7 +62,7 @@ class BaseDataPipeManipulationTool(BaseTool, ABC):
         self,
         *args,
         run_manager: None | CallbackManagerForToolRun = None,
-        **kwargs
+        **kwargs,
     ) -> str:
         # create a copy of the data pipe which to manipulate
         data_pipe_copy = deepcopy(self.data_pipe)
@@ -94,7 +96,7 @@ class BaseDataPipeManipulationTool(BaseTool, ABC):
         self,
         *args,
         run_manager: None | AsyncCallbackManagerForToolRun = None,
-        **kwargs
+        **kwargs,
     ) -> str:
         # TODO
         raise NotImplementedError()

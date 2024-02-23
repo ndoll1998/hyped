@@ -1,12 +1,14 @@
-from tests.data.processors.base import BaseTestDataProcessor
+from dataclasses import dataclass, field
+
+import pytest
+from datasets import Features, Sequence, Value
+
 from hyped.data.processors.base import (
-    BaseDataProcessorConfig,
     BaseDataProcessor,
+    BaseDataProcessorConfig,
 )
 from hyped.utils.feature_access import FeatureKey
-from datasets import Features, Sequence, Value
-from dataclasses import dataclass, field
-import pytest
+from tests.data.processors.base import BaseTestDataProcessor
 
 
 @dataclass
@@ -61,7 +63,7 @@ class TestDataProcessorConfig(object):
             b: FeatureKey = "b"
             c: None | FeatureKey = None
             # list and dict of keys
-            l: list[FeatureKey] = field(
+            l: list[FeatureKey] = field(  # noqa: E741
                 default_factory=lambda: ["1", "2", "3"]
             )
             ol: None | list[FeatureKey] = field(

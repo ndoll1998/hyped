@@ -1,15 +1,16 @@
-import json
 import inspect
-from datasets import Features
+import json
+from dataclasses import _MISSING_TYPE, fields
+from typing import Any
+
+from datasets import Dataset, Features
+
 from hyped.data.pipe import DataPipe
-from datasets import Dataset
-from hyped.utils.feature_access import FeatureKey
 from hyped.data.processors.base import (
     BaseDataProcessor,
     BaseDataProcessorConfig,
 )
-from dataclasses import fields, _MISSING_TYPE
-from typing import Any
+from hyped.utils.feature_access import FeatureKey
 
 
 # TODO: move this functionality into the data pipe memory class

@@ -1,9 +1,11 @@
 import json
+from typing import Any
+
 from langchain.schema import BaseMemory
 from langchain_core.messages import SystemMessage
+
 from hyped.base.registry import RootedTypeRegistryView
 from hyped.data.processors.base import BaseDataProcessor
-from typing import Any
 
 
 class AvailableDataProcessorsMemory(BaseMemory):

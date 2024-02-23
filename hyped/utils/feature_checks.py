@@ -1,9 +1,11 @@
-import pyarrow as pa
 from inspect import isclass
+from typing import Any
+
+import pyarrow as pa
 from datasets import Features, Sequence, Value
 from datasets.features.features import FeatureType
+
 from .arrow import convert_features_to_arrow_schema
-from typing import Any
 
 INT_TYPES = [
     Value("int8"),
