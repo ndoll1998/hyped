@@ -8,6 +8,7 @@ from langchain.callbacks.manager import (
     AsyncCallbackManagerForToolRun,
     CallbackManagerForToolRun,
 )
+from hyped.base.registry import RootedTypeRegistryView
 from hyped.data.agent.format import DataProcessorTypeFormatter
 from hyped.data.agent.retrieval.np_vec_store import NumpyVectorStore
 from hyped.data.processors.base import BaseDataProcessor
@@ -33,12 +34,15 @@ class DataProcessorsRetriever(BaseTool):
     # vector store acting as database to query into
     retriever: VectorStoreRetriever
 
-    def __init__(self, embedding: Embeddings, **kwargs):
-        # get all non-abstract processor types in the registry
-        processor_types = BaseDataProcessor.type_registry.types
-        processor_types = [
-            p for p in processor_types if not inspect.isabstract(p)
-        ]
+    def __init__(
+        self,
+        type_registry: RootedTypeRegistryView,
+        embedding: Embeddings,
+        **kwargs
+    ):
+        # get all processor types
+        assert issubclass(type_registry.root, BaseDataProcessor)
+        processor_types = type_registry.concrete_types
         # make sure there are data processors registered
         if len(processor_types) == 0:
             raise RuntimeError("No data processors registered!")
@@ -50,6 +54,10 @@ class DataProcessorsRetriever(BaseTool):
         super(DataProcessorsRetriever, self).__init__(
             retriever=vector_store.as_retriever(**kwargs)
         )
+
+    @property
+    def processor_type_ids(self) -> list[str]:
+        return [d.metadata["type_id"] for d in self.docs]
 
     def build_processor_doc(
         self, processor_type: type[BaseDataProcessor]
@@ -63,9 +71,12 @@ class DataProcessorsRetriever(BaseTool):
             # metadata contains the response given back to the model
             # when this document is retrieved
             metadata={
+                "type": processor_type,
+                "name": processor_type.__name__,
+                "type_id": processor_type.config_type.t,
                 "response": DataProcessorTypeFormatter.build_desc(
                     processor_type
-                )
+                ),
             },
         )
 

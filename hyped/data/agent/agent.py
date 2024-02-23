@@ -1,3 +1,4 @@
+from langchain.memory import CombinedMemory
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langchain_community.chat_models import ChatOpenAI
 from langchain_community.embeddings.openai import OpenAIEmbeddings
@@ -9,11 +10,13 @@ from langchain_core.prompts.chat import (
 )
 
 # tools and memory
+from hyped.data.processors.base import BaseDataProcessor
 from hyped.data.agent.pipe_toolkit import DataPipeManipulationToolkit
 from hyped.data.agent.retrieval.proc_retriever import DataProcessorsRetriever
-from hyped.data.agent.pipe_memory import DataPipeMemory
+from hyped.data.agent.memories.proc_memory import AvailableDataProcessorsMemory
+from hyped.data.agent.memories.pipe_memory import DataPipeMemory
 
-from datasets import Features
+from datasets import Dataset
 from hyped.data.pipe import DataPipe
 
 
@@ -23,15 +26,20 @@ class OpenAIDataAgent(AgentExecutor):
         llm: ChatOpenAI,
         emb: OpenAIEmbeddings,
         data_pipe: DataPipe,
-        in_features: Features,
+        sample_ds: Dataset,
         **kwargs
     ) -> None:
+        # get the processors type registry containing
+        # available processor types
+        proc_type_registry = BaseDataProcessor.type_registry
         # create toolset
         tools = [
-            DataProcessorsRetriever(emb, search_kwargs={"k": 3}),
+            DataProcessorsRetriever(
+                proc_type_registry, emb, search_kwargs={"k": 3}
+            ),
             *DataPipeManipulationToolkit(
                 data_pipe=data_pipe,
-                in_features=in_features,
+                sample_ds=sample_ds,
             ).get_tools(),
         ]
         # create agent
@@ -40,8 +48,13 @@ class OpenAIDataAgent(AgentExecutor):
         super(OpenAIDataAgent, self).__init__(
             agent=agent,
             tools=tools,
-            memory=DataPipeMemory(
-                data_pipe=data_pipe, in_features=in_features
+            memory=CombinedMemory(
+                memories=[
+                    AvailableDataProcessorsMemory(
+                        type_registry=proc_type_registry
+                    ),
+                    DataPipeMemory(data_pipe=data_pipe, sample_ds=sample_ds),
+                ]
             ),
             **kwargs
         )
@@ -54,17 +67,13 @@ class OpenAIDataAgent(AgentExecutor):
                     "You are a data scientist who is concerned with the "
                     "preprocessing of datasets. You will be given a set of "
                     "input features and, given the tools you are provided, "
-                    "need to build a data pipeline to convert these input "
-                    "features to meet the desired output. You will be given "
+                    "need to adapt the data pipeline to map these input "
+                    "features to the user requirements. You will be given "
                     "a textual description of what the required output "
-                    "features should be."
-                    "The data pipeline is a sequence of data processors. "
-                    "A data processor implements modular operation on the "
-                    "dataset, typically computing new features. By stacking "
-                    "a set of data processors in a data pipeline, the input "
-                    "features can be mapped to the expected output."
+                    "features should be. "
                 )
             )
+            + MessagesPlaceholder(variable_name="available_data_processors")
             + MessagesPlaceholder(variable_name="data_pipe")
             + HumanMessagePromptTemplate.from_template(
                 input_variables=["task"],

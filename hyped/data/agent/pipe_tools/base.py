@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from datasets import Features
+from datasets import Dataset, Features
 from hyped.data.pipe import DataPipe
-from hyped.data.agent.format import DataPipeFormatter, FeaturesFormatter
+from hyped.data.agent.format import DataPipeFormatter
 from langchain_core.tools import BaseTool, ToolException
-from langchain.pydantic_v1 import BaseModel, validator
+from langchain.pydantic_v1 import BaseModel, root_validator
 from langchain.callbacks.manager import (
     AsyncCallbackManagerForToolRun,
     CallbackManagerForToolRun,
@@ -18,14 +18,14 @@ class BaseDataPipeManipulationTool(BaseTool, ABC):
     args_schema: type[BaseModel]
     # data pipeline and input features
     data_pipe: DataPipe
-    in_features: Features
+    sample_ds: Dataset
 
-    def _build_response(self, output_features: Features) -> str:
-        # build response
-        return "Data Pipe: %s\nOutput Features: %s" % (
-            DataPipeFormatter.build_desc(self.data_pipe),
-            FeaturesFormatter.build_desc(output_features),
-        )
+    class Config:
+        arbitrary_types_allowed: bool = True
+
+    @property
+    def data_pipe_formatter(self) -> DataPipeFormatter:
+        return DataPipeFormatter(self.sample_ds)
 
     def _build_error_response(self, error: ToolException) -> str:
         return (
@@ -33,21 +33,22 @@ class BaseDataPipeManipulationTool(BaseTool, ABC):
             % error.args[0]
         )
 
-    @classmethod
-    def _build_response_description(cls) -> str:
+    def _build_response_description(self) -> str:
         return (
             "When successful, returns the current data pipeline "
-            "and it's output features in the following format:\n"
-            "Data Pipe: %s\nOutput Features: %s\n"
+            "in the following format: %s\n"
             "On error returns a description of the error and a hint "
-            "on how to solve it. In this case the data pipeline is "
-            "not changed."
-            % (DataPipeFormatter.build_doc(), FeaturesFormatter.build_doc())
+            "on how to solve it. In this case the changes to the data "
+            "pipeline are reverted." % self.data_pipe_formatter.build_doc()
         )
 
-    @validator("description")
-    def _add_response_description(cls, v: str) -> str:
-        return "%s\n\n%s" % (v, cls._build_response_description())
+    def __init__(self, **kwargs) -> None:
+        super(BaseDataPipeManipulationTool, self).__init__(**kwargs)
+        # add response description to the tool description
+        self.description = "%s\n\n%s" % (
+            self.description,
+            self._build_response_description(),
+        )
 
     @abstractmethod
     def manipulate_data_pipe(
@@ -68,12 +69,11 @@ class BaseDataPipeManipulationTool(BaseTool, ABC):
             # manipulate data pipe
             self.manipulate_data_pipe(self.data_pipe, *args, **kwargs)
 
-            if len(self.data_pipe) == 0:
-                return self._build_response(self.in_features)
-
             try:
-                # try to prepare pipeline to check features
-                output_features = self.data_pipe.prepare(self.in_features)
+                # try to apply the current data pipeline to the
+                # sample dataset and build the output response
+                return self.data_pipe_formatter.build_desc(self.data_pipe)
+
             except KeyError as e:
                 raise ToolException(
                     "%s. Please make sure that all features required for the "
@@ -84,8 +84,6 @@ class BaseDataPipeManipulationTool(BaseTool, ABC):
                     "%s. Please make sure that the input features to the data "
                     "processor are of the expected feature type." % e.args[0]
                 )
-
-            return self._build_response(output_features)
 
         except ToolException as e:
             # reset data pipe and build error response

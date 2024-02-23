@@ -27,9 +27,9 @@ class AppendDataProcessorToPipe(BaseDataPipeManipulationTool):
     )
     args_schema: type[BaseModel] = AppendDataProcessorToPipeInputs
 
-    def manipulate_data_pipe(
-        self, data_pipe: DataPipe, type_id: str, config: str
-    ) -> None:
+    def create_processor_instance(
+        self, type_id: str, config: str
+    ) -> BaseDataProcessor:
         if type_id not in BaseDataProcessorConfig.type_registry.type_ids:
             raise ToolException(
                 "TypeIdNotFoundError: No processor with type id %s "
@@ -55,5 +55,11 @@ class AppendDataProcessorToPipe(BaseDataPipeManipulationTool):
             )
 
         # create data processor and add it to the pipe
-        processor = processor_t.from_config(config)
+        return processor_t.from_config(config)
+
+    def manipulate_data_pipe(
+        self, data_pipe: DataPipe, type_id: str, config: str
+    ) -> None:
+        # create processor and add it to the pipeline
+        processor = self.create_processor_instance(type_id, config)
         data_pipe.append(processor)

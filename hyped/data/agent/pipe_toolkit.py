@@ -1,7 +1,8 @@
-from datasets import Features
+from datasets import Dataset
 from hyped.data.pipe import DataPipe
 from hyped.data.agent.pipe_tools.base import BaseDataPipeManipulationTool
 from hyped.data.agent.pipe_tools.append import AppendDataProcessorToPipe
+from hyped.data.agent.pipe_tools.insert import InsertDataProcessorInPipe
 from hyped.data.agent.pipe_tools.update import UpdateDataProcessorInPipe
 from hyped.data.agent.pipe_tools.remove import RemoveDataProcessorFromPipe
 from langchain_community.agent_toolkits.base import BaseToolkit
@@ -9,17 +10,23 @@ from langchain_community.agent_toolkits.base import BaseToolkit
 
 class DataPipeManipulationToolkit(BaseToolkit):
     data_pipe: DataPipe = DataPipe()
-    in_features: Features
+    sample_ds: Dataset
+
+    class Config:
+        arbitrary_types_allowed: bool = True
 
     def get_tools(self) -> list[BaseDataPipeManipulationTool]:
         return [
             AppendDataProcessorToPipe(
-                data_pipe=self.data_pipe, in_features=self.in_features
+                data_pipe=self.data_pipe, sample_ds=self.sample_ds
+            ),
+            InsertDataProcessorInPipe(
+                data_pipe=self.data_pipe, sample_ds=self.sample_ds
             ),
             UpdateDataProcessorInPipe(
-                data_pipe=self.data_pipe, in_features=self.in_features
+                data_pipe=self.data_pipe, sample_ds=self.sample_ds
             ),
             RemoveDataProcessorFromPipe(
-                data_pipe=self.data_pipe, in_features=self.in_features
+                data_pipe=self.data_pipe, sample_ds=self.sample_ds
             ),
         ]
