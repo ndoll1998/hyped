@@ -119,9 +119,7 @@ def _worker(fpath: str) -> None | dict[str, Any]:
     # present in the typesystem but not used in the specific cas
     features = defaultdict(list)
     features["sofa"] = cas.sofa_string
-    features["meta"] = {
-        "file_path": fpath
-    }
+    features["meta"] = {"file_path": fpath}
 
     # extract annotation features
     for annotation_type in annotation_types:
@@ -248,7 +246,7 @@ class CasDataset(datasets.GeneratorBasedBuilder):
                 "sofa": datasets.Value("string"),
                 "meta": datasets.Features(
                     {"file_path": datasets.Value("string")}
-                )
+                ),
             }
             | primitive_features
             | nested_features

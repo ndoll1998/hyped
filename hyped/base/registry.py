@@ -174,6 +174,11 @@ class RootedTypeRegistryView(object):
     def types(self) -> list[type]:
         """List of all registered types"""
         return list(self.type_register.values())
+    
+    @property
+    def concrete_types(self) -> list[type]:
+        """List of all concrete (i.e. non-abstract) registered types"""
+        return [t for t in self.types if not inspect.isabstract(t)]
 
     def get_type_by_t(self, t: str) -> type:
         """Get registered type by type id
