@@ -78,7 +78,7 @@ class LocalToGlobalOffsetsConfig(BaseDataProcessorConfig):
     local_offsets_inclusive: bool = False
 
 
-class LocalToGlobalOffsets(BaseDataProcessor):
+class LocalToGlobalOffsets(BaseDataProcessor[LocalToGlobalOffsetsConfig]):
     """Offset Conversion Data Processor
 
     Convert local offsets to global offsets. Useful when

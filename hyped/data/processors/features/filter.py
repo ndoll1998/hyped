@@ -47,6 +47,14 @@ class FilterFeatures(BaseDataProcessor[FilterFeaturesConfig]):
     i.e. the list of features to keep or remove.
     """
 
+    @property
+    def required_feature_keys(self) -> list[FeatureKey]:
+        # TODO: when remove is defined this should be input_features \ remove
+        if (self.remove is not None):
+            raise NotImplementedError()
+
+        return list(self.config.required_feature_keys)
+
     def map_features(self, features: Features) -> Features:
         """Filter dataset feature mapping
 

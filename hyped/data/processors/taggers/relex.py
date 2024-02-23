@@ -201,7 +201,7 @@ class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
             raise_feature_equals(key, feature, INDEX_TYPES)
 
         return {
-            RelExTaggerOutputs.MARKED_SEQUENCE: self._marked_sequence_feature(
+            RelExTaggerOutputs.MARKED_SEQUENCE.value: self._marked_sequence_feature(
                 sequence
             )
         }
@@ -264,4 +264,4 @@ class RelExTagger(BaseDataProcessor[RelExTaggerConfig]):
             input_sequence.insert(spans[i], self.config.markers[i])
 
         # remove dummy item at the end of the sequence and return
-        yield {RelExTaggerOutputs.MARKED_SEQUENCE: input_sequence}
+        yield {RelExTaggerOutputs.MARKED_SEQUENCE.value: input_sequence}
