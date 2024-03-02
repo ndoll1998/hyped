@@ -5,7 +5,7 @@ import datasets
 import pytest
 from cassis.typesystem import TYPE_NAME_STRING
 
-import hyped.data.datasets  # noqa: F401
+import hyped.data.io.datasets  # noqa: F401
 
 
 def build_typesystem(path):
