@@ -46,7 +46,7 @@ class ExtendSequenceConfig(BaseDataProcessorConfig):
 
 
 class ExtendSequence(BaseDataProcessor[ExtendSequenceConfig]):
-    """Extend Sequence Data Processor Config
+    """Extend Sequence Data Processor
 
     Extend a sequence feature by appending or prepending
     new values.
