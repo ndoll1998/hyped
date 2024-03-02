@@ -5,6 +5,7 @@ from typing import Any, Iterable
 
 import datasets
 import pyarrow as pa
+from torch.utils.data import get_worker_info
 
 from hyped.data.processors.statistics.base import BaseDataStatistic
 from hyped.data.processors.statistics.report import statistics_report_manager
@@ -102,7 +103,10 @@ class DataPipe(list):
         return self[-1].out_features if len(self) > 0 else self.in_features
 
     def batch_process(
-        self, examples: dict[str, list[Any]], index: list[int], rank: int
+        self,
+        examples: dict[str, list[Any]],
+        index: list[int],
+        rank: None | int = None,
     ) -> dict[str, list[Any]]:
         """Process a batch of examples
 
@@ -122,8 +126,16 @@ class DataPipe(list):
         return deque(iterable, maxlen=1).pop()
 
     def iter_batch_process(
-        self, examples: dict[str, list[Any]], index: list[int], rank: int
+        self,
+        examples: dict[str, list[Any]],
+        index: list[int],
+        rank: None | int = None,
     ) -> Iterable[dict[str, list[Any]]]:
+        if rank is None:
+            # try to get multiprocessing rank from pytorch worker info
+            worker_info = get_worker_info()
+            rank = None if worker_info is None else worker_info.id
+
         # make sure the pipeline is prepared
         if not self.is_prepared:
             raise RuntimeError(
@@ -140,7 +152,10 @@ class DataPipe(list):
             yield examples
 
     def _batch_process_to_pyarrow(
-        self, examples: dict[str, list[Any]], index: list[int], rank: int
+        self,
+        examples: dict[str, list[Any]],
+        index: list[int],
+        rank: None | int = None,
     ) -> pa.Table:
         # convert to pyarrow table with correct schema
         return pa.table(
@@ -149,34 +164,59 @@ class DataPipe(list):
         )
 
     def apply(
-        self, data: datasets.Dataset | datasets.DatasetDict, **kwargs
+        self,
+        data: (
+            datasets.Dataset
+            | datasets.DatasetDict
+            | datasets.IterableDataset
+            | datasets.IterableDatasetDict
+        ),
+        **kwargs,
     ) -> datasets.Dataset | datasets.DatasetDict:
         """Apply the data pipe to a dataset
 
         Arguments:
-            data (datasets.Dataset|datasets.DatasetDict): source dataset(s)
+            data (Dataset|DatasetDict|IterableDataset|IterableDatasetDict):
+                source dataset(s)
             **kwargs (dict[str, Any]):
                 arguments forwarded to datasets `.map` function
 
         Returns:
             out (datasets.Dataset|datasets.DatasetDict): processed dataset(s)
         """
-        # prepare for the dataset
-        if isinstance(data, datasets.Dataset):
-            self.prepare(data.features)
-        elif isinstance(data, datasets.DatasetDict):
-            self.prepare(next(iter(data.values())).features)
+
+        # TODO: test this preparation logic
+        # get the dataset features
+        if isinstance(data, (datasets.Dataset, datasets.IterableDataset)):
+            features = data.features
+        elif isinstance(
+            data, (datasets.DatasetDict, datasets.IterableDatasetDict)
+        ):
+            features = next(iter(data.values())).features
         else:
             raise ValueError(
-                "Expected a `datasets.Dataset` or `datasets.DatasetDict`, "
+                "Expected one of `datasets.Dataset`, `datasets.DatasetDict`, "
+                "`datasets.IterableDataset` or `datasets.IterableDatasetDict`,"  # noqa: E501
                 "got %s" % type(data)
+            )
+
+        if features is not None:
+            # prepare the data pipe for the dataset
+            self.prepare(features)
+
+        elif not self.is_prepared:
+            raise RuntimeError(
+                "Dataset features unknown, please manually prepare the data "
+                "pipe by calling the `.prepare` function with appropriate "
+                "features."
             )
 
         # TODO: test this behavior
         # check if the data pipe contains and statistics that are expected
         # to be computed while running the data pipeline
         if (
-            any(isinstance(p, BaseDataStatistic) for p in self)
+            isinstance(data, (datasets.Dataset, datasets.DatasetDict))
+            and any(isinstance(p, BaseDataStatistic) for p in self)
             and not statistics_report_manager.is_empty
         ):
             # load from cache file defaults to false
@@ -195,6 +235,28 @@ class DataPipe(list):
         # required settings
         kwargs["batched"] = True
         kwargs["with_indices"] = True
-        kwargs["with_rank"] = True
-        # apply data pipe
-        return data.map(self._batch_process_to_pyarrow, **kwargs)
+        # for in-memory datasets let the map function provide the rank
+        if isinstance(data, (datasets.Dataset, datasets.DatasetDict)):
+            kwargs["with_rank"] = True
+
+        if isinstance(data, (datasets.Dataset, datasets.DatasetDict)):
+            # use pyarrow table as output format for in-memory
+            # datasets that support caching since it includes
+            # the output feature information
+            data = data.map(self._batch_process_to_pyarrow, **kwargs)
+
+        elif isinstance(
+            data, (datasets.IterableDataset, datasets.IterableDatasetDict)
+        ):
+            # iterable dataset class doesn't support pyarrow
+            # outputs in map function, but it also doesn't cache
+            # and thus doesn't need the features while processing
+            data = data.map(self.batch_process, **kwargs)
+            # set output features for lazy datasets manually
+            if isinstance(data, datasets.IterableDataset):
+                data.info.features = self.out_features
+            elif isinstance(data, datasets.IterableDatasetDict):
+                for split in data.values():
+                    split.info.features = self.out_features
+
+        return data

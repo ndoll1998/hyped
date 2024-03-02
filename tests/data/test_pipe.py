@@ -108,3 +108,45 @@ class TestDataPipe:
         assert all(a == "3" for a in ds["C"])
         # check features
         assert sample_data_pipe.out_features == ds.features
+
+    @pytest.mark.parametrize("num_shards", [1, 5, 10])
+    def test_apply_to_iterable_dataset(self, sample_data_pipe, num_shards):
+        # create sample dataset
+        ds = datasets.Dataset.from_dict(
+            {"X": ["example %i" % i for i in range(100)]}
+        ).to_iterable_dataset(num_shards=num_shards)
+        # apply
+        ds = sample_data_pipe.apply(ds, batch_size=10)
+        ds = datasets.Dataset.from_generator(
+            lambda: (yield from ds), features=ds.features
+        )
+        # check processor output
+        assert all(k in ds.features for k in "XABC")
+        assert all(x == ("example %i" % i) for i, x in enumerate(ds["X"]))
+        assert all(a == "1" for a in ds["A"])
+        assert all(a == "2" for a in ds["B"])
+        assert all(a == "3" for a in ds["C"])
+        # check features
+        assert sample_data_pipe.out_features == ds.features
+
+    @pytest.mark.parametrize("num_shards", [1, 5, 10])
+    def test_apply_to_iterable_dataset_dict(
+        self, sample_data_pipe, num_shards
+    ):
+        ds = datasets.Dataset.from_dict(
+            {"X": ["example %i" % i for i in range(100)]}
+        ).to_iterable_dataset(num_shards=num_shards)
+        ds = datasets.IterableDatasetDict({"train": ds})
+        # apply
+        ds = sample_data_pipe.apply(ds, batch_size=10)
+        ds = datasets.Dataset.from_generator(
+            lambda: (yield from ds["train"]), features=ds["train"].features
+        )
+        # check processor output
+        assert all(k in ds.features for k in "XABC")
+        assert all(x == ("example %i" % i) for i, x in enumerate(ds["X"]))
+        assert all(a == "1" for a in ds["A"])
+        assert all(a == "2" for a in ds["B"])
+        assert all(a == "3" for a in ds["C"])
+        # check features
+        assert sample_data_pipe.out_features == ds.features
