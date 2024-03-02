@@ -251,7 +251,12 @@ class DataPipe(list):
             # iterable dataset class doesn't support pyarrow
             # outputs in map function, but it also doesn't cache
             # and thus doesn't need the features while processing
-            data = data.map(self.batch_process, **kwargs)
+            data = data.map(
+                self.batch_process,
+                remove_columns=set(self.in_features.keys())
+                - set(self.out_features.keys()),
+                **kwargs,
+            )
             # set output features for lazy datasets manually
             if isinstance(data, datasets.IterableDataset):
                 data.info.features = self.out_features
