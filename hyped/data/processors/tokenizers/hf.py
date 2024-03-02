@@ -432,7 +432,9 @@ class HuggingFaceTokenizer(BaseDataProcessor[HuggingFaceTokenizerConfig]):
         if self.config.return_offsets_mapping:
             enc[HuggingFaceTokenizerOutputs.OFFSETS_MAPPING.value] = [
                 list(map(list, item))
-                for item in enc[HuggingFaceTokenizerOutputs.OFFSETS_MAPPING]
+                for item in enc[
+                    HuggingFaceTokenizerOutputs.OFFSETS_MAPPING.value
+                ]
             ]
         # convert to dict and return
         return dict(enc), list(range(len(index)))
