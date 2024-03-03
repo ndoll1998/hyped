@@ -120,6 +120,11 @@ class HuggingFaceTrainer(BaseTrainer[BaseTrainerConfig], transformers.Trainer):
             k for k in label_names if k not in self.config.args.label_names
         ]
 
+        # enable input gradients to allow gradient computations
+        # with gradient checkpointing enabled
+        if self.config.args.gradient_checkpointing:
+            model.model.enable_input_require_grads()
+
         # initialize trainer
         transformers.Trainer.__init__(
             self,
