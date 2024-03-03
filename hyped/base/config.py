@@ -218,3 +218,30 @@ class BaseAutoConfigurable(BaseAutoClass[V]):
         T = cls.type_registry.get_type_by_t(t)
         # create instance
         return T.from_config(config)
+
+
+# TODO: write tests for factory class
+class Factory(BaseAutoConfigurable[V]):
+    """(Parameterized) Factory for configurables"""
+
+    def __init__(self, config: BaseConfig | None = None) -> None:
+        self._config = config
+
+    @property
+    def config(self) -> BaseConfig | None:
+        return self._config
+
+    @config.setter
+    def config(self, other: BaseConfig) -> None:
+        # get expected config type from the type variable
+        config_type = solve_typevar(type(self), V).config_type
+        # check the config type
+        if not isinstance(other, config_type):
+            raise TypeError()
+        # set the config type
+        self._config = other
+
+    def create(self) -> V:
+        if self.config is None:
+            return None
+        return type(self).from_config(self.config)
