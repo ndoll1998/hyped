@@ -35,13 +35,14 @@ class BaseHeadConfig(BaseConfig, ABC):
 
     @property
     @abstractmethod
-    def label_space(self) -> list[str]:
+    def label_space(self) -> None | list[str]:
         """Abstract property for the label space"""
         ...
 
     @property
     def num_labels(self) -> int:
         """Total number of labels in the label space"""
+        assert self.label_space is not None
         return len(self.label_space)
 
 
@@ -100,3 +101,35 @@ class TaggingHeadConfig(ClassificationHeadConfig):
         raise_feature_is_sequence(self.targets, f, ClassLabel)
         # get the class label feature
         self._target_feature = f.feature
+
+
+@dataclass
+class CausalLanguageModellingHeadConfig(BaseHeadConfig):
+    """Causal Language Modelling Head Configuration
+
+    Attributes:
+        vocab_size (int): the vocabulary size of the language model
+    """
+
+    t: Literal[
+        "hyped.modelling.heads.causal_langauge_modelling"
+    ] = "hyped.modelling.heads.causal_language_modelling"
+
+    vocab_size: int = None
+
+    @property
+    def target_keys(self) -> list[FeatureKey]:
+        return []
+
+    def prepare(self, features: Features) -> None:
+        pass
+
+    @property
+    def label_space(self) -> None:
+        """Returns None"""
+        return None
+
+    @property
+    def num_labels(self) -> int:
+        """Vocabulary size"""
+        return self.vocab_size

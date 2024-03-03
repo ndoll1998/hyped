@@ -5,12 +5,17 @@ from typing import Literal
 
 from datasets import Features, Value
 from transformers import (
+    AutoModelForCausalLM,
     AutoModelForSequenceClassification,
     AutoModelForTokenClassification,
 )
 
 from hyped.modelling.backends.base import BaseModel, BaseModelConfig
-from hyped.modelling.heads import ClassificationHeadConfig, TaggingHeadConfig
+from hyped.modelling.heads import (
+    CausalLanguageModellingHeadConfig,
+    ClassificationHeadConfig,
+    TaggingHeadConfig,
+)
 from hyped.utils.feature_access import get_feature_at_key
 from hyped.utils.feature_checks import (
     INT_TYPES,
@@ -23,6 +28,7 @@ from hyped.utils.feature_checks import (
 HEAD_TO_MODEL_MAPPING = {
     ClassificationHeadConfig: AutoModelForSequenceClassification,
     TaggingHeadConfig: AutoModelForTokenClassification,
+    CausalLanguageModellingHeadConfig: AutoModelForCausalLM,
 }
 
 
@@ -73,18 +79,28 @@ class HuggingFaceModel(BaseModel[HuggingFaceModelConfig]):
                 % type(config.head).__name__
             )
 
+        # build label mapping keyword arguments only if the
+        # label space is specified by the head
+        label_mapping_kwargs = (
+            {}
+            if config.head.label_space is None
+            else dict(
+                label2id={
+                    label: i for i, label in enumerate(config.head.label_space)
+                },
+                id2label={
+                    i: label for i, label in enumerate(config.head.label_space)
+                },
+            )
+        )
+
         # load pretrained model instance
         auto_model_class = HEAD_TO_MODEL_MAPPING[type(config.head)]
         self.model = auto_model_class.from_pretrained(
             config.pretrained_ckpt,
             # specify label space
             num_labels=config.head.num_labels,
-            label2id={
-                label: i for i, label in enumerate(config.head.label_space)
-            },  # noqa: E501
-            id2label={
-                i: label for i, label in enumerate(config.head.label_space)
-            },  # noqa: E501
+            **label_mapping_kwargs,
         )
 
     @classmethod

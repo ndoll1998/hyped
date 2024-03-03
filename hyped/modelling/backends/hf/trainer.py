@@ -57,6 +57,10 @@ class HuggingFaceTrainer(BaseTrainer[BaseTrainerConfig], transformers.Trainer):
                 data collator taylored to the given model
         """
 
+        # when the head doesn't specify any labels do nothing
+        if len(model.config.head.target_keys) == 0:
+            return self.config.collator
+
         # get the label column of the model
         tgt_keys = transformers.utils.generic.find_labels(
             type(model.model)
@@ -66,7 +70,7 @@ class HuggingFaceTrainer(BaseTrainer[BaseTrainerConfig], transformers.Trainer):
         if len(tgt_keys) != len(src_keys):
             raise ValueError(
                 "Unexpected number of target features, expected %s, got %s"
-                % (str(tgt_keys, src_keys))
+                % (str(tgt_keys), str(src_keys))
             )
 
         # find keys that need to be mapped

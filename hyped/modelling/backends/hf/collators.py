@@ -4,6 +4,7 @@ from typing import Any, ClassVar, Literal
 
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from transformers.data.data_collator import (
+    DataCollatorForLanguageModeling,
     DataCollatorForTokenClassification,
     DataCollatorWithPadding,
     DefaultDataCollator,
@@ -12,6 +13,7 @@ from transformers.data.data_collator import (
 from hyped.base.config import BaseConfig
 from hyped.modelling.heads import (
     BaseHeadConfig,
+    CausalLanguageModellingHeadConfig,
     ClassificationHeadConfig,
     TaggingHeadConfig,
 )
@@ -38,7 +40,7 @@ class BaseHuggingFaceDataCollatorWithTokenizer(
 
     Povides functionality to instantiate the tokenizer given a
     pretrained checkpoint using the `transformers.AutoTokenizer`
-    class.
+    class and setting the pad token if it is not set by default.
     """
 
     t: Literal[
@@ -51,6 +53,10 @@ class BaseHuggingFaceDataCollatorWithTokenizer(
         if isinstance(self.tokenizer, str):
             # load tokenizer from pretrained checkpoint
             self.tokenizer = AutoTokenizer.from_pretrained(self.tokenizer)
+
+        # specify the padding token when needed
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
 
 
 @dataclass
@@ -75,6 +81,7 @@ class HuggingFaceDataCollatorWithPadding(
     _supported_head_types = (ClassificationHeadConfig,)
 
 
+@dataclass
 class HuggingFaceDataCollatorForTagging(
     BaseHuggingFaceDataCollatorWithTokenizer,
     DataCollatorForTokenClassification,
@@ -84,6 +91,18 @@ class HuggingFaceDataCollatorForTagging(
     ] = "hyped.modelling.backends.hf.collator.tagging"
 
     _supported_head_types = (TaggingHeadConfig,)
+
+
+@dataclass
+class HuggingFaceDataCollatorForLanguageModelling(
+    BaseHuggingFaceDataCollatorWithTokenizer,
+    DataCollatorForLanguageModeling,
+):
+    t: Literal[
+        "hyped.modelling.backends.hf.collator.language_modelling"
+    ] = "hyped.modelling.backends.hf.collator.language_modelling"
+
+    _supported_head_types = (CausalLanguageModellingHeadConfig,)
 
 
 @dataclass
