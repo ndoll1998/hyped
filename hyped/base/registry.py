@@ -33,6 +33,7 @@ class Registrable(ABC):
             h (str): hash code of type
         """
         try:
+            # TODO: include base class in hash computation
             src = inspect.getsource(cls)
             src_lines = src.splitlines()
         except OSError:
