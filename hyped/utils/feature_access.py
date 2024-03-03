@@ -128,6 +128,27 @@ def raise_is_simple_key(key: FeatureKey):
         raise TypeError("Expected simple key, got %s" % str(key))
 
 
+def unpack_feature_key(key: FeatureKey) -> FeatureKey:
+    """Unpack feature key when it's a one-element string feature key
+
+    Specifically this function implements the following logic:
+        - unpack_feature_key(("feature",)) => "feature"
+        - unpack_feature_key(("feature", "path")) => ("feature", "path")
+
+    Arguments:
+        key (FeatureKey): feature key to unpack
+
+    Returns:
+        unpacked_key (FeatureKey): original or unpacked feature key
+    """
+
+    # check if feature key should be unpacked
+    if isinstance(key, tuple) and len(key) == 1:
+        return key[0]
+    # keep the original
+    return key
+
+
 def iter_keys_in_features(
     features: FeatureType, max_depth: int = -1, max_seq_len_to_unpack: int = 8
 ) -> Iterable[FeatureKey]:
@@ -401,6 +422,27 @@ def collect_features(
         "Unexpected feature key collection type, allowed types are "
         "(nested variants of) str, list and dict, got %s" % str(collection)
     )
+
+
+def pop_value_at_key(example: dict[str, Any], key: FeatureKey) -> Any:
+    """Remove a feature from a feature mapping
+
+    Arguments:
+        features (Features): features to remove the feature from
+        key (FeatureKey): key to the feature to remove, must be a simple key
+
+    Returns:
+        remaining_features (Features): the remaining features
+    """
+
+    # can only remove simple features
+    if not is_simple_key(key):
+        raise ValueError(
+            "Can only pop values at simple key, got `%s`" % str(key)
+        )
+    # remove the feature at key from the given features
+    key = (key,) if isinstance(key, str) else key
+    return get_value_at_key(example, key[:-1]).pop(key[-1])
 
 
 def get_value_at_key(example: dict[str, Any], key: FeatureKey) -> Any:

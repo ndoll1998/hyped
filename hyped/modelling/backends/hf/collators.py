@@ -1,6 +1,6 @@
 from abc import ABC
-from dataclasses import dataclass
-from typing import ClassVar, Literal
+from dataclasses import dataclass, field
+from typing import Any, ClassVar, Literal
 
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from transformers.data.data_collator import (
@@ -15,6 +15,7 @@ from hyped.modelling.heads import (
     ClassificationHeadConfig,
     TaggingHeadConfig,
 )
+from hyped.utils.feature_access import FeatureKey, pop_value_at_key
 
 
 @dataclass
@@ -25,7 +26,7 @@ class BaseHuggingFaceDataCollator(BaseConfig, ABC):
         "hyped.modelling.backends.hf.collator.base"
     ] = "hyped.modelling.backends.hf.collator.base"
 
-    _support_head_types: ClassVar[tuple[type[BaseHeadConfig]]] = []
+    _supported_head_types: ClassVar[tuple[type[BaseHeadConfig]]] = []
 
 
 @dataclass
@@ -83,3 +84,26 @@ class HuggingFaceDataCollatorForTagging(
     ] = "hyped.modelling.backends.hf.collator.tagging"
 
     _supported_head_types = (TaggingHeadConfig,)
+
+
+@dataclass
+class HuggingFaceMapKeysDataCollatorWrapper(object):
+    """Data Collator Wrapper mapping source features to target keys
+
+    Attributes:
+        collator (BaseHuggingFaceDataCollator): base data collator to apply
+        key_mapping (dict[str, FeatureKey]): feature key mapping
+    """
+
+    collator: BaseHuggingFaceDataCollator = field(
+        default_factory=HuggingFaceDefaultDataCollator
+    )
+    key_mapping: dict[str, FeatureKey] = field(default_factory=dict)
+
+    def __call__(self, features, *args, **kwargs) -> dict[str, Any]:
+        # map feature keys according to key mapping
+        for example in features:
+            for tgt, src in self.key_mapping.items():
+                example[tgt] = pop_value_at_key(example, src)
+        # apply base collator
+        return self.collator(features, *args, **kwargs)

@@ -18,6 +18,12 @@ class BaseHeadConfig(BaseConfig, ABC):
 
     t: Literal["hyped.modelling.heads.head"] = "hyped.modelling.heads.head"
 
+    @property
+    @abstractmethod
+    def target_keys(self) -> list[FeatureKey]:
+        """Abstract property to get the list of target feature keys"""
+        ...
+
     @abstractmethod
     def prepare(self, features: Features) -> None:
         """Abstract method to prepare the head for the dataset features
@@ -55,6 +61,10 @@ class ClassificationHeadConfig(BaseHeadConfig):
     # values extracted in prepare function
     _target_feature: ClassLabel = field(init=False)
 
+    @property
+    def target_keys(self) -> list[FeatureKey]:
+        return [self.target]
+
     def prepare(self, features: Features) -> None:
         # get the label feature from the features and
         # make sure its a class label
@@ -79,10 +89,14 @@ class TaggingHeadConfig(ClassificationHeadConfig):
         "hyped.modelling.heads.tagging"
     ] = "hyped.modelling.heads.tagging"
 
-    target: FeatureKey = "labels"
+    targets: FeatureKey = "labels"
+
+    @property
+    def target_keys(self) -> list[FeatureKey]:
+        return [self.targets]
 
     def prepare(self, features: Features) -> None:
-        f = get_feature_at_key(features, self.target)
-        raise_feature_is_sequence(self.target, f, ClassLabel)
+        f = get_feature_at_key(features, self.targets)
+        raise_feature_is_sequence(self.targets, f, ClassLabel)
         # get the class label feature
         self._target_feature = f.feature
