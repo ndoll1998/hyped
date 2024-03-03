@@ -179,7 +179,7 @@ class BaseDatasetConsumer(ABC):
 
         # initialize worker
         worker = mp.current_process()
-        self.initialize_worker(worker, worker_id)
+        self.initialize_worker(worker, worker_id, data)
         # prepare dataset
         data = data._prepare_ex_iterable_for_iteration()
 
@@ -210,10 +210,15 @@ class BaseDatasetConsumer(ABC):
 
         finally:
             # finalize worker and tell tqdm worker to close the connection
-            self.finalize_worker(worker, worker_id)
+            self.finalize_worker(worker, worker_id, data)
             tqdm_writer.send(None)
 
-    def initialize_worker(self, worker: mp.Process, worker_id: int) -> None:
+    def initialize_worker(
+        self,
+        worker: mp.Process,
+        worker_id: int,
+        data: datasets.IterableDataset,
+    ) -> None:
         """Initialize worker
 
         Overwrite this function to implement logic to be executed once
@@ -225,7 +230,12 @@ class BaseDatasetConsumer(ABC):
         """
         pass
 
-    def finalize_worker(self, worker: mp.Process, worker_id: int) -> None:
+    def finalize_worker(
+        self,
+        worker: mp.Process,
+        worker_id: int,
+        data: datasets.IterableDataset,
+    ) -> None:
         """Finalize worker
 
         Overwrite this function to implement logic to be executed once

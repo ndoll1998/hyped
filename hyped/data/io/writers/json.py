@@ -3,6 +3,8 @@ import multiprocessing as mp
 import os
 from typing import Any
 
+import datasets
+
 from .base import BaseDatasetConsumer
 
 
@@ -36,14 +38,35 @@ class JsonDatasetWriter(BaseDatasetConsumer):
         # create output directory
         os.makedirs(self.save_dir, exist_ok=exist_ok)
 
-    def initialize_worker(self, worker: mp.Process, worker_id: int) -> None:
+    def initialize_worker(
+        self,
+        worker: mp.Process,
+        worker_id: int,
+        data: datasets.IterableDataset,
+    ) -> None:
         """Open the save file for the worker"""
+
+        # create file paths
         worker.save_file_path = os.path.join(
             self.save_dir, "data_shard_%i.jsonl" % worker_id
         )
+        worker.features_file_path = os.path.join(
+            self.save_dir, "features.json"
+        )
+        # open data save file
         worker.save_file = open(worker.save_file_path, "w+")
 
-    def finalize_worker(self, worker: mp.Process, worker_id: int) -> None:
+        if worker_id == 0:
+            # save the datasets features
+            with open(worker.features_file_path, "w+") as f:
+                f.write(json.dumps(data.features.to_dict()))
+
+    def finalize_worker(
+        self,
+        worker: mp.Process,
+        worker_id: int,
+        data: datasets.IterableDataset,
+    ) -> None:
         """Cleanup and close the save file"""
         # check if the file is empty
         worker.save_file.seek(0, os.SEEK_END)

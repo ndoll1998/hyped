@@ -1,3 +1,5 @@
+import json
+import os
 from itertools import product
 
 import datasets
@@ -20,9 +22,15 @@ class TestJsonDatasetWriter(object):
             save_dir=tmpdir, exist_ok=True, num_proc=num_proc
         )
         writer.consume(ds)
-        # load written dataset
+
+        # load dataset features from disk
+        with open(os.path.join(str(tmpdir), "features.json"), "r") as f:
+            features = datasets.Features.from_dict(json.loads(f.read()))
+        assert features == ds.features
+
+        # load stored dataset
         stored_ds = datasets.load_dataset(
-            "json", data_files="%s/*.jsonl" % str(tmpdir)
+            "json", data_files="%s/*.jsonl" % str(tmpdir), features=features
         )
         stored_ds = stored_ds["train"].sort("id")
         # check dataset
@@ -40,9 +48,15 @@ class TestJsonDatasetWriter(object):
         # write dataset
         writer = JsonDatasetWriter(save_dir=tmpdir, exist_ok=True, num_proc=4)
         writer.consume(ds)
-        # load written dataset
+
+        # load dataset features from disk
+        with open(os.path.join(str(tmpdir), "features.json"), "r") as f:
+            features = datasets.Features.from_dict(json.loads(f.read()))
+        assert features == ds.features
+
+        # load stored dataset
         stored_ds = datasets.load_dataset(
-            "json", data_files="%s/*.jsonl" % str(tmpdir)
+            "json", data_files="%s/*.jsonl" % str(tmpdir), features=features
         )
         stored_ds = stored_ds["train"].sort("__index__")
 
