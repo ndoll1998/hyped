@@ -7,6 +7,7 @@ from typing import Any, Iterable
 
 import datasets
 from tqdm.auto import tqdm
+from tqdm.std import EMA
 
 
 class BaseDatasetConsumer(ABC):
@@ -36,7 +37,7 @@ class BaseDatasetConsumer(ABC):
         self,
         num_proc: None | int = None,
         tqdm_kwargs: dict[str, Any] = {},
-        tqdm_update_interval: float = 0.02,
+        tqdm_update_interval: float = 0.5,
     ):
         self.num_proc = num_proc or os.cpu_count()
         # tqdm arguments
@@ -118,12 +119,17 @@ class BaseDatasetConsumer(ABC):
         # create a progress bar
         pbar = tqdm(**kwargs)
 
-        start_time = time()
-        total_items_processed = 0
+        dn_shards = 0
+        dn_examples = 0
+        # exponential moving averages for items throughput
+        ema_dn = EMA(smoothing=kwargs.get("smoothing", 0.3))
+        ema_dt = EMA(smoothing=kwargs.get("smoothing", 0.3))
 
         while len(readers) > 0:
             # wait for any reader to receive data
-            for r in mp.connection.wait(readers):
+            for r in mp.connection.wait(
+                readers, timeout=self.tqdm_update_interval
+            ):
                 data = r.recv()
 
                 if data is None:
@@ -133,14 +139,24 @@ class BaseDatasetConsumer(ABC):
                     continue
 
                 # update data
-                shard_finished, items_processed = data
+                shard_finished, examples_processed = data
+                dn_shards += int(shard_finished)
+                dn_examples += examples_processed
 
-                if shard_finished:
-                    pbar.update()
+            t = pbar._time()
+            dt = t - pbar.last_print_t
 
-                total_items_processed += items_processed
-                throughput = total_items_processed / (time() - start_time)
-                pbar.set_postfix_str("%.02fex/s" % throughput)
+            if dt >= self.tqdm_update_interval:
+                # compute examples throughput and update tqdm postfix
+                throughput = ema_dn(dn_examples) / ema_dt(dt)
+                pbar.set_postfix_str("%.02fex/s" % throughput, refresh=False)
+                # update progress and refresh bar
+                if pbar.update(dn_shards) is None:
+                    pbar.refresh(lock_args=pbar.lock_args)
+                    pbar.last_print_t = t
+                # reset values
+                dn_shards = 0
+                dn_examples = 0
 
         # close the progress bar
         pbar.close()
