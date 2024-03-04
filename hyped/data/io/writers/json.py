@@ -1,9 +1,9 @@
-import json
 import multiprocessing as mp
 import os
 from typing import Any
 
 import datasets
+import orjson
 
 from .base import BaseDatasetConsumer
 
@@ -54,12 +54,12 @@ class JsonDatasetWriter(BaseDatasetConsumer):
             self.save_dir, "features.json"
         )
         # open data save file
-        worker.save_file = open(worker.save_file_path, "w+")
+        worker.save_file = open(worker.save_file_path, "wb+")
 
         if worker_id == 0:
             # save the datasets features
-            with open(worker.features_file_path, "w+") as f:
-                f.write(json.dumps(data.features.to_dict()))
+            with open(worker.features_file_path, "wb+") as f:
+                f.write(orjson.dumps(data.features.to_dict()))
 
     def finalize_worker(
         self,
@@ -101,4 +101,4 @@ class JsonDatasetWriter(BaseDatasetConsumer):
             example (dict[str, Any]): the example to consume
         """
         # save example to file in json format
-        worker.save_file.write(json.dumps(example) + "\n")
+        worker.save_file.write(orjson.dumps(example) + b"\n")
