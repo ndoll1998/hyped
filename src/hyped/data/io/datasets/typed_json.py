@@ -1,6 +1,7 @@
 import datetime
 from dataclasses import dataclass, field
-from typing import Annotated, Literal
+from functools import partial
+from typing import Annotated, Any, Callable, Literal
 
 import datasets
 import pyarrow as pa
@@ -30,6 +31,14 @@ DATASETS_VALUE_TYPE_MAPPING = {
 }
 
 
+def cast_dtype(val: Any, dtype: type) -> Any:
+    return dtype(val) if val is not None else None
+
+
+def fallback_if_none(val: Any, factory: Callable[[], Any]) -> Any:
+    return val if val is not None else factory()
+
+
 def pydantic_model_from_features(
     features: datasets.Features,
 ) -> pydantic.BaseModel:
@@ -51,7 +60,13 @@ def pydantic_model_from_features(
                 field_type.dtype, field_type.pa_type.to_pandas_dtype()
             )
             # set field
-            fields[k] = (dtype | None, None)
+            fields[k] = (
+                Annotated[
+                    dtype | None,
+                    pydantic.BeforeValidator(partial(cast_dtype, dtype=dtype)),
+                ],
+                None,
+            )
 
         elif isinstance(field_type, datasets.ClassLabel):
             fields[k] = (Literal[*field_type.names] | None, None)
@@ -68,7 +83,7 @@ def pydantic_model_from_features(
                 Annotated[
                     list[dtype],
                     pydantic.BeforeValidator(
-                        lambda v: v if v is not None else []
+                        partial(fallback_if_none, factory=list)
                     ),
                 ],
                 pydantic.Field(default_factory=list, validate_default=True),
@@ -81,7 +96,7 @@ def pydantic_model_from_features(
                 Annotated[
                     model,
                     pydantic.BeforeValidator(
-                        lambda v: v if v is not None else model()
+                        partial(fallback_if_none, factory=model)
                     ),
                 ],
                 pydantic.Field(default_factory=model, validate_default=True),
