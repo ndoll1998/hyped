@@ -185,7 +185,7 @@ class CasDataset(datasets.GeneratorBasedBuilder):
     keyword arguments (see `CasDatasetConfig` for defails)
 
     ```
-    datasets.load_dataset('hyped.data.datasets.cas', **kwargs)
+    datasets.load_dataset('hyped.data.io.datasets.cas', **kwargs)
     ```
     """
 
