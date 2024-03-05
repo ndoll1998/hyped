@@ -72,7 +72,7 @@ class TestCasDataset:
     def test_load_data(self, tmpdir):
         # load dataset
         ds = datasets.load_dataset(
-            "hyped.data.datasets.cas",
+            "hyped.data.io.datasets.cas",
             typesystem=os.path.join(tmpdir, "typesystem.test.xml"),
             data_files={"train": os.path.join(tmpdir, "cas.test.*")},
             cache_dir=os.path.join(tmpdir, "cache"),
@@ -135,7 +135,7 @@ class TestCasDataset:
     def test_load_specific_types_only(self, tmpdir):
         # load dataset
         ds = datasets.load_dataset(
-            "hyped.data.datasets.cas",
+            "hyped.data.io.datasets.cas",
             typesystem=os.path.join(tmpdir, "typesystem.test.xml"),
             data_files={"train": os.path.join(tmpdir, "cas.test.*")},
             annotation_types=["cassis.Label"],
@@ -159,7 +159,7 @@ class TestCasDataset:
         with pytest.raises(RuntimeError):
             # load dataset
             datasets.load_dataset(
-                "hyped.data.datasets.cas",
+                "hyped.data.io.datasets.cas",
                 typesystem=os.path.join(tmpdir, "typesystem.test.xml"),
                 data_files={"train": os.path.join(tmpdir, "cas.test.*")},
                 annotation_types=[
