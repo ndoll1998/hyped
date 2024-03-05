@@ -6,7 +6,7 @@ from time import time
 from typing import Any, Iterable
 
 import datasets
-from tqdm.auto import tqdm
+from tqdm import tqdm
 from tqdm.std import EMA
 
 
@@ -68,18 +68,6 @@ class BaseDatasetConsumer(ABC):
 
         # create tqdm connections
         tqdm_conns = [mp.Pipe(duplex=False) for _ in range(num_proc)]
-        # create tqdm worker
-        tqdm_worker = mp.Process(
-            name="%s[tqdm]" % type(self).__name__,
-            target=self._tqdm_worker_fn,
-            kwargs=dict(
-                readers=[r for r, _ in tqdm_conns],
-                **(self.tqdm_kwargs | {"total": data.n_shards, "unit": "sh"}),
-            ),
-            daemon=True,
-        )
-        tqdm_worker.start()
-
         # spawn all consumer workers and start them
         workers = [
             mp.Process(
@@ -98,16 +86,17 @@ class BaseDatasetConsumer(ABC):
         for w in workers:
             w.start()
 
+        # render tqdm bar
+        self._tqdm(readers=[r for r, _ in tqdm_conns], total=data.n_shards)
+
         # wait for all consumer workers to finish
         for w in workers:
             w.join()
-        # join the tqdm worker
-        tqdm_worker.join()
 
-    def _tqdm_worker_fn(
-        self, readers: list[mp.connection.Connection], **kwargs
+    def _tqdm(
+        self, readers: list[mp.connection.Connection], total: int
     ) -> None:
-        """tqdm worker function
+        """tqdm bar
 
         Manages the tqdm progress bar for the consumer.
 
@@ -117,6 +106,10 @@ class BaseDatasetConsumer(ABC):
             kwargs (Any): keyword arguments passed to tqdm
         """
         # create a progress bar
+        kwargs = self.tqdm_kwargs | {
+            "total": total,
+            "unit": "sh",
+        }
         pbar = tqdm(**kwargs)
 
         dn_shards = 0
