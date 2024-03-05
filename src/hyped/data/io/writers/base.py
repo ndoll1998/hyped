@@ -126,6 +126,7 @@ class BaseDatasetConsumer(ABC):
             "unit": "sh",
         }
         pbar = tqdm(**kwargs)
+        pbar.set_postfix_str("?ex/s, 0ex", refresh=True)
 
         dn_shards = 0
         dn_examples = 0
@@ -158,14 +159,16 @@ class BaseDatasetConsumer(ABC):
 
             if dt >= self.tqdm_update_interval:
                 # compute examples throughput and update tqdm postfix
-                throughput = ema_dn(dn_examples) / ema_dt(dt)
-                formatted_total_examples = (
-                    "%d" if total_examples < 10**6 else "%.2e"
-                ) % total_examples
-                pbar.set_postfix_str(
-                    "%.02fex/s, %sex" % (throughput, formatted_total_examples),
-                    refresh=False,
-                )
+                if dn_examples != 0:
+                    throughput = ema_dn(dn_examples) / ema_dt(dt)
+                    formatted_total_examples = (
+                        "%d" if total_examples < 10**6 else "%.2e"
+                    ) % total_examples
+                    pbar.set_postfix_str(
+                        "%.02fex/s, %sex"
+                        % (throughput, formatted_total_examples),
+                        refresh=False,
+                    )
                 # update progress and refresh bar
                 if pbar.update(dn_shards) is None:
                     pbar.refresh(lock_args=pbar.lock_args)
