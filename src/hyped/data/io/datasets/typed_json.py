@@ -32,7 +32,9 @@ DATASETS_VALUE_TYPE_MAPPING = {
 
 
 def cast_dtype(val: Any, dtype: type) -> Any:
-    return dtype(val) if val is not None else None
+    return (
+        None if val is None else val if isinstance(val, dtype) else dtype(val)
+    )
 
 
 def fallback_if_none(val: Any, factory: Callable[[], Any]) -> Any:

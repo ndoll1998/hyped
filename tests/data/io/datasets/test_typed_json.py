@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from typing import Any
 
 import datasets
@@ -19,6 +20,7 @@ class TestTypedJsonDataset(object):
                 "string": Value("string"),
                 "class": ClassLabel(names=list("ABC")),
                 "sequence": Sequence(Value("int32")),
+                "date": Value("date32"),
                 "mapping": Features(
                     {"a": Value("int32"), "b": Value("int32")}
                 ),
@@ -33,6 +35,7 @@ class TestTypedJsonDataset(object):
                 "string": "string-%i" % n,
                 "class": "ABC"[n % 3],
                 "sequence": [n, 2 * n],
+                "date": datetime(2010, 1 + n % 12, 1),
                 "mapping": {"a": n, "b": 2 * n},
             }
             for n in range(10)
