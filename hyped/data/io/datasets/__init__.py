@@ -14,7 +14,7 @@ _PACKAGED_DATASETS_MODULES = (
 # register datasets
 _PACKAGED_DATASETS_MODULES.update(
     {
-        "hyped.data.datasets.cas": (
+        "hyped.data.io.datasets.cas": (
             cas.__name__,
             _hash_python_lines(inspect.getsource(cas).splitlines()),
         ),
