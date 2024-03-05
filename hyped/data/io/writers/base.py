@@ -121,6 +121,7 @@ class BaseDatasetConsumer(ABC):
 
         dn_shards = 0
         dn_examples = 0
+        total_examples = 0
         # exponential moving averages for items throughput
         ema_dn = EMA(smoothing=kwargs.get("smoothing", 0.3))
         ema_dt = EMA(smoothing=kwargs.get("smoothing", 0.3))
@@ -142,6 +143,7 @@ class BaseDatasetConsumer(ABC):
                 shard_finished, examples_processed = data
                 dn_shards += int(shard_finished)
                 dn_examples += examples_processed
+                total_examples += examples_processed
 
             t = pbar._time()
             dt = t - pbar.last_print_t
@@ -149,7 +151,13 @@ class BaseDatasetConsumer(ABC):
             if dt >= self.tqdm_update_interval:
                 # compute examples throughput and update tqdm postfix
                 throughput = ema_dn(dn_examples) / ema_dt(dt)
-                pbar.set_postfix_str("%.02fex/s" % throughput, refresh=False)
+                formatted_total_examples = (
+                    "%d" if total_examples < 10**6 else "%.2e"
+                ) % total_examples
+                pbar.set_postfix_str(
+                    "%.02fex/s, %sex" % (throughput, formatted_total_examples),
+                    refresh=False,
+                )
                 # update progress and refresh bar
                 if pbar.update(dn_shards) is None:
                     pbar.refresh(lock_args=pbar.lock_args)
