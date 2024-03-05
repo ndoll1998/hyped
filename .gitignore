@@ -1,5 +1,5 @@
 # Project specific
-
+notebooks/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -143,3 +143,6 @@ checkpoints
 data
 docs/source/generated
 docs/source/api
+
+# explicitly unignore data directory
+!src/hyped/data
