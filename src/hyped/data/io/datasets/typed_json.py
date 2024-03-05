@@ -163,6 +163,16 @@ class TypedJsonDataset(Json):
                     encoding=self.config.encoding,
                     errors=self.config.encoding_errors,
                 ) as f:
+                    # check if the file object supports readline
+                    try:
+                        f.readline()
+                        has_readline = True
+                    except (AttributeError, io.UnsupportedOperation):
+                        has_readline = False
+
+                    # go back to start of the file
+                    f.seek(0)
+
                     for chunk_idx in count():
                         # read chunk of the file
                         chunk = f.read(self.config.chunksize)
@@ -170,12 +180,9 @@ class TypedJsonDataset(Json):
                         if len(chunk) == 0:
                             break
 
-                        # finish current line
-                        try:
-                            chunk += f.readline()
-                        except (AttributeError, io.UnsupportedOperation):
-                            chunk += readline(f)
-
+                        # finish current line and remove trailing newline
+                        chunk += f.readline() if has_readline else readline(f)
+                        chunk = chunk.strip()
                         # build json seralized string matching format expected
                         # by the batch feature model
                         serialized_chunk = '{"data": [%s]}' % chunk.replace(
