@@ -6,7 +6,7 @@ from time import time
 from typing import Any, Iterable
 
 import datasets
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from tqdm.std import EMA
 
 
