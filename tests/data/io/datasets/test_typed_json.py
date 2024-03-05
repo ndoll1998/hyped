@@ -7,6 +7,7 @@ import pytest
 from datasets import ClassLabel, Features, Sequence, Value
 
 # register custom datasets
+import hyped.data.io.datasets  # noqa: F401
 
 
 class TestTypedJsonDataset(object):
