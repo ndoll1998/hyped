@@ -1,12 +1,15 @@
 import datetime
+import io
 from dataclasses import dataclass, field
-from functools import partial
-from typing import Annotated, Any, Callable, Literal
+from itertools import chain, count
+from typing import Literal
 
 import datasets
+import orjson
 import pyarrow as pa
 import pydantic
 from datasets.packaged_modules.json.json import Json, JsonConfig
+from datasets.utils.file_utils import readline
 
 # map datasets value dtype to
 DATASETS_VALUE_TYPE_MAPPING = {
@@ -31,16 +34,6 @@ DATASETS_VALUE_TYPE_MAPPING = {
 }
 
 
-def cast_dtype(val: Any, dtype: type) -> Any:
-    return (
-        None if val is None else val if isinstance(val, dtype) else dtype(val)
-    )
-
-
-def fallback_if_none(val: Any, factory: Callable[[], Any]) -> Any:
-    return val if val is not None else factory()
-
-
 def pydantic_model_from_features(
     features: datasets.Features,
 ) -> pydantic.BaseModel:
@@ -63,10 +56,7 @@ def pydantic_model_from_features(
             )
             # set field
             fields[k] = (
-                Annotated[
-                    dtype | None,
-                    pydantic.BeforeValidator(partial(cast_dtype, dtype=dtype)),
-                ],
+                dtype | None,
                 None,
             )
 
@@ -81,27 +71,14 @@ def pydantic_model_from_features(
                 .annotation
             )
             # set field
-            fields[k] = (
-                Annotated[
-                    list[dtype],
-                    pydantic.BeforeValidator(
-                        partial(fallback_if_none, factory=list)
-                    ),
-                ],
-                pydantic.Field(default_factory=list, validate_default=True),
-            )
+            fields[k] = (list[dtype], pydantic.Field(default_factory=list))
 
         elif isinstance(field_type, (dict, datasets.Features)):
             model = pydantic_model_from_features(field_type)
             # set field
             fields[k] = (
-                Annotated[
-                    model,
-                    pydantic.BeforeValidator(
-                        partial(fallback_if_none, factory=model)
-                    ),
-                ],
-                pydantic.Field(default_factory=model, validate_default=True),
+                model,
+                pydantic.Field(default_factory=model),
             )
 
     return pydantic.create_model(
@@ -165,8 +142,49 @@ class TypedJsonDataset(Json):
 
     BUILDER_CONFIG_CLASS = TypedJsonDatasetConfig
 
-    def _cast_table(self, pa_table: pa.Table) -> pa.Table:
-        # validate table using pydantic
-        data = {"data": pa_table.to_pylist()}
-        data = self.config._batch_feature_model.model_validate(data)
-        return pa.Table.from_pylist(data.model_dump()["data"])
+    def _generate_tables(self, files):
+        for fidx, fpath in enumerate(chain.from_iterable(files)):
+            if self.config.field is not None:
+                # parse json
+                with open(fpath, "rb") as f:
+                    data = orjson.loads(f.read())
+                # get field of interest and parse as pydantic
+                data = data[self.config.field]
+                data = self.config._batch_feature_model.model_validate(
+                    {"data": data}
+                ).model_dump()["data"]
+                # convert to pyarrow table
+                yield fidx, pa.Table.from_pylist(data)
+
+            else:
+                with open(
+                    fpath,
+                    "r",
+                    encoding=self.config.encoding,
+                    errors=self.config.encoding_errors,
+                ) as f:
+                    for chunk_idx in count():
+                        # read chunk of the file
+                        chunk = f.read(self.config.chunksize)
+                        # nothing to read anymore
+                        if len(chunk) == 0:
+                            break
+
+                        # finish current line
+                        try:
+                            chunk += f.readline()
+                        except (AttributeError, io.UnsupportedOperation):
+                            chunk += readline(f)
+
+                        # build json seralized string matching format expected
+                        # by the batch feature model
+                        serialized_chunk = '{"data": [%s]}' % chunk.replace(
+                            "\n", ","
+                        )
+                        # parse the serialized object
+                        data = self.config._batch_feature_model.model_validate_json(  # noqa: E501
+                            serialized_chunk
+                        )
+                        data = data.model_dump()["data"]
+                        # convert to pyarrow table
+                        yield (fidx, chunk_idx), pa.Table.from_pylist(data)

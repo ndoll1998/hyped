@@ -32,7 +32,7 @@ class TestTypedJsonDataset(object):
         return [
             {
                 "int": n,
-                "string": "string-%i" % n,
+                "string": "string-w\n-%i" % n,
                 "class": "ABC"[n % 3],
                 "sequence": [n, 2 * n],
                 "date": datetime(2010, 1 + n % 12, 1),
