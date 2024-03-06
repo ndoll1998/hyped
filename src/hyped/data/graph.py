@@ -1,5 +1,5 @@
 import re
-from enum import StrEnum
+from enum import Enum
 from itertools import count, groupby
 
 import networkx as nx
@@ -12,7 +12,7 @@ from hyped.data.pipe import DataPipe
 from hyped.data.processors.statistics.base import BaseDataStatistic
 
 
-class NodeType(StrEnum):
+class NodeType(str, Enum):
     """Enumeration of node types of a `ProcessGraph`"""
 
     INPUT_FEATURE = "input_feature"
@@ -21,7 +21,7 @@ class NodeType(StrEnum):
     DATA_STATISTIC = "data_statistic"
 
 
-class NodeAttribute(StrEnum):
+class NodeAttribute(str, Enum):
     """Enumeration of node attributes"""
 
     TYPE = "node_type"
@@ -42,7 +42,7 @@ class NodeAttribute(StrEnum):
     nodes, the execution index is undefined (set to -1)."""
 
 
-class EdgeAttribute(StrEnum):
+class EdgeAttribute(str, Enum):
     """Enumeration of edge attributes"""
 
     FEATURES = "edge_features"

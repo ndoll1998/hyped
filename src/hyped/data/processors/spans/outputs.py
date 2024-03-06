@@ -1,7 +1,7 @@
-from enum import StrEnum
+from enum import Enum
 
 
-class SpansOutputs(StrEnum):
+class SpansOutputs(str, Enum):
     """Output column of data processors generating a sequence of spans"""
 
     BEGINS = "span_begins"
@@ -11,7 +11,7 @@ class SpansOutputs(StrEnum):
     """Output column of the sequence of ends to the generated spans"""
 
 
-class LabelledSpansOutputs(StrEnum):
+class LabelledSpansOutputs(str, Enum):
     """Output column of data processors generating a sequence of labelled
     spans"""
 

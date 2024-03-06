@@ -73,12 +73,14 @@ class BaseTestProcessGraph(object):
     @pytest.fixture
     def G(self, features, pipe) -> ProcessGraph:
         # ignore warning that no statistics report is active
-        with warnings.catch_warnings(category=UserWarning, action="ignore"):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
             return ProcessGraph(features, pipe)
 
     def test_nodes(self, G, features, pipe):
         # ignore warning that no statistics report is active
-        with warnings.catch_warnings(category=UserWarning, action="ignore"):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
             # make sure the pipe is prepared with the features
             pipe.prepare(features)
 

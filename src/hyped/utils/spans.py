@@ -1,10 +1,10 @@
-from enum import StrEnum
+from enum import Enum
 from typing import Sequence
 
 import numpy as np
 
 
-class ResolveOverlapsStrategy(StrEnum):
+class ResolveOverlapsStrategy(str, Enum):
     """Enum of strategies to apply when resolving overlaps
     Used as an argument to `hyped.utils.resolve_overlaps`.
     """

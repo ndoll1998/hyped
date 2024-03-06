@@ -10,7 +10,7 @@ classifiers = [
 authors = [
     {name = "Niclas Doll"},
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = {text = "Apache 2.0"}
 dependencies = [
     "datasets>=2.16.1",

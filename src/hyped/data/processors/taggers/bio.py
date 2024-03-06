@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 from typing import Any, Literal
 
 import numpy as np
@@ -24,7 +24,7 @@ from hyped.utils.feature_checks import (
 from hyped.utils.spans import make_spans_exclusive
 
 
-class BioTaggerOutputs(StrEnum):
+class BioTaggerOutputs(str, Enum):
     """Enumeration of outputs of the bio tagger processor"""
 
     BIO_TAGS = "bio_tags"

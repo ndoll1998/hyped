@@ -90,7 +90,8 @@ class TestStatisticsReportManager(object):
         storages = [manager.new_statistics_report_storage() for _ in range(5)]
 
         # ignore warning that no statistics report is active
-        with warnings.catch_warnings(category=UserWarning, action="ignore"):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
             for i, storage in enumerate(storages, 1):
                 # activate report
                 manager.activate(storage)

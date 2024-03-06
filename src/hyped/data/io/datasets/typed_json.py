@@ -61,7 +61,7 @@ def pydantic_model_from_features(
             )
 
         elif isinstance(field_type, datasets.ClassLabel):
-            fields[k] = (Literal[*field_type.names] | None, None)
+            fields[k] = (Literal[tuple(field_type.names)] | None, None)
 
         elif isinstance(field_type, datasets.Sequence):
             # infer dtype for sequence values

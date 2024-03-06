@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 from typing import Any, Literal
 
 from datasets import Features, Sequence, Value
@@ -29,7 +29,7 @@ from hyped.utils.feature_checks import (
 )
 
 
-class HuggingFaceTokenizerOutputs(StrEnum):
+class HuggingFaceTokenizerOutputs(str, Enum):
     """Enumeration of the outputs of the HuggingFace (transformers) Tokenizer
 
     Note that some of the output columns are optional and controlled by the
