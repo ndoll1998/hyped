@@ -32,15 +32,15 @@ class BaseDatasetConsumer(ABC):
         tqdm_kwargs (dict[str, Any]):
             extra keyword arguments passed to the tqdm progress bar
         tqdm_update_interval (float):
-            the update interval in seconds in which the tqdm bar
-            is updated
+            the minimum update interval in seconds in which the tqdm bar
+            needs to be updated
     """
 
     def __init__(
         self,
         num_proc: None | int = None,
         tqdm_kwargs: dict[str, Any] = {},
-        tqdm_update_interval: float = 0.5,
+        tqdm_update_interval: float = 0.05,
     ):
         self.num_proc = num_proc or os.cpu_count()
         # tqdm arguments
@@ -128,14 +128,14 @@ class BaseDatasetConsumer(ABC):
         pbar = tqdm(**kwargs)
         pbar.set_postfix_str("?ex/s, 0ex", refresh=True)
 
-        dn_shards = 0
-        dn_examples = 0
         total_examples = 0
         # exponential moving averages for items throughput
         ema_dn = EMA(smoothing=kwargs.get("smoothing", 0.3))
         ema_dt = EMA(smoothing=kwargs.get("smoothing", 0.3))
 
         while len(readers) > 0:
+            dn_shards = 0
+            dn_examples = 0
             # wait for any reader to receive data
             for r in mp.connection.wait(
                 readers, timeout=self.tqdm_update_interval
@@ -154,28 +154,24 @@ class BaseDatasetConsumer(ABC):
                 dn_examples += examples_processed
                 total_examples += examples_processed
 
+            # compute time delta since last update
             t = pbar._time()
             dt = t - pbar.last_print_t
+            # compute examples throughput and update tqdm postfix
+            if dn_examples != 0:
+                throughput = ema_dn(dn_examples) / ema_dt(dt)
+                formatted_total_examples = (
+                    "%d" if total_examples < 10**6 else "%.2e"
+                ) % total_examples
+                pbar.set_postfix_str(
+                    "%.02fex/s, %sex" % (throughput, formatted_total_examples),
+                    refresh=False,
+                )
 
-            if dt >= self.tqdm_update_interval:
-                # compute examples throughput and update tqdm postfix
-                if dn_examples != 0:
-                    throughput = ema_dn(dn_examples) / ema_dt(dt)
-                    formatted_total_examples = (
-                        "%d" if total_examples < 10**6 else "%.2e"
-                    ) % total_examples
-                    pbar.set_postfix_str(
-                        "%.02fex/s, %sex"
-                        % (throughput, formatted_total_examples),
-                        refresh=False,
-                    )
-                # update progress and refresh bar
-                if pbar.update(dn_shards) is None:
-                    pbar.refresh(lock_args=pbar.lock_args)
-                    pbar.last_print_t = t
-                # reset values
-                dn_shards = 0
-                dn_examples = 0
+            # update progress and refresh bar
+            if pbar.update(dn_shards) is None:
+                pbar.refresh(lock_args=pbar.lock_args)
+                pbar.last_print_t = t
 
         # close the progress bar
         pbar.close()
