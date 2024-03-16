@@ -155,14 +155,15 @@ if __name__ == '__main__':
     args = transformers.TrainingArguments(
         output_dir=args.output_dir,
         overwrite_output_dir=False,
-        dataloader_num_workers=8,
+        dataloader_num_workers=2,
 
-        per_device_train_batch_size=14,
+        per_device_train_batch_size=8,
         gradient_accumulation_steps=8,
         # approximate number of steps for one epoc
         # with the current setup
-        max_steps=int((30000000 * 1.25) / (14 * 8 * 8)),
-        
+        max_steps=int((30000000 * 1.25) / (8 * 8 * 8)),
+    
+        adam_epsilon=1e-6,
         learning_rate=5e-4,
         weight_decay=0.1,        
         max_grad_norm=1.0,
@@ -182,10 +183,10 @@ if __name__ == '__main__':
         remove_unused_columns=True,
 
         logging_strategy="steps",
-        logging_steps=50,
+        logging_steps=5,
         report_to="wandb",
         skip_memory_metrics=True,
-        disable_tqdm=False
+        disable_tqdm=True
     )
 
     # create the trainer instance
