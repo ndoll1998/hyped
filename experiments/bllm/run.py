@@ -13,6 +13,8 @@ from hyped.data.processors.sequence.extend import ExtendSequenceConfig, ExtendSe
 # modelling
 from hyped.modelling.backends.hf.collators import HuggingFaceDataCollatorWithPadding
 
+from bllm import bllmConfig, bllm
+
 
 @dataclass
 class DataCollatorForPrefixLanguageModelling(HuggingFaceDataCollatorWithPadding):
@@ -128,8 +130,8 @@ if __name__ == '__main__':
     ds = ds.shuffle(buffer_size=10000, seed=args.data_seed)
 
     # create the model
-    model = transformers.BertForMaskedLM(
-        config=transformers.BertConfig(
+    model = bllm(
+        bllmConfig(
             vocab_size=len(tokenizer),
             max_position_embeddings=tokenizer.model_max_length,
             hidden_size=24*128,
@@ -139,7 +141,6 @@ if __name__ == '__main__':
             hidden_act="gelu",
             hidden_dropout_prob=0.1,
             attention_probs_dropout_prob=0.1,
-            type_vocab_size=1,
         )
     )
 
@@ -148,17 +149,19 @@ if __name__ == '__main__':
         p.numel() for p in model.parameters() if p.requires_grad
     )
 
+    print("Number of parameters: %i" % n_params)
+
     # specify training arguments
     args = transformers.TrainingArguments(
         output_dir=args.output_dir,
         overwrite_output_dir=False,
-        #dataloader_num_workers=8,
+        dataloader_num_workers=8,
 
-        per_device_train_batch_size=1,
-        gradient_accumulation_steps=32,
+        per_device_train_batch_size=14,
+        gradient_accumulation_steps=8,
         # approximate number of steps for one epoc
         # with the current setup
-        max_steps=int((30000000 * 1.25) / (1 * 32 * 8)),
+        max_steps=int((30000000 * 1.25) / (14 * 8 * 8)),
         
         learning_rate=5e-4,
         weight_decay=0.1,        
@@ -176,11 +179,13 @@ if __name__ == '__main__':
         save_steps=15000,
         save_total_limit=5,
 
+        remove_unused_columns=True,
+
         logging_strategy="steps",
         logging_steps=50,
         report_to="wandb",
         skip_memory_metrics=True,
-        disable_tqdm=True
+        disable_tqdm=False
     )
 
     # create the trainer instance
