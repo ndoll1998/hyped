@@ -221,7 +221,7 @@ class BaseDataProcessor(BaseConfigurable[T], ABC):
         self._in_features = features
         # map input features to output features
         # copy as preparation might disturb features inplace
-        self._raw_features = self.map_features(features.copy())
+        self._raw_features = Features(self.map_features(features.copy()))
         # apply output scheme to new features
         if (
             (self.config.output_format is not None)
