@@ -1,18 +1,21 @@
+import csv
 import os
 from typing import Any
 
 import _io
-import orjson
+import datasets
 from torch.utils.data._utils.worker import get_worker_info
+
+from hyped.utils.feature_checks import check_feature_equals
 
 from .base import BaseDatasetWriter
 
 
-class JsonDatasetWriter(BaseDatasetWriter):
-    """Json Dataset Writer
+class CsvDatasetWriter(BaseDatasetWriter):
+    """CSV Dataset Writer
 
     Implements the `BaseDatasetWriter` class to write a dataset
-    to the disk in json-line format.
+    to the disk in csv format.
 
     Arguments:
         save_dir (str): the directory to save the dataset in
@@ -32,24 +35,36 @@ class JsonDatasetWriter(BaseDatasetWriter):
     def worker_shard_file_obj(
         self, path: str, worker_id: int
     ) -> _io.TextIOWrapper:
-        return open(
-            os.path.join(path, "data_shard_%i.jsonl" % worker_id), "wb+"
-        )
+        return open(os.path.join(path, "data_shard_%i.csv" % worker_id), "w+")
 
-    def finalize_worker(self) -> None:
-        """Cleanup and close the save file"""
-        # finalize the worker
-        super(JsonDatasetWriter, self).finalize_worker()
+    def consume(
+        self, data: datasets.Dataset | datasets.IterableDataset
+    ) -> None:
+        if not all(
+            check_feature_equals(
+                feature, (datasets.Value, datasets.ClassLabel)
+            )
+            for feature in data.features.values()
+        ):
+            # all features must be strings
+            raise TypeError(
+                "CSV Dataset Writer requires all dataset features to be "
+                "primitives (i.e. instances of datasets.Value or "
+                "datasets.ClassLabel), got %s" % str(data.features)
+            )
+        # consume dataset
+        super(CsvDatasetWriter, self).consume(data)
 
+    def initialize_worker(self) -> None:
+        super(CsvDatasetWriter, self).initialize_worker()
+        # create csv writer
         worker_info = get_worker_info()
-        # check if the worker ouput file exists after finalization
-        # or if it got deleted because it was empty
-        if os.path.isfile(worker_info.args.save_file_path):
-            # remove trailing newline character when the file
-            # exists, i.e. contains content
-            with open(worker_info.args.save_file_path, "r+") as f:
-                f.seek(f.seek(0, os.SEEK_END) - 1, os.SEEK_SET)
-                f.truncate()
+        worker_info.args.csv_writer = csv.DictWriter(
+            worker_info.args.save_file,
+            fieldnames=list(worker_info.dataset.features.keys()),
+        )
+        # write header to file
+        worker_info.args.csv_writer.writeheader()
 
     def consume_example(
         self,
@@ -68,4 +83,4 @@ class JsonDatasetWriter(BaseDatasetWriter):
         """
         # save example to file in json format
         worker_info = get_worker_info()
-        worker_info.args.save_file.write(orjson.dumps(example) + b"\n")
+        worker_info.args.csv_writer.writerow(example)
