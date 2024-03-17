@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -14,7 +15,7 @@ from hyped.data.processors.sequence.extend import ExtendSequenceConfig, ExtendSe
 from hyped.modelling.backends.hf.collators import HuggingFaceDataCollatorWithPadding
 
 from bllm import bllmConfig, bllm
-from torch.nn.parallel import DistributedDataParallel as DDP
+from datasets.distributed import split_dataset_by_node
 
 
 @dataclass
@@ -81,11 +82,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     # set up distributed environment
-    torch.distributed.init_process_group(backend='nccl')
+    #torch.distributed.init_process_group(backend='nccl')
     # get worker information
-    global_rank = torch.distributed.get_rank()
-    world_size = torch.distributed.get_world_size()
-    local_rank = global_rank % torch.cuda.device_count()
+    global_rank = int(os.environ["RANK"])
+    world_size = int(os.environ["WORLD_SIZE"])
+    local_rank = int(os.environ["LOCAL_RANK"])
+
+    print("### WORKER INIT (%i, %i, %i)" % (local_rank, global_rank, world_size))
 
     # load tokenizer
     tokenizer = transformers.AutoTokenizer.from_pretrained(
@@ -140,7 +143,7 @@ if __name__ == '__main__':
     # apply preprocessing pipeline and shuffle dataset
     ds = pipe.apply(ds)
     ds = ds.shuffle(buffer_size=10000, seed=args.data_seed)
-    
+
     # create the model
     model = bllm(
         bllmConfig(
@@ -167,13 +170,13 @@ if __name__ == '__main__':
     args = transformers.TrainingArguments(
         output_dir=args.output_dir,
         overwrite_output_dir=False,
-        dataloader_num_workers=2,
+        # dataloader_num_workers=2,
 
-        per_device_train_batch_size=8,
+        per_device_train_batch_size=10,
         gradient_accumulation_steps=8,
         # approximate number of steps for one epoc
         # with the current setup
-        max_steps=int((30000000 * 1.25) / (8 * 8 * 8)),
+        max_steps=(386 * 160000000 * 1.25) // (10 * 8 * 8),
     
         adam_epsilon=1e-6,
         learning_rate=5e-4,
@@ -192,20 +195,23 @@ if __name__ == '__main__':
         save_steps=15000,
         save_total_limit=5,
 
+        ddp_find_unused_parameters=False,
+
         remove_unused_columns=True,
 
+        disable_tqdm=True,
         logging_strategy="steps",
         logging_steps=5,
         report_to="wandb",
         skip_memory_metrics=True,
-        disable_tqdm=True
+        include_tokens_per_second=True,
+        include_num_input_tokens_seen=True,
         
         local_rank=local_rank
     )
 
-    # wrap model in distributed data parallel
-    device = torch.device("cuda:%i" % local_rank)
-    model = DDP(model, device_ids=[device], output_device=device)
+    # move model to gpu
+    model = model.to("cuda:%i" % local_rank)
 
     # create the trainer instance
     trainer = transformers.Trainer(
@@ -213,7 +219,9 @@ if __name__ == '__main__':
         args=args,
         train_dataset=ds,
         data_collator=DataCollatorForPrefixLanguageModelling(
-            tokenizer=tokenizer, padding=True
+            tokenizer=tokenizer,
+            padding="max_length",
+            max_length=tokenizer.model_max_length
         ),
     )
 
