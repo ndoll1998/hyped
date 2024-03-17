@@ -14,6 +14,7 @@ from hyped.data.processors.sequence.extend import ExtendSequenceConfig, ExtendSe
 from hyped.modelling.backends.hf.collators import HuggingFaceDataCollatorWithPadding
 
 from bllm import bllmConfig, bllm
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 @dataclass
@@ -78,6 +79,13 @@ if __name__ == '__main__':
     parser.add_argument("--output-dir", type=str, required=True)
     # parse arguments
     args = parser.parse_args()
+    
+    # set up distributed environment
+    torch.distributed.init_process_group(backend='nccl')
+    # get worker information
+    global_rank = torch.distributed.get_rank()
+    world_size = torch.distributed.get_world_size()
+    local_rank = global_rank % torch.cuda.device_count()
 
     # load tokenizer
     tokenizer = transformers.AutoTokenizer.from_pretrained(
@@ -96,6 +104,10 @@ if __name__ == '__main__':
         features=datasets.Features({"text": datasets.Value("string")}),
         streaming=True
     )["train"]
+    # split dataset by each node to avoid duplicate items
+    ds = split_dataset_by_node(
+        ds, rank=global_rank, world_size=world_size
+    )
 
     # define data preprocessing pipeline
     pipe = DataPipe(
@@ -128,7 +140,7 @@ if __name__ == '__main__':
     # apply preprocessing pipeline and shuffle dataset
     ds = pipe.apply(ds)
     ds = ds.shuffle(buffer_size=10000, seed=args.data_seed)
-
+    
     # create the model
     model = bllm(
         bllmConfig(
@@ -187,7 +199,13 @@ if __name__ == '__main__':
         report_to="wandb",
         skip_memory_metrics=True,
         disable_tqdm=True
+        
+        local_rank=local_rank
     )
+
+    # wrap model in distributed data parallel
+    device = torch.device("cuda:%i" % local_rank)
+    model = DDP(model, device_ids=[device], output_device=device)
 
     # create the trainer instance
     trainer = transformers.Trainer(
@@ -196,7 +214,7 @@ if __name__ == '__main__':
         train_dataset=ds,
         data_collator=DataCollatorForPrefixLanguageModelling(
             tokenizer=tokenizer, padding=True
-        )
+        ),
     )
 
     # train the model
