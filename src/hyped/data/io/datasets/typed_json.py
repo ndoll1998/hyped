@@ -128,6 +128,19 @@ class TypedJsonDatasetConfig(JsonConfig):
             "BatchModel", data=(list[self._feature_model], ...)
         )
 
+    def __getstate__(self):
+        """Pickle get state function avoid to pickle feature pydantic
+        models defined during runtime."""
+        d = self.__dict__.copy()
+        _ = d.pop("_feature_model")
+        _ = d.pop("_batch_feature_model")
+        return d
+
+    def __setstate__(self, d):
+        """Pickle set state function recreating pydantic models."""
+        self.__dict__ = d
+        self.__post_init__()
+
 
 class TypedJsonDataset(Json):
     """Typed Json Dataset
